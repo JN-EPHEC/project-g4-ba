@@ -1,0 +1,12 @@
+import React from 'react';
+
+const TestEdF4 = () => {
+    return (
+        <div>
+            <h1>TestEdF4 Component</h1>
+            <p>This is a new component.</p>
+        </div>
+    );
+};
+
+export default TestEdF4;
