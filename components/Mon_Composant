@@ -1,0 +1,13 @@
+import React, { useState } from "react";
+
+const MonComposant = () => {
+  const [count, setCount] = useState(0);
+
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      Compteur : {count}
+    </button>
+  );
+};
+
+export default MonComposant;
