@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, ViewStyle, type PressableProps } from 'react-native';
 
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 export type PrimaryButtonProps = PressableProps & {
   title: string;
