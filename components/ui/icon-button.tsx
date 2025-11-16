@@ -19,7 +19,7 @@ export function IconButton({
   ...rest
 }: IconButtonProps) {
   const tintColor = useThemeColor({}, 'tint');
-  const borderColor = useThemeColor({ light: '#e5e5e5', dark: '#3a3a3a' }, 'border');
+  const borderColor = useThemeColor({ light: '#e5e5e5', dark: '#3a3a3a' }, 'icon');
 
   const sizeMap = {
     small: 32,

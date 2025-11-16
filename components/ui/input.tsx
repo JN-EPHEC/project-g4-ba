@@ -37,7 +37,7 @@ export function Input({ label, error, icon, style, ...rest }: InputProps) {
           style={[
             styles.input,
             { color: textColor },
-            icon && styles.inputWithIcon,
+            icon ? styles.inputWithIcon : undefined,
             style,
           ]}
           placeholderTextColor={textColor + '80'}

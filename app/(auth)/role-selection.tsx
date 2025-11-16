@@ -101,10 +101,10 @@ export default function RoleSelectionScreen() {
               <Card
                 style={[
                   styles.roleCard,
-                  selectedRole === option.role && {
+                  selectedRole === option.role ? {
                     borderWidth: 2,
                     borderColor: tintColor,
-                  },
+                  } : undefined,
                 ]}
               >
                 <View style={styles.roleHeader}>

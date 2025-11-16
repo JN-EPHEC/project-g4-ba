@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { AnyUser, UserRole } from '@/types';
+import { AnyUser, UserRole, Scout, Parent, Animator } from '@/types';
 
 /**
  * Interface pour le contexte d'authentification
@@ -68,8 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Pour l'instant, on simule une connexion réussie
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Simuler un utilisateur
-      const mockUser: AnyUser = {
+      // Simuler un utilisateur Scout
+      const mockUser: Scout = {
         id: '1',
         email,
         firstName: 'Jean',
@@ -108,29 +108,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // TODO: Implémenter l'appel API pour l'inscription
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Simuler un nouvel utilisateur
-      const newUser: AnyUser = {
-        id: Date.now().toString(),
-        email,
-        firstName,
-        lastName,
-        role,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...(role === UserRole.SCOUT && {
+      // Créer le nouvel utilisateur selon le rôle
+      let newUser: AnyUser;
+
+      if (role === UserRole.SCOUT) {
+        newUser = {
+          id: Date.now().toString(),
+          email,
+          firstName,
+          lastName,
+          role: UserRole.SCOUT,
+          createdAt: new Date(),
+          updatedAt: new Date(),
           parentIds: [],
           unitId: '',
           points: 0,
           dateOfBirth: new Date(),
-        }),
-        ...(role === UserRole.PARENT && {
+        } as Scout;
+      } else if (role === UserRole.PARENT) {
+        newUser = {
+          id: Date.now().toString(),
+          email,
+          firstName,
+          lastName,
+          role: UserRole.PARENT,
+          createdAt: new Date(),
+          updatedAt: new Date(),
           scoutIds: [],
-        }),
-        ...(role === UserRole.ANIMATOR && {
+        } as Parent;
+      } else {
+        newUser = {
+          id: Date.now().toString(),
+          email,
+          firstName,
+          lastName,
+          role: UserRole.ANIMATOR,
+          createdAt: new Date(),
+          updatedAt: new Date(),
           unitId: '',
           isUnitLeader: false,
-        }),
-      };
+        } as Animator;
+      }
 
       setUser(newUser);
 

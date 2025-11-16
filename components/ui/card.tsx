@@ -12,7 +12,7 @@ export type CardProps = {
 
 export function Card({ children, style, variant = 'elevated', onPress }: CardProps) {
   const backgroundColor = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'background');
-  const borderColor = useThemeColor({ light: '#e5e5e5', dark: '#3a3a3a' }, 'border');
+  const borderColor = useThemeColor({ light: '#e5e5e5', dark: '#3a3a3a' }, 'icon');
 
   const containerStyle = [
     styles.card,
