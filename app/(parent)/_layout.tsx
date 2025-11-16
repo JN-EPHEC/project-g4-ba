@@ -1,0 +1,58 @@
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+import { useThemeColor } from '@/hooks/use-theme-color';
+
+export default function ParentLayout() {
+  const tintColor = useThemeColor({}, 'tint');
+  const backgroundColor = useThemeColor({}, 'background');
+
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: tintColor,
+        tabBarStyle: {
+          backgroundColor,
+        },
+        headerShown: false,
+      }}
+    >
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Accueil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scouts"
+        options={{
+          title: 'Mes Scouts',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}
