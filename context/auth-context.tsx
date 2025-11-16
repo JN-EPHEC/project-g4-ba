@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { AnyUser, UserRole, Scout, Parent, Animator } from '@/types';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import { auth } from '@/config/firebase';
+import { createUser, getUser, updateUser as updateUserInDb } from '@/services/user.service';
+import { AnyUser, UserRole } from '@/types';
 
 /**
  * Interface pour le contexte d'authentification
@@ -11,7 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string, role: UserRole) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (user: Partial<AnyUser>) => void;
+  updateUser: (updates: Partial<AnyUser>) => Promise<void>;
 }
 
 /**
@@ -31,70 +40,70 @@ export function useAuth() {
 }
 
 /**
- * Provider pour le contexte d'authentification
+ * Provider pour le contexte d'authentification avec Firebase
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AnyUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Simuler la vérification de l'authentification au démarrage
+  // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
-    checkAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        // Utilisateur connecté - récupérer ses données depuis Firestore
+        try {
+          const userData = await getUser(firebaseUser.uid);
+          setUser(userData);
+        } catch (error) {
+          console.error('Erreur lors de la récupération des données utilisateur:', error);
+          setUser(null);
+        }
+      } else {
+        // Utilisateur déconnecté
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+
+    // Nettoyer l'écouteur lors du démontage
+    return () => unsubscribe();
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      // TODO: Implémenter la vérification avec AsyncStorage ou un backend
-      // Pour l'instant, on simule juste un délai
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Récupérer l'utilisateur depuis le stockage local
-      // const storedUser = await AsyncStorage.getItem('user');
-      // if (storedUser) {
-      //   setUser(JSON.parse(storedUser));
-      // }
-    } catch (error) {
-      console.error('Erreur lors de la vérification de l\'authentification:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  /**
+   * Connexion avec email et mot de passe
+   */
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-
-      // TODO: Implémenter l'appel API pour la connexion
-      // Pour l'instant, on simule une connexion réussie
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Simuler un utilisateur Scout
-      const mockUser: Scout = {
-        id: '1',
-        email,
-        firstName: 'Jean',
-        lastName: 'Dupont',
-        role: UserRole.SCOUT,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        parentIds: [],
-        unitId: 'unit-1',
-        points: 150,
-        dateOfBirth: new Date('2010-05-15'),
-      };
-
-      setUser(mockUser);
-
-      // Sauvegarder dans le stockage local
-      // await AsyncStorage.setItem('user', JSON.stringify(mockUser));
-    } catch (error) {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userData = await getUser(userCredential.user.uid);
+      setUser(userData);
+    } catch (error: any) {
       console.error('Erreur lors de la connexion:', error);
-      throw error;
+
+      // Messages d'erreur en français
+      let errorMessage = 'Une erreur est survenue lors de la connexion';
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'Aucun compte trouvé avec cet email';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Mot de passe incorrect';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Email invalide';
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = 'Ce compte a été désactivé';
+      } else if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Email ou mot de passe incorrect';
+      }
+
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
+  /**
+   * Inscription avec email, mot de passe et informations de profil
+   */
   const register = async (
     email: string,
     password: string,
@@ -105,89 +114,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
 
-      // TODO: Implémenter l'appel API pour l'inscription
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Créer le compte Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-      // Créer le nouvel utilisateur selon le rôle
-      let newUser: AnyUser;
-      const userId = Date.now().toString();
-      const baseUser = {
-        id: userId,
+      // Créer le profil utilisateur dans Firestore
+      const userData = await createUser(
+        userCredential.user.uid,
         email,
         firstName,
         lastName,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+        role
+      );
 
-      switch (role) {
-        case UserRole.SCOUT:
-          newUser = {
-            ...baseUser,
-            role: UserRole.SCOUT,
-            parentIds: [],
-            unitId: '',
-            points: 0,
-            dateOfBirth: new Date(),
-          } as Scout;
-          break;
-        case UserRole.PARENT:
-          newUser = {
-            ...baseUser,
-            role: UserRole.PARENT,
-            scoutIds: [],
-          } as Parent;
-          break;
-        case UserRole.ANIMATOR:
-          newUser = {
-            ...baseUser,
-            role: UserRole.ANIMATOR,
-            unitId: '',
-            isUnitLeader: false,
-          } as Animator;
-          break;
-        default:
-          throw new Error('Invalid role');
+      setUser(userData);
+    } catch (error: any) {
+      console.error('Erreur lors de l\'inscription:', error);
+
+      // Messages d'erreur en français
+      let errorMessage = 'Une erreur est survenue lors de l\'inscription';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Cet email est déjà utilisé';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Email invalide';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Le mot de passe doit contenir au moins 6 caractères';
       }
 
-      setUser(newUser as AnyUser);
-
-      // Sauvegarder dans le stockage local
-      // await AsyncStorage.setItem('user', JSON.stringify(newUser));
-    } catch (error) {
-      console.error('Erreur lors de l\'inscription:', error);
-      throw error;
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
+  /**
+   * Déconnexion
+   */
   const logout = async () => {
     try {
       setIsLoading(true);
-
-      // TODO: Implémenter l'appel API pour la déconnexion
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
+      await signOut(auth);
       setUser(null);
-
-      // Supprimer du stockage local
-      // await AsyncStorage.removeItem('user');
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
-      throw error;
+      throw new Error('Une erreur est survenue lors de la déconnexion');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const updateUser = (updatedData: Partial<AnyUser>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updatedData } as AnyUser;
-      setUser(updatedUser);
+  /**
+   * Mettre à jour le profil utilisateur
+   */
+  const updateUser = async (updates: Partial<AnyUser>) => {
+    if (!user) {
+      throw new Error('Aucun utilisateur connecté');
+    }
 
-      // Mettre à jour dans le stockage local
-      // AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+    try {
+      await updateUserInDb(user.id, updates);
+
+      // Mettre à jour l'état local
+      const updatedUser = { ...user, ...updates } as AnyUser;
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du profil:', error);
+      throw new Error('Une erreur est survenue lors de la mise à jour du profil');
     }
   };
 
