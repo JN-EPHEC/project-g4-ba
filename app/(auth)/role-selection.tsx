@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, Alert, type ViewStyle } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -101,11 +101,11 @@ export default function RoleSelectionScreen() {
               <Card
                 style={[
                   styles.roleCard,
-                  selectedRole === option.role ? {
+                  selectedRole === option.role && {
                     borderWidth: 2,
                     borderColor: tintColor,
-                  } : undefined,
-                ]}
+                  },
+                ].filter(Boolean) as ViewStyle[]}
               >
                 <View style={styles.roleHeader}>
                   <View

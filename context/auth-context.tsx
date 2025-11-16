@@ -110,47 +110,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Créer le nouvel utilisateur selon le rôle
       let newUser: AnyUser;
+      const userId = Date.now().toString();
+      const baseUser = {
+        id: userId,
+        email,
+        firstName,
+        lastName,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      if (role === UserRole.SCOUT) {
-        newUser = {
-          id: Date.now().toString(),
-          email,
-          firstName,
-          lastName,
-          role: UserRole.SCOUT,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          parentIds: [],
-          unitId: '',
-          points: 0,
-          dateOfBirth: new Date(),
-        } as Scout;
-      } else if (role === UserRole.PARENT) {
-        newUser = {
-          id: Date.now().toString(),
-          email,
-          firstName,
-          lastName,
-          role: UserRole.PARENT,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          scoutIds: [],
-        } as Parent;
-      } else {
-        newUser = {
-          id: Date.now().toString(),
-          email,
-          firstName,
-          lastName,
-          role: UserRole.ANIMATOR,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          unitId: '',
-          isUnitLeader: false,
-        } as Animator;
+      switch (role) {
+        case UserRole.SCOUT:
+          newUser = {
+            ...baseUser,
+            role: UserRole.SCOUT,
+            parentIds: [],
+            unitId: '',
+            points: 0,
+            dateOfBirth: new Date(),
+          } as Scout;
+          break;
+        case UserRole.PARENT:
+          newUser = {
+            ...baseUser,
+            role: UserRole.PARENT,
+            scoutIds: [],
+          } as Parent;
+          break;
+        case UserRole.ANIMATOR:
+          newUser = {
+            ...baseUser,
+            role: UserRole.ANIMATOR,
+            unitId: '',
+            isUnitLeader: false,
+          } as Animator;
+          break;
+        default:
+          throw new Error('Invalid role');
       }
 
-      setUser(newUser);
+      setUser(newUser as AnyUser);
 
       // Sauvegarder dans le stockage local
       // await AsyncStorage.setItem('user', JSON.stringify(newUser));
@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = (updatedData: Partial<AnyUser>) => {
     if (user) {
-      const updatedUser = { ...user, ...updatedData };
+      const updatedUser = { ...user, ...updatedData } as AnyUser;
       setUser(updatedUser);
 
       // Mettre à jour dans le stockage local
