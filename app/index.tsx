@@ -1,45 +1,38 @@
-import { useEffect } from 'react';
-import { router } from 'expo-router';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-
-import { useAuth } from '@/context/auth-context';
-import { UserRole } from '@/types';
+import React from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Link } from 'expo-router';
 
 /**
- * Écran de redirection initial
- * Redirige vers la page appropriée selon l'état d'authentification
+ * Page d'accueil - Landing page
+ * Affiche des boutons pour naviguer vers Auth, Storage et Firestore
  */
 export default function IndexScreen() {
-  const { user, isLoading } = useAuth();
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (!user) {
-      // Utilisateur non connecté -> redirection vers login
-      router.replace('/(auth)/login');
-    } else {
-      // Utilisateur connecté -> redirection selon le rôle
-      switch (user.role) {
-        case UserRole.SCOUT:
-          router.replace('/(scout)/dashboard');
-          break;
-        case UserRole.PARENT:
-          router.replace('/(parent)/dashboard');
-          break;
-        case UserRole.ANIMATOR:
-          router.replace('/(animator)/dashboard');
-          break;
-        default:
-          router.replace('/(auth)/login');
-      }
-    }
-  }, [user, isLoading]);
-
-  // Afficher un loader pendant le chargement
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" />
+      <Text style={styles.title}>Exemple Firebase + Expo</Text>
+      <Text style={styles.subtitle}>
+        Authentification, Storage et Firestore
+      </Text>
+
+      <View style={styles.buttonContainer}>
+        <Link href="/auth" asChild>
+          <Pressable style={styles.button}>
+            <Text style={styles.buttonText}>Aller à authentification</Text>
+          </Pressable>
+        </Link>
+
+        <Link href="/storage" asChild>
+          <Pressable style={styles.button}>
+            <Text style={styles.buttonText}>Aller au storage</Text>
+          </Pressable>
+        </Link>
+
+        <Link href="/firestore" asChild>
+          <Pressable style={styles.button}>
+            <Text style={styles.buttonText}>Exemple Firestore (CRUD)</Text>
+          </Pressable>
+        </Link>
+      </View>
     </View>
   );
 }
@@ -49,5 +42,35 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 40,
+    textAlign: 'center',
+  },
+  buttonContainer: {
+    width: '100%',
+    maxWidth: 400,
+    gap: 15,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
