@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnyUser, UserRole, Scout, Parent, Animator } from '@/types';
 
 /**
@@ -11,7 +12,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string, role: UserRole) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (user: Partial<AnyUser>) => void;
+  updateUser: (user: Partial<AnyUser>) => Promise<void>;
 }
 
 /**
@@ -44,15 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      // TODO: Implémenter la vérification avec AsyncStorage ou un backend
-      // Pour l'instant, on simule juste un délai
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       // Récupérer l'utilisateur depuis le stockage local
-      // const storedUser = await AsyncStorage.getItem('user');
-      // if (storedUser) {
-      //   setUser(JSON.parse(storedUser));
-      // }
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'authentification:', error);
     } finally {
@@ -86,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mockUser);
 
       // Sauvegarder dans le stockage local
-      // await AsyncStorage.setItem('user', JSON.stringify(mockUser));
+      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
       throw error;
@@ -153,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(newUser as AnyUser);
 
       // Sauvegarder dans le stockage local
-      // await AsyncStorage.setItem('user', JSON.stringify(newUser));
+      await AsyncStorage.setItem('user', JSON.stringify(newUser));
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error);
       throw error;
@@ -172,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
 
       // Supprimer du stockage local
-      // await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('user');
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
       throw error;
@@ -181,13 +178,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateUser = (updatedData: Partial<AnyUser>) => {
+  const updateUser = async (updatedData: Partial<AnyUser>) => {
     if (user) {
       const updatedUser = { ...user, ...updatedData } as AnyUser;
       setUser(updatedUser);
 
       // Mettre à jour dans le stockage local
-      // AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      try {
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du stockage local:', error);
+      }
     }
   };
 
