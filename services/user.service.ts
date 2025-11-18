@@ -27,6 +27,12 @@ export const createUser = async (
   lastName: string,
   role: UserRole
 ): Promise<AnyUser> => {
+  console.log('🔵 [USER SERVICE] Création d\'un nouvel utilisateur');
+  console.log('🔵 [USER SERVICE] UID:', uid);
+  console.log('🔵 [USER SERVICE] Email:', email);
+  console.log('🔵 [USER SERVICE] Nom:', firstName, lastName);
+  console.log('🔵 [USER SERVICE] Rôle:', role);
+
   const baseUser = {
     id: uid,
     email,
@@ -68,15 +74,32 @@ export const createUser = async (
       throw new Error('Invalid role');
   }
 
+  console.log('🔵 [USER SERVICE] Données utilisateur préparées:', userData);
+
   // Sauvegarder dans Firestore
-  await setDoc(doc(db, USERS_COLLECTION, uid), {
-    ...userData,
-    createdAt: userData.createdAt.toISOString(),
-    updatedAt: userData.updatedAt.toISOString(),
-    ...(role === UserRole.SCOUT && {
-      dateOfBirth: (userData as Scout).dateOfBirth.toISOString(),
-    }),
-  });
+  try {
+    console.log('🔵 [USER SERVICE] Tentative d\'écriture dans Firestore...');
+    console.log('🔵 [USER SERVICE] Collection:', USERS_COLLECTION);
+    console.log('🔵 [USER SERVICE] Document ID:', uid);
+
+    const dataToSave = {
+      ...userData,
+      createdAt: userData.createdAt.toISOString(),
+      updatedAt: userData.updatedAt.toISOString(),
+      ...(role === UserRole.SCOUT && {
+        dateOfBirth: (userData as Scout).dateOfBirth.toISOString(),
+      }),
+    };
+
+    console.log('🔵 [USER SERVICE] Données à sauvegarder:', dataToSave);
+
+    await setDoc(doc(db, USERS_COLLECTION, uid), dataToSave);
+
+    console.log('✅ [USER SERVICE] Utilisateur créé avec succès dans Firestore!');
+  } catch (error) {
+    console.error('❌ [USER SERVICE] Erreur lors de la création de l\'utilisateur dans Firestore:', error);
+    throw error;
+  }
 
   return userData;
 };
@@ -85,26 +108,37 @@ export const createUser = async (
  * Récupérer un utilisateur depuis Firestore
  */
 export const getUser = async (uid: string): Promise<AnyUser | null> => {
-  const userDoc = await getDoc(doc(db, USERS_COLLECTION, uid));
+  console.log('🔵 [USER SERVICE] Récupération de l\'utilisateur avec UID:', uid);
 
-  if (!userDoc.exists()) {
-    return null;
+  try {
+    const userDoc = await getDoc(doc(db, USERS_COLLECTION, uid));
+    console.log('🔵 [USER SERVICE] Document récupéré, existe:', userDoc.exists());
+
+    if (!userDoc.exists()) {
+      console.log('⚠️ [USER SERVICE] Aucun document trouvé pour UID:', uid);
+      return null;
+    }
+
+    const data = userDoc.data();
+    console.log('🔵 [USER SERVICE] Données du document:', data);
+
+    // Convertir les dates ISO en objets Date
+    const user = {
+      ...data,
+      id: userDoc.id,
+      createdAt: new Date(data.createdAt),
+      updatedAt: new Date(data.updatedAt),
+      ...(data.role === UserRole.SCOUT && {
+        dateOfBirth: new Date(data.dateOfBirth),
+      }),
+    } as AnyUser;
+
+    console.log('✅ [USER SERVICE] Utilisateur récupéré avec succès:', user);
+    return user;
+  } catch (error) {
+    console.error('❌ [USER SERVICE] Erreur lors de la récupération de l\'utilisateur:', error);
+    throw error;
   }
-
-  const data = userDoc.data();
-
-  // Convertir les dates ISO en objets Date
-  const user = {
-    ...data,
-    id: userDoc.id,
-    createdAt: new Date(data.createdAt),
-    updatedAt: new Date(data.updatedAt),
-    ...(data.role === UserRole.SCOUT && {
-      dateOfBirth: new Date(data.dateOfBirth),
-    }),
-  } as AnyUser;
-
-  return user;
 };
 
 /**

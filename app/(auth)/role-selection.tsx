@@ -54,7 +54,15 @@ export default function RoleSelectionScreen() {
       return;
     }
 
+    console.log('🔵 [ROLE SELECTION] Données d\'inscription:');
+    console.log('  - Email:', params.email);
+    console.log('  - Prénom:', params.firstName);
+    console.log('  - Nom:', params.lastName);
+    console.log('  - Rôle:', selectedRole);
+
     try {
+      console.log('🔵 [ROLE SELECTION] Appel de la fonction register...');
+
       await register(
         params.email as string,
         params.password as string,
@@ -63,7 +71,10 @@ export default function RoleSelectionScreen() {
         selectedRole
       );
 
+      console.log('✅ [ROLE SELECTION] Inscription réussie!');
+
       // Redirection basée sur le rôle
+      console.log('🔵 [ROLE SELECTION] Redirection vers le dashboard...');
       switch (selectedRole) {
         case UserRole.SCOUT:
           router.replace('/(scout)/dashboard');
@@ -75,8 +86,13 @@ export default function RoleSelectionScreen() {
           router.replace('/(animator)/dashboard');
           break;
       }
-    } catch (error) {
-      Alert.alert('Erreur', 'Une erreur est survenue lors de l\'inscription');
+    } catch (error: any) {
+      console.error('❌ [ROLE SELECTION] Erreur lors de l\'inscription:', error);
+      console.error('❌ [ROLE SELECTION] Message d\'erreur:', error.message);
+      console.error('❌ [ROLE SELECTION] Stack:', error.stack);
+
+      const errorMessage = error.message || 'Une erreur est survenue lors de l\'inscription';
+      Alert.alert('Erreur d\'inscription', errorMessage);
     }
   };
 

@@ -48,17 +48,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
+    console.log('🔵 [AUTH] Initialisation du listener d\'authentification Firebase');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      console.log('🔵 [AUTH] Changement d\'état d\'authentification détecté');
       if (firebaseUser) {
+        console.log('✅ [AUTH] Utilisateur Firebase connecté:', firebaseUser.uid, firebaseUser.email);
         // Utilisateur connecté - récupérer ses données depuis Firestore
         try {
+          console.log('🔵 [AUTH] Récupération des données utilisateur depuis Firestore...');
           const userData = await getUser(firebaseUser.uid);
+          console.log('✅ [AUTH] Données utilisateur récupérées:', userData);
           setUser(userData);
         } catch (error) {
-          console.error('Erreur lors de la récupération des données utilisateur:', error);
+          console.error('❌ [AUTH] Erreur lors de la récupération des données utilisateur:', error);
           setUser(null);
         }
       } else {
+        console.log('🔵 [AUTH] Aucun utilisateur connecté');
         // Utilisateur déconnecté
         setUser(null);
       }
@@ -113,11 +119,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       setIsLoading(true);
+      console.log('🔵 [AUTH] Début de l\'inscription pour:', email, 'Role:', role);
 
       // Créer le compte Firebase Auth
+      console.log('🔵 [AUTH] Création du compte Firebase Auth...');
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('✅ [AUTH] Compte Firebase Auth créé avec UID:', userCredential.user.uid);
 
       // Créer le profil utilisateur dans Firestore
+      console.log('🔵 [AUTH] Création du profil utilisateur dans Firestore...');
       const userData = await createUser(
         userCredential.user.uid,
         email,
@@ -125,10 +135,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lastName,
         role
       );
+      console.log('✅ [AUTH] Profil utilisateur créé dans Firestore:', userData);
 
       setUser(userData);
+      console.log('✅ [AUTH] Inscription terminée avec succès!');
     } catch (error: any) {
-      console.error('Erreur lors de l\'inscription:', error);
+      console.error('❌ [AUTH] Erreur lors de l\'inscription:', error);
+      console.error('❌ [AUTH] Code d\'erreur:', error.code);
+      console.error('❌ [AUTH] Message d\'erreur:', error.message);
+      console.error('❌ [AUTH] Stack trace:', error.stack);
 
       // Messages d'erreur en français
       let errorMessage = 'Une erreur est survenue lors de l\'inscription';
