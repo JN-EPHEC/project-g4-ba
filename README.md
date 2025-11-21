@@ -1,50 +1,200 @@
-# Welcome to your Expo app 👋
+# 🏕️ WeCamp Scout Hub - Application Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> Application de gestion pour groupes scouts - MVP (Minimum Viable Product)
 
-## Get started
+**Équipe :** Groupe 4 EPHEC | **Année :** 2024-2025
 
-1. Install dependencies
+## 🎯 Qu'est-ce que WeCamp ?
 
-   ```bash
-   npm install
-   ```
+WeCamp Scout Hub est une application mobile qui permet aux groupes scouts de :
+- ✅ Gérer des événements et activités
+- ✅ Communiquer via une messagerie de groupe
+- ✅ Partager des documents et photos
+- ✅ Suivre les défis et le classement des scouts
+- ✅ Gérer les profils et unités
 
-2. Start the app
+## 🚀 Démarrage Rapide
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Installation
 
 ```bash
-npm run reset-project
+# 1. Installer les dépendances
+npm install
+
+# 2. Lancer l'application
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Options de développement
 
-## Learn more
+- **i** - Ouvrir dans iOS Simulator
+- **a** - Ouvrir dans Android Emulator
+- **w** - Ouvrir dans le navigateur web
 
-To learn more about developing your project with Expo, look at the following resources:
+## 📂 Structure du Projet
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+project-g4-ba/
+├── app/                    # 🧭 Navigation (Expo Router)
+├── src/                    # 📦 Code source
+│   ├── features/          # 🎯 Fonctionnalités par module
+│   ├── shared/            # 🔄 Code partagé
+│   ├── core/              # ⚙️ Configuration
+│   └── assets/            # 🎨 Images, fonts, icons
+└── docs/                  # 📚 Documentation
+```
 
-## Join the community
+### Organisation par Fonctionnalités
 
-Join our community of developers creating universal apps.
+| Module | Description |
+|--------|-------------|
+| `features/auth` | 🔐 Authentification (login, register) |
+| `features/events` | 📅 Événements et activités |
+| `features/challenges` | 🏆 Défis scouts |
+| `features/messaging` | 💬 Messagerie de groupe |
+| `features/documents` | 📄 Gestion de documents |
+| `features/profile` | 👤 Profils utilisateurs |
+| `features/units` | 👥 Unités et groupes |
+| `features/leaderboard` | 🏅 Classement et points |
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 📖 Documentation
+
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Architecture complète du projet
+- **[GUIDE_DEVELOPPEUR.md](./GUIDE_DEVELOPPEUR.md)** - Guide pour les développeurs
+- **[MIGRATION.md](./MIGRATION.md)** - Guide de migration vers la nouvelle structure
+
+## 🛠️ Stack Technique
+
+- **Framework :** React Native + Expo
+- **Navigation :** Expo Router (file-based routing)
+- **Language :** TypeScript
+- **Backend :** Firebase (Auth, Firestore, Storage)
+- **State :** React Context API
+- **Styling :** StyleSheet (React Native)
+
+## 🎨 Imports Simplifiés
+
+Nous utilisons des **path aliases** pour des imports propres :
+
+```typescript
+// ✅ Nouveau style (propre)
+import { eventService } from '@features/events';
+import { Button } from '@shared/components/ui';
+import { useAuth } from '@core/context';
+
+// ❌ Ancien style (à éviter)
+import { eventService } from '../../services/event-service';
+```
+
+## 🧑‍💻 Pour les Débutants
+
+### Je veux modifier une fonctionnalité...
+
+1. **Trouvez le bon dossier** dans `src/features/`
+2. **Consultez le service** dans le sous-dossier `services/`
+3. **Modifiez l'écran** correspondant dans `app/`
+
+**Exemple :** Pour modifier les événements :
+- Service : `src/features/events/services/event-service.ts`
+- Écran Scout : `app/(scout)/events.tsx`
+- Écran Animateur : `app/(animator)/activities.tsx`
+
+### Je veux créer un composant...
+
+1. **Composant réutilisable ?** → `src/shared/components/ui/`
+2. **Composant spécifique ?** → `src/features/[feature]/components/`
+
+### Je veux ajouter une feature...
+
+Consultez le [GUIDE_DEVELOPPEUR.md](./GUIDE_DEVELOPPEUR.md) pour un tutoriel complet.
+
+## 📱 Rôles Utilisateurs
+
+L'application supporte 3 rôles :
+
+| Rôle | Description | Accès |
+|------|-------------|-------|
+| **Scout** | Jeune participant | Événements, défis, messagerie, profil |
+| **Animateur** | Chef de groupe | Tout + création d'événements, gestion unités |
+| **Parent** | Parent de scout | Événements enfants, documents, messagerie limitée |
+
+## 🔥 Firebase Setup
+
+1. Créer un projet Firebase
+2. Activer Authentication, Firestore, Storage
+3. Copier la configuration dans `src/core/config/firebase.ts`
+
+Voir [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) pour les détails.
+
+## 🧪 Tests
+
+```bash
+# Lancer les tests (si configurés)
+npm test
+
+# Vérifier les erreurs TypeScript
+npx tsc --noEmit
+```
+
+## 📦 Build
+
+```bash
+# Build pour iOS
+npm run ios
+
+# Build pour Android
+npm run android
+```
+
+## 🗺️ Roadmap
+
+Consultez [WeCamp_Roadmap_MVP.md](./WeCamp_Roadmap_MVP.md) pour la roadmap complète.
+
+### Phase 1 : MVP (Actuel)
+- ✅ Authentification
+- ✅ Gestion des événements
+- ✅ Messagerie de base
+- ✅ Profils utilisateurs
+- ⏳ Documents
+- ⏳ Défis
+
+### Phase 2 : V1.0
+- Notifications push
+- Recherche avancée
+- Événements récurrents
+- Sondages
+
+### Phase 3 : V2.0+
+- Analytics
+- Gamification avancée
+- Intégrations tierces
+
+## 🤝 Contribution
+
+1. Créer une branche : `git checkout -b feature/ma-feature`
+2. Commiter : `git commit -m "feat: ajouter ma feature"`
+3. Pusher : `git push origin feature/ma-feature`
+4. Créer une Pull Request
+
+## 📄 License
+
+Ce projet est développé dans le cadre d'un TFE à l'EPHEC.
+
+## 🆘 Support
+
+- **Questions ?** Consultez [GUIDE_DEVELOPPEUR.md](./GUIDE_DEVELOPPEUR.md)
+- **Bugs ?** Ouvrez une issue sur GitHub
+- **Architecture ?** Lisez [ARCHITECTURE.md](./ARCHITECTURE.md)
+
+## 🌟 Ressources
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [React Native Documentation](https://reactnative.dev/)
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+
+---
+
+**Développé avec ❤️ par l'équipe Groupe 4 EPHEC**
+
+*Bonne Aventure Scoute ! 🏕️*

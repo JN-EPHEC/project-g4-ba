@@ -1,16 +1,36 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Card, Avatar, Badge } from '@/components/ui';
+import { ThemedView } from '@/components/themed-view';
+import { Avatar, Badge, Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
-import { Parent } from '@/types';
+import { ParentScoutService } from '@/services/parent-scout-service';
+import { Parent, Scout } from '@/types';
 
 export default function ParentDashboardScreen() {
   const { user } = useAuth();
   const parent = user as Parent;
+  const [scouts, setScouts] = useState<Scout[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadScouts();
+  }, [parent?.id]);
+
+  const loadScouts = async () => {
+    if (!parent?.id) return;
+
+    try {
+      setIsLoading(true);
+      const parentScouts = await ParentScoutService.getScoutsByParent(parent.id);
+      setScouts(parentScouts);
+    } catch (error) {
+      console.error('Erreur lors du chargement des scouts:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -22,11 +42,13 @@ export default function ParentDashboardScreen() {
         <Card style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>2</ThemedText>
+              <ThemedText type="title" style={styles.statValue}>
+                {scouts.length}
+              </ThemedText>
               <ThemedText style={styles.statLabel}>Scouts</ThemedText>
             </View>
             <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>3</ThemedText>
+              <ThemedText type="title" style={styles.statValue}>0</ThemedText>
               <ThemedText style={styles.statLabel}>Documents à signer</ThemedText>
             </View>
           </View>
@@ -36,27 +58,38 @@ export default function ParentDashboardScreen() {
           Mes scouts
         </ThemedText>
 
-        <Card style={styles.scoutCard}>
-          <View style={styles.scoutHeader}>
-            <Avatar name="Jean Dupont" size="medium" />
-            <View style={styles.scoutInfo}>
-              <ThemedText type="defaultSemiBold">Jean Dupont</ThemedText>
-              <ThemedText style={styles.scoutDetail}>150 points</ThemedText>
-            </View>
-            <Badge variant="success">Actif</Badge>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" />
           </View>
-        </Card>
-
-        <Card style={styles.scoutCard}>
-          <View style={styles.scoutHeader}>
-            <Avatar name="Marie Dupont" size="medium" />
-            <View style={styles.scoutInfo}>
-              <ThemedText type="defaultSemiBold">Marie Dupont</ThemedText>
-              <ThemedText style={styles.scoutDetail}>200 points</ThemedText>
-            </View>
-            <Badge variant="success">Actif</Badge>
-          </View>
-        </Card>
+        ) : scouts.length === 0 ? (
+          <Card style={styles.emptyCard}>
+            <ThemedText style={styles.emptyText}>
+              Aucun scout lié pour le moment
+            </ThemedText>
+          </Card>
+        ) : (
+          scouts.map((scout) => (
+            <Card key={scout.id} style={styles.scoutCard}>
+              <View style={styles.scoutHeader}>
+                <Avatar
+                  name={`${scout.firstName} ${scout.lastName}`}
+                  imageUrl={scout.profilePicture}
+                  size="medium"
+                />
+                <View style={styles.scoutInfo}>
+                  <ThemedText type="defaultSemiBold">
+                    {scout.firstName} {scout.lastName}
+                  </ThemedText>
+                  <ThemedText style={styles.scoutDetail}>
+                    {scout.points || 0} points
+                  </ThemedText>
+                </View>
+                <Badge variant="success">Actif</Badge>
+              </View>
+            </Card>
+          ))
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -113,5 +146,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
     marginTop: 2,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyCard: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    opacity: 0.7,
+    textAlign: 'center',
   },
 });

@@ -1,16 +1,46 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Card, Badge } from '@/components/ui';
+import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
-import { Animator } from '@/types';
+import { UnitService } from '@/services/unit-service';
+import { Animator, Unit } from '@/types';
 
 export default function AnimatorDashboardScreen() {
   const { user } = useAuth();
   const animator = user as Animator;
+  const [unit, setUnit] = useState<Unit | null>(null);
+  const [scoutsCount, setScoutsCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadUnitData();
+  }, [animator?.unitId]);
+
+  const loadUnitData = async () => {
+    if (!animator?.unitId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const unitData = await UnitService.getUnitById(animator.unitId);
+      setUnit(unitData);
+
+      if (unitData) {
+        const scouts = await UnitService.getScoutsByUnit(unitData.id);
+        setScoutsCount(scouts.length);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des données de l\'unité:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -19,18 +49,33 @@ export default function AnimatorDashboardScreen() {
           Bonjour {animator?.firstName} 👋
         </ThemedText>
 
+        {unit && (
+          <Card style={styles.unitCard}>
+            <ThemedText type="subtitle" style={styles.unitTitle}>
+              {unit.name}
+            </ThemedText>
+            {unit.description && (
+              <ThemedText style={styles.unitDescription}>
+                {unit.description}
+              </ThemedText>
+            )}
+          </Card>
+        )}
+
         <Card style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>24</ThemedText>
+              <ThemedText type="title" style={styles.statValue}>
+                {isLoading ? '...' : scoutsCount}
+              </ThemedText>
               <ThemedText style={styles.statLabel}>Scouts</ThemedText>
             </View>
             <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>5</ThemedText>
+              <ThemedText type="title" style={styles.statValue}>0</ThemedText>
               <ThemedText style={styles.statLabel}>Événements</ThemedText>
             </View>
             <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>8</ThemedText>
+              <ThemedText type="title" style={styles.statValue}>0</ThemedText>
               <ThemedText style={styles.statLabel}>Défis actifs</ThemedText>
             </View>
           </View>
@@ -123,5 +168,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
     marginTop: 2,
+  },
+  unitCard: {
+    padding: 16,
+    marginBottom: 20,
+  },
+  unitTitle: {
+    marginBottom: 4,
+  },
+  unitDescription: {
+    fontSize: 14,
+    opacity: 0.7,
   },
 });

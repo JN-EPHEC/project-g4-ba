@@ -1,10 +1,11 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
+import React from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ThemedView } from '@/components/themed-view';
+import { AvatarUploader } from '@/components/avatar-uploader';
 import { ThemedText } from '@/components/themed-text';
-import { Card, Avatar, PrimaryButton } from '@/components/ui';
+import { ThemedView } from '@/components/themed-view';
+import { Card, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { Parent } from '@/types';
 
@@ -39,9 +40,9 @@ export default function ProfileScreen() {
 
         <Card style={styles.profileCard}>
           <View style={styles.profileHeader}>
-            <Avatar
-              name={parent ? `${parent.firstName} ${parent.lastName}` : undefined}
-              imageUrl={parent?.profilePicture}
+            <AvatarUploader
+              currentAvatarUrl={parent?.profilePicture}
+              userName={parent ? `${parent.firstName} ${parent.lastName}` : undefined}
               size="xlarge"
             />
             <ThemedText type="title" style={styles.name}>
