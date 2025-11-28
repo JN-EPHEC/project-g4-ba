@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions, ActivityIndicator, Text, Modal, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { ChallengeCard } from '@/src/features/challenges/components/challenge-card';
 import { RewardsSection } from '@/src/features/challenges/components/rewards-section';
 import { ProgressSection } from '@/src/features/challenges/components/progress-section';
@@ -83,47 +85,149 @@ export default function ChallengesScreen() {
         {/* Section Progression */}
         <ProgressSection completed={completedCount} total={totalChallenges} />
 
-        {/* Grille de défis responsive */}
-        {challenges.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🎯</Text>
-            <Text style={styles.emptyTitle}>Aucun défi disponible</Text>
-            <Text style={styles.emptyText}>
-              Revenez plus tard pour découvrir de nouveaux défis !
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.challengesGrid, { gap: 16 }]}>
-            {challenges.map((challenge) => {
-              const config = DIFFICULTY_CONFIG[challenge.difficulty];
-              const completed = isCompleted(challenge.id);
+        {/* Section En attente de validation */}
+        {(() => {
+          const pendingChallenges = challenges.filter(challenge => {
+            const submission = submissions.find(s => s.challengeId === challenge.id);
+            return submission && submission.status === 'pending_validation';
+          });
 
-              return (
-                <View
-                  key={challenge.id}
-                  style={[
-                    styles.challengeItem,
-                    {
-                      width: width >= 600
-                        ? `${100 / numColumns - 2}%`
-                        : '100%',
-                      minWidth: width >= 600 ? 250 : undefined,
-                    },
-                  ]}
-                >
-                  <ChallengeCard
-                    title={challenge.title}
-                    points={challenge.points}
-                    icon={config.icon}
-                    iconBgColor={config.bgColor}
-                    onPress={() => handleChallengeClick(challenge)}
-                    completed={completed}
-                  />
-                </View>
-              );
-            })}
-          </View>
-        )}
+          return pendingChallenges.length > 0 ? (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionIcon}>⏳</Text>
+                <Text style={styles.sectionTitle}>En attente de validation</Text>
+              </View>
+              <View style={[styles.challengesGrid, { gap: 16 }]}>
+                {pendingChallenges.map((challenge) => {
+                  const config = DIFFICULTY_CONFIG[challenge.difficulty];
+
+                  return (
+                    <View
+                      key={challenge.id}
+                      style={[
+                        styles.challengeItem,
+                        {
+                          width: width >= 600
+                            ? `${100 / numColumns - 2}%`
+                            : '100%',
+                          minWidth: width >= 600 ? 250 : undefined,
+                        },
+                      ]}
+                    >
+                      <ChallengeCard
+                        title={challenge.title}
+                        points={challenge.points}
+                        icon={config.icon}
+                        iconBgColor={config.bgColor}
+                        onPress={() => handleChallengeClick(challenge)}
+                        completed={false}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null;
+        })()}
+
+        {/* Grille de défis disponibles */}
+        {(() => {
+          const availableChallenges = challenges.filter(challenge => {
+            const submission = submissions.find(s => s.challengeId === challenge.id);
+            // Exclure les défis complétés et en attente
+            return !isCompleted(challenge.id) && (!submission || submission.status !== 'pending_validation');
+          });
+
+          return availableChallenges.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>🎯</Text>
+              <Text style={styles.emptyTitle}>Aucun défi disponible</Text>
+              <Text style={styles.emptyText}>
+                Revenez plus tard pour découvrir de nouveaux défis !
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionIcon}>🎯</Text>
+                <Text style={styles.sectionTitle}>Défis disponibles</Text>
+              </View>
+              <View style={[styles.challengesGrid, { gap: 16 }]}>
+                {availableChallenges.map((challenge) => {
+                  const config = DIFFICULTY_CONFIG[challenge.difficulty];
+
+                  return (
+                    <View
+                      key={challenge.id}
+                      style={[
+                        styles.challengeItem,
+                        {
+                          width: width >= 600
+                            ? `${100 / numColumns - 2}%`
+                            : '100%',
+                          minWidth: width >= 600 ? 250 : undefined,
+                        },
+                      ]}
+                    >
+                      <ChallengeCard
+                        title={challenge.title}
+                        points={challenge.points}
+                        icon={config.icon}
+                        iconBgColor={config.bgColor}
+                        onPress={() => handleChallengeClick(challenge)}
+                        completed={false}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })()}
+
+        {/* Section Défis complétés */}
+        {(() => {
+          const completedChallenges = challenges.filter(challenge => isCompleted(challenge.id));
+
+          return completedChallenges.length > 0 ? (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionIcon}>✅</Text>
+                <Text style={styles.sectionTitle}>Défis complétés</Text>
+              </View>
+              <View style={[styles.challengesGrid, { gap: 16 }]}>
+                {completedChallenges.map((challenge) => {
+                  const config = DIFFICULTY_CONFIG[challenge.difficulty];
+
+                  return (
+                    <View
+                      key={challenge.id}
+                      style={[
+                        styles.challengeItem,
+                        {
+                          width: width >= 600
+                            ? `${100 / numColumns - 2}%`
+                            : '100%',
+                          minWidth: width >= 600 ? 250 : undefined,
+                        },
+                      ]}
+                    >
+                      <ChallengeCard
+                        title={challenge.title}
+                        points={challenge.points}
+                        icon={config.icon}
+                        iconBgColor={config.bgColor}
+                        onPress={() => handleChallengeClick(challenge)}
+                        completed={true}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null;
+        })()}
       </ScrollView>
 
       {/* Modal de détails du défi */}
@@ -157,20 +261,10 @@ function ChallengeModal({
     submitting,
   } = useChallengeProgress(challenge.id);
 
-  const handleComplete = async () => {
-    try {
-      // Pour simplifier, on marque le défi comme complété sans photo
-      // Dans une vraie app, on demanderait une photo de preuve
-      await submitChallenge('https://via.placeholder.com/150');
-
-      Alert.alert(
-        'Défi soumis !',
-        'Votre défi a été soumis et est en attente de validation.',
-        [{ text: 'OK', onPress: () => { onComplete(); onClose(); } }]
-      );
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de soumettre le défi');
-    }
+  const handleTakePhoto = () => {
+    // Fermer le modal et naviguer vers la page de détails avec le défi
+    onClose();
+    router.push(`/(scout)/challenges/${challenge.id}`);
   };
 
   const getStatusBadge = () => {
@@ -261,15 +355,27 @@ function ChallengeModal({
               </View>
             </View>
 
+            {/* Photo requirement notice */}
+            {canSubmit && (
+              <View style={styles.photoNotice}>
+                <View style={styles.photoNoticeIcon}>
+                  <Ionicons name="camera" size={20} color="#007AFF" />
+                </View>
+                <Text style={styles.photoNoticeText}>
+                  Une photo de preuve est requise pour valider ce défi
+                </Text>
+              </View>
+            )}
+
             {/* Button */}
             {canSubmit && (
               <TouchableOpacity
-                style={[styles.completeButton, submitting && styles.completeButtonDisabled]}
-                onPress={handleComplete}
-                disabled={submitting}
+                style={styles.takePhotoButton}
+                onPress={handleTakePhoto}
               >
-                <Text style={styles.completeButtonText}>
-                  {submitting ? 'Soumission...' : 'Marquer comme complété'}
+                <Ionicons name="camera" size={24} color="#FFFFFF" />
+                <Text style={styles.takePhotoButtonText}>
+                  Relever le défi
                 </Text>
               </TouchableOpacity>
             )}
@@ -365,6 +471,25 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     letterSpacing: -0.3,
+  },
+  sectionContainer: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  sectionIcon: {
+    fontSize: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    letterSpacing: -0.5,
   },
 
   // Modal styles
@@ -482,20 +607,49 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: -0.3,
   },
-  completeButton: {
+  photoNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E5F1FF',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    gap: 12,
+  },
+  photoNoticeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoNoticeText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  takePhotoButton: {
     backgroundColor: '#007AFF',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  completeButtonDisabled: {
-    backgroundColor: '#C7C7CC',
-  },
-  completeButtonText: {
+  takePhotoButtonText: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -0.3,
   },

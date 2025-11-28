@@ -1,0 +1,44 @@
+{
+  "units": [
+    {
+      "id": "les-scouts",
+      "name": "Les Scouts",
+      "category": "scouts",
+      "description": "Fédération Les Scouts",
+      "groupId": "default-group",
+      "leaderId": "temp-leader"
+    },
+    {
+      "id": "les-guides",
+      "name": "Les Guides",
+      "category": "guides",
+      "description": "Fédération Les Guides",
+      "groupId": "default-group",
+      "leaderId": "temp-leader"
+    },
+    {
+      "id": "le-patro",
+      "name": "Le Patro",
+      "category": "patro",
+      "description": "Fédération Le Patro",
+      "groupId": "default-group",
+      "leaderId": "temp-leader"
+    },
+    {
+      "id": "sgp",
+      "name": "Les Scouts et Guides Pluralistes",
+      "category": "sgp",
+      "description": "Fédération Les Scouts et Guides Pluralistes",
+      "groupId": "default-group",
+      "leaderId": "temp-leader"
+    },
+    {
+      "id": "faucons-rouges",
+      "name": "Faucons Rouges",
+      "category": "faucons",
+      "description": "Fédération Faucons Rouges",
+      "groupId": "default-group",
+      "leaderId": "temp-leader"
+    }
+  ]
+}

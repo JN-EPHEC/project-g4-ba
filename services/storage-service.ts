@@ -21,32 +21,45 @@ export class StorageService {
     metadata?: { contentType?: string }
   ): Promise<string> {
     try {
-      // Lire le fichier
-      const fileInfo = await FileSystem.getInfoAsync(localUri);
-      if (!fileInfo.exists) {
-        throw new Error('Le fichier n\'existe pas');
-      }
+      console.log('📤 Début upload image:', path);
 
-      // Lire les bytes du fichier
+      // Lire les bytes du fichier directement
+      console.log('📄 Lecture du fichier...');
       const fileBlob = await fetch(localUri).then((response) => response.blob());
+      console.log('✅ Fichier lu, taille:', fileBlob.size, 'bytes');
 
       // Créer la référence dans Storage
       const storageRef = ref(storage, path);
+      console.log('📝 Référence Storage créée');
 
-      // Upload le fichier
-      const uploadResult: UploadResult = await uploadBytes(
-        storageRef,
-        fileBlob,
-        metadata
-      );
+      // Upload le fichier avec un timeout
+      console.log('⏫ Upload en cours...');
+      const uploadResult: UploadResult = await Promise.race([
+        uploadBytes(storageRef, fileBlob, metadata),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout: L\'upload prend trop de temps. Vérifiez que Firebase Storage est activé dans la console Firebase.')), 30000)
+        )
+      ]);
+      console.log('✅ Upload terminé');
 
       // Récupérer l'URL de téléchargement
+      console.log('🔗 Récupération de l\'URL...');
       const downloadURL = await getDownloadURL(uploadResult.ref);
+      console.log('✅ URL récupérée:', downloadURL);
 
       return downloadURL;
-    } catch (error) {
-      console.error('Erreur lors de l\'upload de l\'image:', error);
-      throw error;
+    } catch (error: any) {
+      console.error('❌ Erreur lors de l\'upload de l\'image:', error);
+      console.error('❌ Code:', error?.code);
+      console.error('❌ Message:', error?.message);
+
+      if (error?.code === 'storage/unauthorized') {
+        throw new Error('Accès non autorisé au stockage. Vérifiez que vous êtes connecté et que Firebase Storage est configuré.');
+      } else if (error?.message?.includes('Timeout')) {
+        throw error;
+      } else {
+        throw new Error(error?.message || 'Erreur lors de l\'upload de l\'image');
+      }
     }
   }
 

@@ -1,11 +1,25 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
+import { UserRole } from '@/types';
 
 export default function AnimatorLayout() {
+  const { user, isLoading } = useAuth();
+  const { pendingChallengesCount, pendingScoutsCount } = useNotifications();
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
+  const totalNotifications = pendingChallengesCount + pendingScoutsCount;
+
+  // Rediriger vers login si l'utilisateur n'est pas connecté ou n'est pas un animateur
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== UserRole.ANIMATOR)) {
+      router.replace('/(auth)/login');
+    }
+  }, [user, isLoading]);
 
   return (
     <Tabs
@@ -27,21 +41,22 @@ export default function AnimatorLayout() {
         }}
       />
       <Tabs.Screen
-        name="scouts"
+        name="messages"
         options={{
-          title: 'Scouts',
+          title: 'Messagerie',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
+            <Ionicons name="chatbubbles" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="activities"
+        name="management"
         options={{
-          title: 'Activités',
+          title: 'Gestion',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
+            <Ionicons name="settings" size={size} color={color} />
           ),
+          tabBarBadge: totalNotifications > 0 ? totalNotifications : undefined,
         }}
       />
       <Tabs.Screen
@@ -51,6 +66,25 @@ export default function AnimatorLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),
+        }}
+      />
+      {/* Routes cachées - accessibles via navigation programmatique */}
+      <Tabs.Screen
+        name="challenges"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
+        }}
+      />
+      <Tabs.Screen
+        name="events"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
+        }}
+      />
+      <Tabs.Screen
+        name="scouts"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
         }}
       />
     </Tabs>

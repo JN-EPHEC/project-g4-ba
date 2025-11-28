@@ -31,6 +31,9 @@ export interface Scout extends User {
   points: number;
   rank?: string;
   dateOfBirth: Date;
+  validated: boolean; // Validé par l'animateur
+  validatedAt?: Date; // Date de validation
+  validatedBy?: string; // ID de l'animateur qui a validé
 }
 
 /**

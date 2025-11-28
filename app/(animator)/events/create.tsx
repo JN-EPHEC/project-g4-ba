@@ -1,0 +1,401 @@
+import React, { useState } from 'react';
+import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
+import { Card, Input, PrimaryButton } from '@/components/ui';
+import { useAuth } from '@/context/auth-context';
+import { EventService } from '@/services/event-service';
+import { EventType, Animator } from '@/types';
+import { useThemeColor } from '@/hooks/use-theme-color';
+
+export default function CreateEventScreen() {
+  const { user } = useAuth();
+  const animator = user as Animator;
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    type: EventType.CAMP,
+    location: '',
+    startDate: '',
+    endDate: '',
+    maxParticipants: '',
+    requiresParentConfirmation: true,
+    imageUrl: '',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const iconColor = useThemeColor({}, 'icon');
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = 'Le titre est requis';
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = 'La description est requise';
+    }
+
+    if (!formData.location.trim()) {
+      newErrors.location = 'Le lieu est requis';
+    }
+
+    if (!formData.startDate) {
+      newErrors.startDate = 'La date de début est requise';
+    } else {
+      const start = new Date(formData.startDate);
+      if (isNaN(start.getTime())) {
+        newErrors.startDate = 'Format de date invalide (utilisez YYYY-MM-DD)';
+      }
+    }
+
+    if (!formData.endDate) {
+      newErrors.endDate = 'La date de fin est requise';
+    } else {
+      const end = new Date(formData.endDate);
+      if (isNaN(end.getTime())) {
+        newErrors.endDate = 'Format de date invalide (utilisez YYYY-MM-DD)';
+      }
+    }
+
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end <= start) {
+        newErrors.endDate = 'La date de fin doit être après la date de début';
+      }
+    }
+
+    if (formData.maxParticipants && parseInt(formData.maxParticipants) <= 0) {
+      newErrors.maxParticipants = 'Le nombre doit être supérieur à 0';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    console.log('🔵 handleSubmit appelé');
+    console.log('📝 FormData:', formData);
+    console.log('👤 User complet:', user);
+    console.log('👤 User.id:', user?.id);
+    console.log('👤 Animator complet:', animator);
+    console.log('🏢 UnitId:', animator?.unitId);
+
+    if (!validateForm()) {
+      console.log('❌ Validation échouée');
+      return;
+    }
+
+    if (!user?.id) {
+      console.log('❌ User manquant');
+      alert('❌ Erreur\n\nUtilisateur non connecté');
+      return;
+    }
+
+    // Vérifier si l'animateur a un unitId, sinon utiliser une valeur par défaut
+    const unitId = animator?.unitId || 'default-unit';
+
+    if (!animator?.unitId) {
+      console.warn('⚠️ Pas de unitId pour cet animateur, utilisation de "default-unit"');
+    }
+
+    try {
+      setIsLoading(true);
+      console.log('⏳ Création de l\'événement en cours...');
+      console.log('📤 Paramètres envoyés:', {
+        title: formData.title,
+        description: formData.description,
+        type: formData.type,
+        startDate: new Date(formData.startDate),
+        endDate: new Date(formData.endDate),
+        location: formData.location,
+        createdBy: user.id,
+        unitId: unitId,
+        requiresParentConfirmation: formData.requiresParentConfirmation,
+        maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
+        imageUrl: formData.imageUrl || undefined
+      });
+
+      await EventService.createEvent(
+        formData.title,
+        formData.description,
+        formData.type,
+        new Date(formData.startDate),
+        new Date(formData.endDate),
+        formData.location,
+        user.id,
+        unitId,
+        formData.requiresParentConfirmation,
+        formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
+        formData.imageUrl || undefined
+      );
+
+      console.log('✅ Événement créé avec succès');
+
+      // Utiliser alert() au lieu de Alert.alert() pour le web
+      alert('✅ Succès!\n\nL\'événement a été créé avec succès.');
+      router.back();
+    } catch (error) {
+      console.error('❌ Erreur lors de la création de l\'événement:', error);
+      alert(`❌ Erreur\n\nImpossible de créer l\'événement:\n${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <ThemedView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ThemedText type="title" style={styles.title}>
+            Créer un événement
+          </ThemedText>
+
+          <Card style={styles.formCard}>
+            <Input
+              label="Titre de l'événement"
+              placeholder="Ex: Camp d'été 2025"
+              value={formData.title}
+              onChangeText={(text) => setFormData({ ...formData, title: text })}
+              error={errors.title}
+              icon={<Ionicons name="calendar-outline" size={20} color={iconColor} />}
+            />
+
+            <Input
+              label="Description"
+              placeholder="Décrivez l'événement..."
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              error={errors.description}
+              multiline
+              numberOfLines={4}
+              style={styles.textArea}
+              icon={<Ionicons name="document-text-outline" size={20} color={iconColor} />}
+            />
+
+            <ThemedText style={styles.label}>Type d'événement</ThemedText>
+            <View style={styles.typeButtons}>
+              {Object.values(EventType).map((type) => (
+                <PrimaryButton
+                  key={type}
+                  title={
+                    type === EventType.CAMP
+                      ? 'Camp'
+                      : type === EventType.MEETING
+                      ? 'Réunion'
+                      : type === EventType.ACTIVITY
+                      ? 'Activité'
+                      : 'Autre'
+                  }
+                  onPress={() => setFormData({ ...formData, type })}
+                  style={[
+                    styles.typeButton,
+                    formData.type === type && styles.typeButtonActive,
+                  ]}
+                />
+              ))}
+            </View>
+
+            <Input
+              label="Lieu"
+              placeholder="Ex: Ardennes, Belgique"
+              value={formData.location}
+              onChangeText={(text) => setFormData({ ...formData, location: text })}
+              error={errors.location}
+              icon={<Ionicons name="location-outline" size={20} color={iconColor} />}
+            />
+
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <ThemedText style={styles.label}>Date de début</ThemedText>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    border: errors.startDate ? '2px solid #ef4444' : '1px solid #d1d5db',
+                    fontSize: 16,
+                    width: '100%',
+                    backgroundColor: '#fff',
+                    color: '#000',
+                  }}
+                />
+                {errors.startDate && (
+                  <ThemedText style={styles.errorText}>{errors.startDate}</ThemedText>
+                )}
+              </View>
+
+              <View style={styles.halfWidth}>
+                <ThemedText style={styles.label}>Date de fin</ThemedText>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    border: errors.endDate ? '2px solid #ef4444' : '1px solid #d1d5db',
+                    fontSize: 16,
+                    width: '100%',
+                    backgroundColor: '#fff',
+                    color: '#000',
+                  }}
+                />
+                {errors.endDate && (
+                  <ThemedText style={styles.errorText}>{errors.endDate}</ThemedText>
+                )}
+              </View>
+            </View>
+
+            <Input
+              label="Nombre maximum de participants (optionnel)"
+              placeholder="Ex: 30"
+              value={formData.maxParticipants}
+              onChangeText={(text) => setFormData({ ...formData, maxParticipants: text })}
+              error={errors.maxParticipants}
+              keyboardType="numeric"
+              icon={<Ionicons name="people-outline" size={20} color={iconColor} />}
+            />
+
+            <Input
+              label="URL de l'image (optionnel)"
+              placeholder="https://..."
+              value={formData.imageUrl}
+              onChangeText={(text) => setFormData({ ...formData, imageUrl: text })}
+              icon={<Ionicons name="image-outline" size={20} color={iconColor} />}
+            />
+
+            <View style={styles.checkboxRow}>
+              <PrimaryButton
+                title={
+                  formData.requiresParentConfirmation
+                    ? '✓ Confirmation parentale requise'
+                    : 'Confirmation parentale requise'
+                }
+                onPress={() =>
+                  setFormData({
+                    ...formData,
+                    requiresParentConfirmation: !formData.requiresParentConfirmation,
+                  })
+                }
+                style={[
+                  styles.checkboxButton,
+                  formData.requiresParentConfirmation && styles.checkboxButtonActive,
+                ]}
+              />
+            </View>
+          </Card>
+
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={isLoading}
+            style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={styles.submitButtonText}>
+              {isLoading ? 'Création...' : 'Créer l\'événement'}
+            </ThemedText>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingTop: 60,
+  },
+  title: {
+    marginBottom: 24,
+  },
+  formCard: {
+    padding: 20,
+    marginBottom: 20,
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  halfWidth: {
+    flex: 1,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  typeButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  typeButton: {
+    flex: 1,
+    minWidth: '45%',
+    paddingVertical: 8,
+  },
+  typeButtonActive: {
+    opacity: 1,
+  },
+  checkboxRow: {
+    marginTop: 8,
+  },
+  checkboxButton: {
+    paddingVertical: 12,
+  },
+  checkboxButtonActive: {
+    opacity: 1,
+  },
+  submitButton: {
+    marginTop: 20,
+    backgroundColor: '#3b82f6',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#999',
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 4,
+  },
+});

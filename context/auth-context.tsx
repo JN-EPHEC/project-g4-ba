@@ -18,7 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole) => Promise<AnyUser>;
+  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string) => Promise<AnyUser>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<AnyUser>) => Promise<void>;
 }
@@ -120,7 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     firstName: string,
     lastName: string,
-    role: UserRole
+    role: UserRole,
+    unitId?: string
   ) => {
     try {
       setIsLoading(true);
@@ -138,15 +139,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('📝 Création du compte Firebase Auth...');
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       console.log('✅ Compte Firebase Auth créé avec succès. UID:', userCredential.user.uid);
-      
+
       // Créer le document utilisateur dans Firestore
       console.log('📝 Création du document utilisateur dans Firestore...');
+      const additionalData = unitId ? { unitId } : undefined;
       const newUser = await UserService.createUser(
         userCredential.user.uid,
         email,
         firstName,
         lastName,
-        role
+        role,
+        additionalData
       );
       console.log('✅ Document utilisateur créé dans Firestore:', newUser);
 
@@ -227,12 +230,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true);
+      console.log('🔓 Déconnexion en cours...');
 
       // Déconnexion avec Firebase Auth
       await signOut(auth);
+      
+      // Attendre un peu pour s'assurer que la déconnexion est bien propagée
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // L'état sera mis à jour automatiquement par onAuthStateChanged
+      // mais on le fait aussi manuellement pour être sûr
       setUser(null);
+      
+      console.log('✅ Déconnexion réussie');
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      console.error('❌ Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, on réinitialise l'utilisateur localement
+      setUser(null);
       throw error;
     } finally {
       setIsLoading(false);

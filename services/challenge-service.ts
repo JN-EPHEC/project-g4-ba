@@ -61,7 +61,7 @@ export class ChallengeService {
         points,
         difficulty,
         unitId: unitId || null,
-        imageUrl,
+        imageUrl: imageUrl || null,
         startDate: Timestamp.fromDate(startDate),
         endDate: Timestamp.fromDate(endDate),
         createdBy,

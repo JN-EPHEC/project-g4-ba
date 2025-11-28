@@ -3,11 +3,11 @@
  */
 
 export enum UnitCategory {
-  CASTORS = 'castors', // 6-8 ans
-  LOUVETEAUX = 'louveteaux', // 8-12 ans
-  ECLAIREURS = 'eclaireurs', // 12-16 ans
-  PIONNIERS = 'pionniers', // 16-18 ans
-  COMPAGNONS = 'compagnons', // 18+ ans
+  SCOUTS = 'scouts', // Les Scouts
+  GUIDES = 'guides', // Les Guides
+  PATRO = 'patro', // Le Patro
+  SGP = 'sgp', // Scouts et Guides Pluralistes
+  FAUCONS = 'faucons', // Faucons Rouges
 }
 
 export interface Unit {

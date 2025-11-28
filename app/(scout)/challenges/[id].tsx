@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, Alert, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, Alert, TouchableOpacity, Image, ActivityIndicator, Modal, Animated as RNAnimated } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withSpring } from 'react-native-reanimated';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Card, PrimaryButton, Badge } from '@/components/ui';
+import { Confetti } from '@/components/confetti';
 import { useAuth } from '@/context/auth-context';
 import { ChallengeService } from '@/services/challenge-service';
 import { ChallengeSubmissionService } from '@/services/challenge-submission-service';
@@ -23,7 +25,15 @@ export default function ChallengeDetailScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [scaleAnim] = useState(new RNAnimated.Value(0));
+  const [fadeAnim] = useState(new RNAnimated.Value(0));
+  const pulseScale = useSharedValue(1);
   const tintColor = useThemeColor({}, 'tint');
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
 
   useEffect(() => {
     loadChallenge();
@@ -73,6 +83,54 @@ export default function ChallengeDetailScreen() {
     }
   };
 
+  const showSuccessAnimation = () => {
+    setShowSuccessModal(true);
+
+    // Start pulse animation
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.1, { duration: 500 }),
+        withTiming(1, { duration: 500 })
+      ),
+      -1,
+      false
+    );
+
+    // Animation d'apparition
+    RNAnimated.parallel([
+      RNAnimated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Redirection automatique après 2.5 secondes
+    setTimeout(() => {
+      RNAnimated.parallel([
+        RNAnimated.timing(scaleAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setShowSuccessModal(false);
+        router.replace('/(scout)/dashboard');
+      });
+    }, 2500);
+  };
+
   const handleSubmit = async () => {
     if (!selectedImage || !challenge || !user?.id) return;
 
@@ -93,20 +151,15 @@ export default function ChallengeDetailScreen() {
         proofImageUrl
       );
 
-      Alert.alert('Succès', 'Votre défi a été soumis et est en attente de validation', [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.back();
-            loadChallenge();
-          },
-        },
-      ]);
+      // Arrêter le loading
+      setIsSubmitting(false);
+
+      // Afficher l'animation de succès
+      showSuccessAnimation();
     } catch (error: any) {
       console.error('Erreur lors de la soumission:', error);
-      Alert.alert('Erreur', error.message || 'Impossible de soumettre le défi');
-    } finally {
       setIsSubmitting(false);
+      Alert.alert('❌ Erreur', error.message || 'Impossible de soumettre le défi');
     }
   };
 
@@ -236,6 +289,62 @@ export default function ChallengeDetailScreen() {
           </Card>
         )}
       </ScrollView>
+
+      {/* Modal d'animation de succès avec confettis */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="none"
+      >
+        <View style={styles.successModalOverlay}>
+          {/* Confettis en arrière-plan */}
+          {showSuccessModal && <Confetti count={60} />}
+
+          <RNAnimated.View
+            style={[
+              styles.successModalContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            {/* Icon avec animation pulsante */}
+            <View style={styles.successIconContainer}>
+              <Animated.View style={pulseStyle}>
+                <Ionicons name="checkmark-circle" size={80} color="#34C759" />
+              </Animated.View>
+            </View>
+
+            <Animated.View entering={FadeInDown.duration(300).delay(400)}>
+              <ThemedText style={styles.successTitle}>
+                🎉 Défi soumis !
+              </ThemedText>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.duration(300).delay(500)}>
+              <ThemedText style={styles.successMessage}>
+                Bravo ! Ton défi a été envoyé avec succès.
+              </ThemedText>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.duration(300).delay(600)}>
+              <ThemedText style={styles.successSubMessage}>
+                Un animateur va le valider prochainement
+              </ThemedText>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.duration(300).delay(700)}>
+              <View style={styles.successPointsBadge}>
+                <Ionicons name="star" size={24} color="#f59e0b" />
+                <ThemedText style={styles.successPoints}>
+                  +{challenge?.points} points
+                </ThemedText>
+              </View>
+            </Animated.View>
+          </RNAnimated.View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -350,6 +459,63 @@ const styles = StyleSheet.create({
   errorCard: {
     padding: 20,
     margin: 20,
+  },
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  successModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#34C759',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  successSubMessage: {
+    fontSize: 15,
+    color: '#666666',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  successPointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF9C4',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+  },
+  successPoints: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#f59e0b',
   },
 });
 

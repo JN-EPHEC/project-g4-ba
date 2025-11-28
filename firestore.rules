@@ -1,127 +1,66 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Fonction helper pour vérifier le rôle
-    function isRole(role) {
-      return request.auth != null &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
-    }
-
-    // Fonction helper pour vérifier si l'utilisateur est authentifié
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Fonction helper pour vérifier si c'est l'utilisateur lui-même
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    // Collection users
+    // Règles pour les utilisateurs
     match /users/{userId} {
-      // Lecture: tout le monde peut lire les profils
-      allow read: if isAuthenticated();
-
-      // Création: seulement l'utilisateur lui-même ou les Cloud Functions
-      allow create: if isOwner(userId);
-
-      // Mise à jour: l'utilisateur lui-même ou un animateur
-      allow update: if isOwner(userId) || isRole('animator');
-
-      // Suppression: seulement l'utilisateur lui-même
-      allow delete: if isOwner(userId);
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow delete: if request.auth.uid == userId;
     }
 
-    // Collection units
+    // Règles pour les unités (lecture publique pour l'inscription)
     match /units/{unitId} {
-      // Lecture: tous les utilisateurs authentifiés
-      allow read: if isAuthenticated();
-
-      // Écriture: seulement les animateurs
-      allow write: if isRole('animator');
+      allow read: if true; // Lecture publique pour permettre la sélection lors de l'inscription
+      allow write: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
     }
 
-    // Collection challenges
+    // Règles pour les groupes scouts
+    match /scoutGroups/{groupId} {
+      allow read: if true; // Lecture publique
+      allow write: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
+
+    // Règles pour les défis
     match /challenges/{challengeId} {
-      // Lecture: tous les utilisateurs authentifiés
-      allow read: if isAuthenticated();
-
-      // Écriture: seulement les animateurs
-      allow write: if isRole('animator');
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
     }
 
-    // Collection challengeSubmissions
+    // Règles pour les soumissions de défis
     match /challengeSubmissions/{submissionId} {
-      // Lecture: le scout lui-même ou un animateur
-      allow read: if isAuthenticated() &&
-                     (isOwner(resource.data.scoutId) || isRole('animator'));
-
-      // Création: le scout lui-même
-      allow create: if isAuthenticated() &&
-                       isOwner(request.resource.data.scoutId);
-
-      // Mise à jour: seulement les animateurs (pour validation)
-      allow update: if isRole('animator');
-
-      // Suppression: seulement les animateurs
-      allow delete: if isRole('animator');
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.scoutId;
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.scoutId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['animator', 'parent']
+      );
     }
 
-    // Collection events
+    // Règles pour les événements
     match /events/{eventId} {
-      // Lecture: tous les utilisateurs authentifiés
-      allow read: if isAuthenticated();
-
-      // Écriture: seulement les animateurs
-      allow write: if isRole('animator');
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
     }
 
-    // Collection eventParticipations
-    match /eventParticipations/{participationId} {
-      // Lecture: le scout, son parent, ou un animateur
-      allow read: if isAuthenticated() &&
-                     (isOwner(resource.data.scoutId) ||
-                      isRole('animator') ||
-                      isRole('parent'));
-
-      // Création: le scout lui-même
-      allow create: if isAuthenticated() &&
-                       isOwner(request.resource.data.scoutId);
-
-      // Mise à jour: le scout lui-même ou un animateur
-      allow update: if isAuthenticated() &&
-                       (isOwner(resource.data.scoutId) || isRole('animator'));
-
-      // Suppression: le scout lui-même ou un animateur
-      allow delete: if isAuthenticated() &&
-                       (isOwner(resource.data.scoutId) || isRole('animator'));
-    }
-
-    // Collection messages
-    match /messages/{messageId} {
-      // Lecture: tous les utilisateurs authentifiés
-      allow read: if isAuthenticated();
-
-      // Création: tous les utilisateurs authentifiés
-      allow create: if isAuthenticated();
-
-      // Mise à jour: l'auteur du message
-      allow update: if isAuthenticated() && isOwner(resource.data.authorId);
-
-      // Suppression: l'auteur ou un animateur
-      allow delete: if isAuthenticated() &&
-                       (isOwner(resource.data.authorId) || isRole('animator'));
-    }
-
-    // Collection documents
-    match /documents/{documentId} {
-      // Lecture: tous les utilisateurs authentifiés
-      allow read: if isAuthenticated();
-
-      // Écriture: seulement les animateurs
-      allow write: if isRole('animator');
+    // Règles pour les présences aux événements
+    match /eventAttendances/{attendanceId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.scoutId;
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.scoutId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator'
+      );
     }
   }
 }

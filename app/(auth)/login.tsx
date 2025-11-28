@@ -50,9 +50,8 @@ export default function LoginScreen() {
     try {
       await login(email, password);
 
-      // Redirection basée sur le rôle (sera implémenté plus tard)
-      // Pour l'instant, on redirige vers le tableau de bord scout
-      router.replace('/(scout)/dashboard');
+      // La redirection sera gérée automatiquement par app/index.tsx en fonction du rôle
+      router.replace('/');
     } catch (error) {
       Alert.alert('Erreur', 'Identifiants incorrects');
     }

@@ -44,6 +44,9 @@ export class UserService {
           points: data.points || 0,
           rank: data.rank,
           dateOfBirth: data.dateOfBirth?.toDate() || new Date(),
+          validated: data.validated || false,
+          validatedAt: data.validatedAt?.toDate(),
+          validatedBy: data.validatedBy,
         } as Scout;
 
       case UserRole.PARENT:
@@ -143,9 +146,10 @@ export class UserService {
             parentIds: additionalData?.parentIds || [],
             unitId: additionalData?.unitId || '',
             points: additionalData?.points || 0,
-            dateOfBirth: additionalData?.dateOfBirth 
-              ? (additionalData.dateOfBirth instanceof Date 
-                  ? Timestamp.fromDate(additionalData.dateOfBirth) 
+            validated: false, // Par défaut, les scouts doivent être validés par un animateur
+            dateOfBirth: additionalData?.dateOfBirth
+              ? (additionalData.dateOfBirth instanceof Date
+                  ? Timestamp.fromDate(additionalData.dateOfBirth)
                   : additionalData.dateOfBirth)
               : Timestamp.fromDate(new Date()),
           };

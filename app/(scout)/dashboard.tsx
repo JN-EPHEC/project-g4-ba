@@ -1,11 +1,11 @@
 import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions, Platform } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInUp, FadeInLeft, ZoomIn } from 'react-native-reanimated';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Card, Avatar } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { Scout } from '@/types';
 import { useEvents } from '@/src/features/events/hooks/use-events';
@@ -46,37 +46,22 @@ export default function ScoutDashboardScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section - Apple Style */}
-        <View style={styles.heroSection}>
-          <View style={styles.heroContent}>
-            <Avatar
-              name={scout ? `${scout.firstName} ${scout.lastName}` : undefined}
-              imageUrl={scout?.profilePicture}
-              size={isTablet ? 'xlarge' : 'large'}
-            />
-            <View style={styles.heroText}>
-              <ThemedText style={[styles.greeting, isTablet && styles.greetingTablet]}>
-                Bonjour,
-              </ThemedText>
-              <ThemedText style={[styles.userName, isTablet && styles.userNameTablet]}>
-                {scout?.firstName} 👋
-              </ThemedText>
-            </View>
-          </View>
-        </View>
 
-        {/* Stats Cards - Apple Style Grid */}
+        {/* Stats Cards - Apple Style Grid with Animations */}
         <View style={[
           styles.statsSection,
           isTablet && styles.statsSectionTablet,
           isDesktop && styles.statsSectionDesktop
         ]}>
-          <TouchableOpacity
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(0)}
             style={[styles.statCard, isTablet && styles.statCardTablet]}
-            onPress={() => router.push('/(scout)/leaderboard')}
-            activeOpacity={0.6}
           >
-            <View style={styles.statCardContent}>
+            <TouchableOpacity
+              onPress={() => router.push('/(scout)/leaderboard')}
+              activeOpacity={0.7}
+              style={styles.statCardContent}
+            >
               <View style={styles.statIconContainer}>
                 <View style={[styles.statIcon, { backgroundColor: '#007AFF15' }]}>
                   <Ionicons name="trophy" size={isTablet ? 28 : 24} color="#007AFF" />
@@ -88,15 +73,18 @@ export default function ScoutDashboardScreen() {
                 </ThemedText>
                 <ThemedText style={styles.statLabel}>Points</ThemedText>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
 
-          <TouchableOpacity
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(100)}
             style={[styles.statCard, isTablet && styles.statCardTablet]}
-            onPress={() => router.push('/(scout)/leaderboard')}
-            activeOpacity={0.6}
           >
-            <View style={styles.statCardContent}>
+            <TouchableOpacity
+              onPress={() => router.push('/(scout)/leaderboard')}
+              activeOpacity={0.7}
+              style={styles.statCardContent}
+            >
               <View style={styles.statIconContainer}>
                 <View style={[styles.statIcon, { backgroundColor: '#FF950015' }]}>
                   <Ionicons name="ribbon" size={isTablet ? 28 : 24} color="#FF9500" />
@@ -108,15 +96,18 @@ export default function ScoutDashboardScreen() {
                 </ThemedText>
                 <ThemedText style={styles.statLabel}>Classement</ThemedText>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
 
-          <TouchableOpacity
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(200)}
             style={[styles.statCard, isTablet && styles.statCardTablet]}
-            onPress={() => router.push('/(scout)/challenges')}
-            activeOpacity={0.6}
           >
-            <View style={styles.statCardContent}>
+            <TouchableOpacity
+              onPress={() => router.push('/(scout)/challenges')}
+              activeOpacity={0.7}
+              style={styles.statCardContent}
+            >
               <View style={styles.statIconContainer}>
                 <View style={[styles.statIcon, { backgroundColor: '#34C75915' }]}>
                   <Ionicons name="checkmark-circle" size={isTablet ? 28 : 24} color="#34C759" />
@@ -128,15 +119,18 @@ export default function ScoutDashboardScreen() {
                 </ThemedText>
                 <ThemedText style={styles.statLabel}>Défis</ThemedText>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
 
-          <TouchableOpacity
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(300)}
             style={[styles.statCard, isTablet && styles.statCardTablet]}
-            onPress={() => router.push('/(scout)/events')}
-            activeOpacity={0.6}
           >
-            <View style={styles.statCardContent}>
+            <TouchableOpacity
+              onPress={() => router.push('/(scout)/events')}
+              activeOpacity={0.7}
+              style={styles.statCardContent}
+            >
               <View style={styles.statIconContainer}>
                 <View style={[styles.statIcon, { backgroundColor: '#AF52DE15' }]}>
                   <Ionicons name="calendar" size={isTablet ? 28 : 24} color="#AF52DE" />
@@ -148,8 +142,8 @@ export default function ScoutDashboardScreen() {
                 </ThemedText>
                 <ThemedText style={styles.statLabel}>Événements</ThemedText>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         {/* Défis Section - Apple Style */}
@@ -164,7 +158,7 @@ export default function ScoutDashboardScreen() {
             >
               <View style={styles.seeAllButton}>
                 <ThemedText style={styles.seeAllText}>Tout voir</ThemedText>
-                <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+                <Ionicons name="chevron-forward" size={16} color="#666666" />
               </View>
             </TouchableOpacity>
           </View>
@@ -177,7 +171,7 @@ export default function ScoutDashboardScreen() {
             </View>
           ) : (
             <View style={[styles.challengesGrid, isTablet && styles.challengesGridTablet]}>
-              {activeChallenges.map((challenge) => {
+              {activeChallenges.map((challenge, index) => {
                 const daysRemaining = Math.ceil(
                   (new Date(challenge.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
                 );
@@ -191,33 +185,37 @@ export default function ScoutDashboardScreen() {
                 const config = difficultyConfig[challenge.difficulty];
 
                 return (
-                  <TouchableOpacity
+                  <Animated.View
                     key={challenge.id}
-                    style={[styles.challengeCard, isTablet && styles.challengeCardTablet]}
-                    onPress={() => router.push('/(scout)/challenges')}
-                    activeOpacity={0.6}
+                    entering={ZoomIn.duration(400).delay(400 + index * 100)}
                   >
-                    <View style={styles.challengeIconContainer}>
-                      <View style={[styles.challengeIcon, { backgroundColor: config.bgColor }]}>
-                        <ThemedText style={styles.challengeEmoji}>{config.emoji}</ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.challengeContent}>
-                      <ThemedText style={styles.challengeTitle}>{challenge.title}</ThemedText>
-                      <ThemedText style={styles.challengeDescription} numberOfLines={2}>
-                        {challenge.description}
-                      </ThemedText>
-                      <View style={styles.challengeFooter}>
-                        <View style={styles.challengePoints}>
-                          <Ionicons name="star" size={14} color="#FF9500" />
-                          <ThemedText style={styles.challengePointsText}>{challenge.points} pts</ThemedText>
+                    <TouchableOpacity
+                      style={[styles.challengeCard, isTablet && styles.challengeCardTablet]}
+                      onPress={() => router.push('/(scout)/challenges')}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.challengeIconContainer}>
+                        <View style={[styles.challengeIcon, { backgroundColor: config.bgColor }]}>
+                          <ThemedText style={styles.challengeEmoji}>{config.emoji}</ThemedText>
                         </View>
-                        <ThemedText style={styles.challengeDays}>
-                          {daysRemaining > 0 ? `${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}` : 'Dernier jour'}
-                        </ThemedText>
                       </View>
-                    </View>
-                  </TouchableOpacity>
+                      <View style={styles.challengeContent}>
+                        <ThemedText style={styles.challengeTitle}>{challenge.title}</ThemedText>
+                        <ThemedText style={styles.challengeDescription} numberOfLines={2}>
+                          {challenge.description}
+                        </ThemedText>
+                        <View style={styles.challengeFooter}>
+                          <View style={styles.challengePoints}>
+                            <Ionicons name="star" size={14} color="#FF9500" />
+                            <ThemedText style={styles.challengePointsText}>{challenge.points} pts</ThemedText>
+                          </View>
+                          <ThemedText style={styles.challengeDays}>
+                            {daysRemaining > 0 ? `${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}` : 'Dernier jour'}
+                          </ThemedText>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </Animated.View>
                 );
               })}
             </View>
@@ -236,7 +234,7 @@ export default function ScoutDashboardScreen() {
             >
               <View style={styles.seeAllButton}>
                 <ThemedText style={styles.seeAllText}>Tout voir</ThemedText>
-                <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+                <Ionicons name="chevron-forward" size={16} color="#666666" />
               </View>
             </TouchableOpacity>
           </View>
@@ -266,33 +264,37 @@ export default function ScoutDashboardScreen() {
               const backgroundColor = eventColors[event.type] || eventColors.other;
 
               return (
-                <TouchableOpacity
+                <Animated.View
                   key={event.id}
-                  style={styles.eventCard}
-                  onPress={() => router.push('/(scout)/events')}
-                  activeOpacity={0.6}
+                  entering={FadeInLeft.duration(400).delay(600 + index * 100)}
                 >
-                  <View style={[styles.eventDate, { backgroundColor }]}>
-                    <ThemedText style={styles.eventDay}>{day}</ThemedText>
-                    <ThemedText style={styles.eventMonth}>{month}</ThemedText>
-                  </View>
-                  <View style={styles.eventContent}>
-                    <ThemedText style={styles.eventTitle}>{event.title}</ThemedText>
-                    <View style={styles.eventDetail}>
-                      <Ionicons name="time-outline" size={14} color="#8E8E93" />
-                      <ThemedText style={styles.eventDetailText}>
-                        {startTime} - {endTime}
-                      </ThemedText>
+                  <TouchableOpacity
+                    style={styles.eventCard}
+                    onPress={() => router.push('/(scout)/events')}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.eventDate, { backgroundColor }]}>
+                      <ThemedText style={styles.eventDay}>{day}</ThemedText>
+                      <ThemedText style={styles.eventMonth}>{month}</ThemedText>
                     </View>
-                    <View style={styles.eventDetail}>
-                      <Ionicons name="location-outline" size={14} color="#8E8E93" />
-                      <ThemedText style={styles.eventDetailText} numberOfLines={1}>
-                        {event.location}
-                      </ThemedText>
+                    <View style={styles.eventContent}>
+                      <ThemedText style={styles.eventTitle}>{event.title}</ThemedText>
+                      <View style={styles.eventDetail}>
+                        <Ionicons name="time-outline" size={14} color="#8E8E93" />
+                        <ThemedText style={styles.eventDetailText}>
+                          {startTime} - {endTime}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.eventDetail}>
+                        <Ionicons name="location-outline" size={14} color="#8E8E93" />
+                        <ThemedText style={styles.eventDetailText} numberOfLines={1}>
+                          {event.location}
+                        </ThemedText>
+                      </View>
                     </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-                </TouchableOpacity>
+                    <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+                  </TouchableOpacity>
+                </Animated.View>
               );
             })
           )}
@@ -305,356 +307,277 @@ export default function ScoutDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#1A1A1A',
   },
+
   scrollContent: {
-    padding: 16,
+    padding: 20,
     paddingTop: 60,
     paddingBottom: 40,
   },
   scrollContentTablet: {
-    padding: 24,
-    paddingTop: 70,
+    padding: 32,
+    paddingTop: 32,
   },
   scrollContentDesktop: {
-    padding: 32,
-    maxWidth: 1200,
+    padding: 40,
+    maxWidth: 720,
     alignSelf: 'center',
     width: '100%',
   },
 
-  // Hero Section - Apple Style
-  heroSection: {
-    marginBottom: 24,
-  },
-  heroContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  heroText: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: 17,
-    color: '#8E8E93',
-    marginBottom: 2,
-  },
-  greetingTablet: {
-    fontSize: 20,
-  },
-  userName: {
-    fontSize: 34,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  userNameTablet: {
-    fontSize: 42,
-  },
-
-  // Stats Section - Apple Grid
+  // Stats Section
   statsSection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 32,
+    gap: 16,
+    marginBottom: 40,
   },
   statsSectionTablet: {
-    gap: 16,
+    gap: 20,
   },
   statsSectionDesktop: {
-    gap: 20,
+    gap: 24,
   },
   statCard: {
     flex: 1,
     minWidth: '47%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-      },
-    }),
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   statCardTablet: {
     minWidth: 200,
     maxWidth: 240,
   },
   statCardContent: {
-    padding: 20,
+    padding: 24,
   },
   statIconContainer: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statInfo: {
-    gap: 4,
+    gap: 6,
   },
   statValue: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
+    color: '#FFFFFF',
   },
   statValueTablet: {
-    fontSize: 36,
+    fontSize: 32,
   },
   statLabel: {
-    fontSize: 15,
-    color: '#8E8E93',
+    fontSize: 14,
+    color: '#999999',
     fontWeight: '500',
   },
 
-  // Section Headers - Apple Style
+  // Section Headers - Skool Style
   section: {
-    marginBottom: 32,
+    marginBottom: 40,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A3A3A',
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
+    color: '#FFFFFF',
   },
   sectionTitleTablet: {
-    fontSize: 26,
+    fontSize: 24,
   },
   seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#3A3A3A',
   },
   seeAllText: {
-    fontSize: 15,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 
-  // Challenges Grid - Apple Style
+  // Challenges Grid
   challengesGrid: {
-    gap: 12,
+    gap: 16,
   },
   challengesGridTablet: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: 20,
   },
   challengeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 20,
     flexDirection: 'row',
     gap: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 1,
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   challengeCardTablet: {
     flex: 1,
-    minWidth: 320,
+    minWidth: 340,
   },
   challengeIconContainer: {
     justifyContent: 'center',
   },
   challengeIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   challengeEmoji: {
-    fontSize: 32,
+    fontSize: 28,
   },
   challengeContent: {
     flex: 1,
-    gap: 6,
+    gap: 8,
   },
   challengeTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     marginBottom: 2,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   challengeDescription: {
-    fontSize: 15,
-    color: '#8E8E93',
+    fontSize: 14,
+    color: '#999999',
     lineHeight: 20,
   },
   challengeFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#3A3A3A',
   },
   challengePoints: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
+    backgroundColor: '#3A3A3A',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   challengePointsText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FF9500',
   },
   challengeDays: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: '#999999',
+    fontWeight: '500',
   },
 
-  // Events - Apple List Style
+  // Events
   eventCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 1,
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-    }),
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   eventDate: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eventDay: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: -0.5,
   },
   eventMonth: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   eventContent: {
     flex: 1,
-    gap: 6,
+    gap: 8,
   },
   eventTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     marginBottom: 2,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   eventDetail: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   eventDetailText: {
-    fontSize: 15,
-    color: '#8E8E93',
+    fontSize: 14,
+    color: '#999999',
   },
 
-  // Empty Events
+  // Empty States
   emptyEventsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 32,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 40,
     alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 1,
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   emptyEventsText: {
-    fontSize: 15,
-    color: '#8E8E93',
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
   },
 
   // Empty Challenges
   emptyChallengesContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 32,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 40,
     alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 1,
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   emptyChallengesText: {
-    fontSize: 15,
-    color: '#8E8E93',
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
   },
 });

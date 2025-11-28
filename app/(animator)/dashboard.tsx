@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
+import Animated, { FadeIn, FadeInLeft } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { UnitService } from '@/services/unit-service';
+import { EventService } from '@/services/event-service';
+import { ChallengeService } from '@/services/challenge-service';
 import { Animator, Unit } from '@/types';
 
 export default function AnimatorDashboardScreen() {
@@ -14,29 +18,52 @@ export default function AnimatorDashboardScreen() {
   const animator = user as Animator;
   const [unit, setUnit] = useState<Unit | null>(null);
   const [scoutsCount, setScoutsCount] = useState(0);
+  const [eventsCount, setEventsCount] = useState(0);
+  const [challengesCount, setChallengesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadUnitData();
+    loadDashboardData();
   }, [animator?.unitId]);
 
-  const loadUnitData = async () => {
-    if (!animator?.unitId) {
-      setIsLoading(false);
-      return;
-    }
-
+  const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const unitData = await UnitService.getUnitById(animator.unitId);
-      setUnit(unitData);
 
-      if (unitData) {
-        const scouts = await UnitService.getScoutsByUnit(unitData.id);
-        setScoutsCount(scouts.length);
+      // Charger l'unité et les scouts
+      if (animator?.unitId) {
+        const unitData = await UnitService.getUnitById(animator.unitId);
+        setUnit(unitData);
+
+        if (unitData) {
+          const scouts = await UnitService.getScoutsByUnit(unitData.id);
+          setScoutsCount(scouts.length);
+        }
+      }
+
+      // Charger les événements (tous les événements créés par cet animateur)
+      try {
+        const allEvents = await EventService.getUpcomingEvents(animator?.unitId);
+        setEventsCount(allEvents.length);
+      } catch (error) {
+        console.error('Erreur lors du chargement des événements:', error);
+        setEventsCount(0);
+      }
+
+      // Charger les défis actifs
+      try {
+        const allChallenges = await ChallengeService.getActiveChallenges();
+        // Filtrer les défis de l'unité de l'animateur
+        const unitChallenges = animator?.unitId
+          ? allChallenges.filter(c => c.unitId === animator.unitId)
+          : allChallenges;
+        setChallengesCount(unitChallenges.length);
+      } catch (error) {
+        console.error('Erreur lors du chargement des défis:', error);
+        setChallengesCount(0);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des données de l\'unité:', error);
+      console.error('Erreur lors du chargement des données du dashboard:', error);
     } finally {
       setIsLoading(false);
     }
@@ -50,70 +77,93 @@ export default function AnimatorDashboardScreen() {
         </ThemedText>
 
         {unit && (
-          <Card style={styles.unitCard}>
-            <ThemedText type="subtitle" style={styles.unitTitle}>
-              {unit.name}
-            </ThemedText>
-            {unit.description && (
-              <ThemedText style={styles.unitDescription}>
-                {unit.description}
+          <Animated.View entering={FadeIn.duration(400).delay(0)}>
+            <Card style={styles.unitCard}>
+              <ThemedText type="subtitle" style={styles.unitTitle}>
+                {unit.name}
               </ThemedText>
-            )}
-          </Card>
+              {unit.description && (
+                <ThemedText style={styles.unitDescription}>
+                  {unit.description}
+                </ThemedText>
+              )}
+            </Card>
+          </Animated.View>
         )}
 
-        <Card style={styles.statsCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>
-                {isLoading ? '...' : scoutsCount}
-              </ThemedText>
-              <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+        <Animated.View entering={FadeIn.duration(400).delay(100)}>
+          <Card style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>
+                  {isLoading ? '...' : scoutsCount}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+              </View>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>
+                  {isLoading ? '...' : eventsCount}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Événements</ThemedText>
+              </View>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>
+                  {isLoading ? '...' : challengesCount}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Défis actifs</ThemedText>
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>0</ThemedText>
-              <ThemedText style={styles.statLabel}>Événements</ThemedText>
-            </View>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>0</ThemedText>
-              <ThemedText style={styles.statLabel}>Défis actifs</ThemedText>
-            </View>
-          </View>
-        </Card>
+          </Card>
+        </Animated.View>
 
         <ThemedText type="subtitle" style={styles.sectionTitle}>
           Actions rapides
         </ThemedText>
 
-        <Card style={styles.actionCard}>
-          <Ionicons name="add-circle" size={24} color="#3b82f6" />
-          <View style={styles.actionContent}>
-            <ThemedText type="defaultSemiBold">Créer un événement</ThemedText>
-            <ThemedText style={styles.actionDescription}>
-              Planifier une nouvelle activité
-            </ThemedText>
-          </View>
-        </Card>
+        <Animated.View entering={FadeInLeft.duration(400).delay(200)}>
+          <TouchableOpacity onPress={() => router.push('/(animator)/events/create')}>
+            <Card style={styles.actionCard}>
+              <Ionicons name="add-circle" size={24} color="#3b82f6" />
+              <View style={styles.actionContent}>
+                <ThemedText type="defaultSemiBold">Créer un événement</ThemedText>
+                <ThemedText style={styles.actionDescription}>
+                  Planifier une nouvelle activité
+                </ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </Card>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <Card style={styles.actionCard}>
-          <Ionicons name="flash" size={24} color="#f59e0b" />
-          <View style={styles.actionContent}>
-            <ThemedText type="defaultSemiBold">Créer un défi</ThemedText>
-            <ThemedText style={styles.actionDescription}>
-              Lancer un nouveau défi pour les scouts
-            </ThemedText>
-          </View>
-        </Card>
+        <Animated.View entering={FadeInLeft.duration(400).delay(300)}>
+          <TouchableOpacity onPress={() => router.push('/(animator)/challenges/create')}>
+            <Card style={styles.actionCard}>
+              <Ionicons name="flash" size={24} color="#f59e0b" />
+              <View style={styles.actionContent}>
+                <ThemedText type="defaultSemiBold">Créer un défi</ThemedText>
+                <ThemedText style={styles.actionDescription}>
+                  Lancer un nouveau défi pour les scouts
+                </ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </Card>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <Card style={styles.actionCard}>
-          <Ionicons name="document-text" size={24} color="#8b5cf6" />
-          <View style={styles.actionContent}>
-            <ThemedText type="defaultSemiBold">Partager un document</ThemedText>
-            <ThemedText style={styles.actionDescription}>
-              Ajouter un document à signer
-            </ThemedText>
-          </View>
-        </Card>
+        <Animated.View entering={FadeInLeft.duration(400).delay(400)}>
+          <TouchableOpacity onPress={() => router.push('/(animator)/scouts')}>
+            <Card style={styles.actionCard}>
+              <Ionicons name="people" size={24} color="#10b981" />
+              <View style={styles.actionContent}>
+                <ThemedText type="defaultSemiBold">Gérer les scouts</ThemedText>
+                <ThemedText style={styles.actionDescription}>
+                  Voir et gérer les scouts de votre unité
+                </ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </Card>
+          </TouchableOpacity>
+        </Animated.View>
       </ScrollView>
     </ThemedView>
   );
@@ -122,6 +172,7 @@ export default function AnimatorDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
     padding: 20,
@@ -129,10 +180,14 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 20,
+    color: '#FFFFFF',
   },
   statsCard: {
     padding: 20,
     marginBottom: 24,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   statsRow: {
     flexDirection: 'row',
@@ -145,14 +200,18 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     marginBottom: 4,
+    color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 11,
-    opacity: 0.7,
+    color: '#999999',
     textAlign: 'center',
   },
   sectionTitle: {
     marginBottom: 12,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
   },
   actionCard: {
     padding: 16,
@@ -160,24 +219,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   actionContent: {
     flex: 1,
   },
   actionDescription: {
     fontSize: 12,
-    opacity: 0.7,
+    color: '#999999',
     marginTop: 2,
   },
   unitCard: {
     padding: 16,
     marginBottom: 20,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   unitTitle: {
     marginBottom: 4,
+    color: '#FFFFFF',
   },
   unitDescription: {
     fontSize: 14,
-    opacity: 0.7,
+    color: '#999999',
   },
 });

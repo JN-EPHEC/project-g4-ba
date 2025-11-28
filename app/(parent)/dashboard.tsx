@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInUp, FadeInLeft } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Avatar, Badge, Card } from '@/components/ui';
+import { RankBadge } from '@/components/rank-badge';
 import { useAuth } from '@/context/auth-context';
 import { ParentScoutService } from '@/services/parent-scout-service';
 import { Parent, Scout } from '@/types';
@@ -39,20 +41,22 @@ export default function ParentDashboardScreen() {
           Bonjour {parent?.firstName} 👋
         </ThemedText>
 
-        <Card style={styles.statsCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>
-                {scouts.length}
-              </ThemedText>
-              <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+        <Animated.View entering={FadeInUp.duration(400).delay(100)}>
+          <Card style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>
+                  {scouts.length}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+              </View>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>0</ThemedText>
+                <ThemedText style={styles.statLabel}>Documents à signer</ThemedText>
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>0</ThemedText>
-              <ThemedText style={styles.statLabel}>Documents à signer</ThemedText>
-            </View>
-          </View>
-        </Card>
+          </Card>
+        </Animated.View>
 
         <ThemedText type="subtitle" style={styles.sectionTitle}>
           Mes scouts
@@ -69,25 +73,33 @@ export default function ParentDashboardScreen() {
             </ThemedText>
           </Card>
         ) : (
-          scouts.map((scout) => (
-            <Card key={scout.id} style={styles.scoutCard}>
-              <View style={styles.scoutHeader}>
-                <Avatar
-                  name={`${scout.firstName} ${scout.lastName}`}
-                  imageUrl={scout.profilePicture}
-                  size="medium"
-                />
-                <View style={styles.scoutInfo}>
-                  <ThemedText type="defaultSemiBold">
-                    {scout.firstName} {scout.lastName}
-                  </ThemedText>
-                  <ThemedText style={styles.scoutDetail}>
-                    {scout.points || 0} points
-                  </ThemedText>
+          scouts.map((scout, index) => (
+            <Animated.View
+              key={scout.id}
+              entering={FadeInLeft.duration(400).delay(200 + index * 100)}
+            >
+              <Card style={styles.scoutCard}>
+                <View style={styles.scoutHeader}>
+                  <Avatar
+                    name={`${scout.firstName} ${scout.lastName}`}
+                    imageUrl={scout.profilePicture}
+                    size="medium"
+                  />
+                  <View style={styles.scoutInfo}>
+                    <View style={styles.nameRow}>
+                      <ThemedText type="defaultSemiBold">
+                        {scout.firstName} {scout.lastName}
+                      </ThemedText>
+                      <RankBadge xp={scout.points || 0} size="small" />
+                    </View>
+                    <ThemedText style={styles.scoutDetail}>
+                      {scout.points || 0} points
+                    </ThemedText>
+                  </View>
+                  <Badge variant="success">Actif</Badge>
                 </View>
-                <Badge variant="success">Actif</Badge>
-              </View>
-            </Card>
+              </Card>
+            </Animated.View>
           ))
         )}
       </ScrollView>
@@ -98,6 +110,7 @@ export default function ParentDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
     padding: 20,
@@ -105,10 +118,14 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 20,
+    color: '#FFFFFF',
   },
   statsCard: {
     padding: 20,
     marginBottom: 24,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   statsRow: {
     flexDirection: 'row',
@@ -121,18 +138,25 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 32,
     marginBottom: 4,
+    color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 12,
-    opacity: 0.7,
+    color: '#999999',
     textAlign: 'center',
   },
   sectionTitle: {
     marginBottom: 12,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
   },
   scoutCard: {
     padding: 16,
     marginBottom: 12,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   scoutHeader: {
     flexDirection: 'row',
@@ -142,9 +166,14 @@ const styles = StyleSheet.create({
   scoutInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   scoutDetail: {
     fontSize: 12,
-    opacity: 0.7,
+    color: '#999999',
     marginTop: 2,
   },
   loadingContainer: {
@@ -154,9 +183,12 @@ const styles = StyleSheet.create({
   emptyCard: {
     padding: 20,
     alignItems: 'center',
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   emptyText: {
-    opacity: 0.7,
+    color: '#999999',
     textAlign: 'center',
   },
 });

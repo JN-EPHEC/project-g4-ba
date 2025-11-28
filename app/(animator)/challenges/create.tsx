@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -58,16 +58,26 @@ export default function CreateChallengeScreen() {
 
     if (!formData.startDate) {
       newErrors.startDate = 'La date de début est requise';
+    } else {
+      const start = new Date(formData.startDate);
+      if (isNaN(start.getTime())) {
+        newErrors.startDate = 'Format de date invalide (utilisez YYYY-MM-DD)';
+      }
     }
 
     if (!formData.endDate) {
       newErrors.endDate = 'La date de fin est requise';
+    } else {
+      const end = new Date(formData.endDate);
+      if (isNaN(end.getTime())) {
+        newErrors.endDate = 'Format de date invalide (utilisez YYYY-MM-DD)';
+      }
     }
 
     if (formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
-      if (end <= start) {
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end <= start) {
         newErrors.endDate = 'La date de fin doit être après la date de début';
       }
     }
@@ -93,15 +103,12 @@ export default function CreateChallengeScreen() {
         formData.unitId || undefined
       );
 
-      Alert.alert('Succès', 'Le défi a été créé avec succès', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      // Utiliser alert() au lieu de Alert.alert() pour le web
+      alert('✅ Succès!\n\nLe défi a été créé avec succès.');
+      router.back();
     } catch (error) {
       console.error('Erreur lors de la création du défi:', error);
-      Alert.alert('Erreur', 'Impossible de créer le défi');
+      alert('❌ Erreur\n\nImpossible de créer le défi.');
     } finally {
       setIsLoading(false);
     }
@@ -186,29 +193,45 @@ export default function CreateChallengeScreen() {
 
             <View style={styles.row}>
               <View style={styles.halfWidth}>
-                <Input
-                  label="Date de début"
-                  placeholder="YYYY-MM-DD"
+                <ThemedText style={styles.label}>Date de début</ThemedText>
+                <input
+                  type="date"
                   value={formData.startDate}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, startDate: text })
-                  }
-                  error={errors.startDate}
-                  icon={<Ionicons name="calendar-outline" size={20} color={iconColor} />}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    border: errors.startDate ? '2px solid #ef4444' : '1px solid #d1d5db',
+                    fontSize: 16,
+                    width: '100%',
+                    backgroundColor: '#fff',
+                    color: '#000',
+                  }}
                 />
+                {errors.startDate && (
+                  <ThemedText style={styles.errorText}>{errors.startDate}</ThemedText>
+                )}
               </View>
 
               <View style={styles.halfWidth}>
-                <Input
-                  label="Date de fin"
-                  placeholder="YYYY-MM-DD"
+                <ThemedText style={styles.label}>Date de fin</ThemedText>
+                <input
+                  type="date"
                   value={formData.endDate}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, endDate: text })
-                  }
-                  error={errors.endDate}
-                  icon={<Ionicons name="calendar-outline" size={20} color={iconColor} />}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    border: errors.endDate ? '2px solid #ef4444' : '1px solid #d1d5db',
+                    fontSize: 16,
+                    width: '100%',
+                    backgroundColor: '#fff',
+                    color: '#000',
+                  }}
                 />
+                {errors.endDate && (
+                  <ThemedText style={styles.errorText}>{errors.endDate}</ThemedText>
+                )}
               </View>
             </View>
 
@@ -283,6 +306,11 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

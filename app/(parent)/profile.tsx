@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
 
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card, PrimaryButton } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { Parent } from '@/types';
 
@@ -13,22 +13,28 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const parent = user as Parent;
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Déconnexion',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
+  const handleLogout = () => {
+    console.log('🔘 Bouton Déconnexion cliqué!');
+
+    // Version simplifiée qui fonctionne toujours
+    const confirmLogout = confirm('Êtes-vous sûr de vouloir vous déconnecter ?');
+
+    if (confirmLogout) {
+      console.log('✅ Confirmation de déconnexion');
+
+      // Appeler logout en arrière-plan
+      logout().catch(error => {
+        console.error('❌ Erreur lors de la déconnexion:', error);
+      });
+
+      // Recharger immédiatement la page
+      console.log('🔄 Rechargement de la page...');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/(auth)/login';
+      }
+    } else {
+      console.log('❌ Déconnexion annulée');
+    }
   };
 
   return (
@@ -52,11 +58,13 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
-        <PrimaryButton
-          title="Déconnexion"
+        <TouchableOpacity
           onPress={handleLogout}
           style={styles.logoutButton}
-        />
+          activeOpacity={0.7}
+        >
+          <ThemedText style={styles.logoutButtonText}>Déconnexion</ThemedText>
+        </TouchableOpacity>
       </ScrollView>
     </ThemedView>
   );
@@ -91,5 +99,21 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: 20,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

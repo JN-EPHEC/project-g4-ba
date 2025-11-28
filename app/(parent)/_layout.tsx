@@ -1,11 +1,22 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/context/auth-context';
+import { UserRole } from '@/types';
 
 export default function ParentLayout() {
+  const { user, isLoading } = useAuth();
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
+
+  // Rediriger vers login si l'utilisateur n'est pas connecté ou n'est pas un parent
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== UserRole.PARENT)) {
+      router.replace('/(auth)/login');
+    }
+  }, [user, isLoading]);
 
   return (
     <Tabs

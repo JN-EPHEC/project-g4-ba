@@ -21,22 +21,22 @@ type RoleOption = {
 const roleOptions: RoleOption[] = [
   {
     role: UserRole.SCOUT,
-    title: 'Scout',
-    description: 'Participe aux activités, relève des défis et gagne des points',
+    title: 'Je suis scout',
+    description: 'Participe aux activités et relève des défis',
     icon: 'flash',
     color: '#3b82f6',
   },
   {
     role: UserRole.PARENT,
-    title: 'Parent',
-    description: 'Suit les activités de ses scouts et valide les défis',
+    title: 'Je suis parent',
+    description: 'Suis les activités de mon enfant',
     icon: 'people',
     color: '#8b5cf6',
   },
   {
     role: UserRole.ANIMATOR,
-    title: 'Animateur',
-    description: 'Crée des activités, gère l\'unité et anime les scouts',
+    title: 'Je suis animateur',
+    description: 'Gère mon unité et crée des activités',
     icon: 'star',
     color: '#f59e0b',
   },
@@ -50,13 +50,43 @@ export default function RoleSelectionScreen() {
 
   const handleContinue = async () => {
     if (!selectedRole) {
-      Alert.alert('Sélection requise', 'Veuillez choisir un rôle pour continuer');
+      Alert.alert('Sélectionne ton rôle', 'Choisis un rôle pour continuer ton inscription.');
+      return;
+    }
+
+    // Si c'est un scout, rediriger vers la sélection d'unité
+    if (selectedRole === UserRole.SCOUT) {
+      router.push({
+        pathname: '/(auth)/unit-selection',
+        params: {
+          email: params.email as string,
+          password: params.password as string,
+          firstName: params.firstName as string,
+          lastName: params.lastName as string,
+          role: selectedRole,
+        },
+      });
+      return;
+    }
+
+    // Si c'est un animateur, rediriger vers la sélection de fédération + code d'accès
+    if (selectedRole === UserRole.ANIMATOR) {
+      router.push({
+        pathname: '/(auth)/animator-unit-selection',
+        params: {
+          email: params.email as string,
+          password: params.password as string,
+          firstName: params.firstName as string,
+          lastName: params.lastName as string,
+          role: selectedRole,
+        },
+      });
       return;
     }
 
     try {
       console.log('🚀 Début de l\'inscription avec le rôle:', selectedRole);
-      
+
       // La fonction register retourne maintenant l'utilisateur créé
       const registeredUser = await register(
         params.email as string,
@@ -68,16 +98,12 @@ export default function RoleSelectionScreen() {
 
       console.log('✅ Inscription réussie, utilisateur:', registeredUser);
       console.log('🚀 Redirection vers le dashboard...');
-      
+
       // Utiliser le rôle de l'utilisateur retourné, ou le rôle sélectionné en fallback
       const roleToUse = registeredUser?.role || selectedRole;
-      
+
       // Redirection basée sur le rôle
       switch (roleToUse) {
-        case UserRole.SCOUT:
-          console.log('📍 Redirection vers dashboard Scout');
-          router.push('/(scout)/dashboard');
-          break;
         case UserRole.PARENT:
           console.log('📍 Redirection vers dashboard Parent');
           router.push('/(parent)/dashboard');
@@ -88,13 +114,14 @@ export default function RoleSelectionScreen() {
           break;
         default:
           console.error('❌ Rôle invalide pour la redirection:', roleToUse);
-          Alert.alert('Erreur', 'Impossible de déterminer votre rôle. Veuillez vous reconnecter.');
-          router.push('/(auth)/login');
+          Alert.alert('Erreur', 'Impossible de déterminer ton rôle.', [
+            { text: 'OK', style: 'default', onPress: () => router.push('/(auth)/login') }
+          ]);
       }
     } catch (error: any) {
       console.error('❌ Erreur d\'inscription complète:', error);
-      const errorMessage = error?.message || 'Une erreur est survenue lors de l\'inscription';
-      Alert.alert('Erreur d\'inscription', errorMessage);
+      const errorMessage = error?.message || 'Impossible de créer ton compte';
+      Alert.alert('Erreur', errorMessage, [{ text: 'OK', style: 'default' }]);
     }
   };
 
@@ -103,10 +130,10 @@ export default function RoleSelectionScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
-            Choisissez votre rôle
+            Qui es-tu ?
           </ThemedText>
           <ThemedText style={styles.subtitle}>
-            Vous pourrez le modifier plus tard dans les paramètres
+            Sélectionne ton rôle pour personnaliser ton expérience
           </ThemedText>
         </View>
 
@@ -159,7 +186,7 @@ export default function RoleSelectionScreen() {
         </View>
 
         <PrimaryButton
-          title={isLoading ? 'Inscription...' : 'Continuer'}
+          title={isLoading ? 'Création du compte...' : 'Continuer'}
           onPress={handleContinue}
           disabled={isLoading || !selectedRole}
           style={styles.continueButton}
