@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeInLeft } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
-import { UnitService } from '@/services/unit-service';
-import { EventService } from '@/services/event-service';
 import { ChallengeService } from '@/services/challenge-service';
+import { EventService } from '@/services/event-service';
+import { UnitService } from '@/services/unit-service';
 import { Animator, Unit } from '@/types';
 
 export default function AnimatorDashboardScreen() {
@@ -125,7 +125,7 @@ export default function AnimatorDashboardScreen() {
             <Card style={styles.actionCard}>
               <Ionicons name="add-circle" size={24} color="#3b82f6" />
               <View style={styles.actionContent}>
-                <ThemedText type="defaultSemiBold">Créer un événement</ThemedText>
+                <ThemedText style={styles.actionTitle} type="defaultSemiBold">Créer un événement</ThemedText>
                 <ThemedText style={styles.actionDescription}>
                   Planifier une nouvelle activité
                 </ThemedText>
@@ -140,7 +140,7 @@ export default function AnimatorDashboardScreen() {
             <Card style={styles.actionCard}>
               <Ionicons name="flash" size={24} color="#f59e0b" />
               <View style={styles.actionContent}>
-                <ThemedText type="defaultSemiBold">Créer un défi</ThemedText>
+                <ThemedText style={styles.actionTitle} type="defaultSemiBold">Créer un défi</ThemedText>
                 <ThemedText style={styles.actionDescription}>
                   Lancer un nouveau défi pour les scouts
                 </ThemedText>
@@ -155,7 +155,7 @@ export default function AnimatorDashboardScreen() {
             <Card style={styles.actionCard}>
               <Ionicons name="people" size={24} color="#10b981" />
               <View style={styles.actionContent}>
-                <ThemedText type="defaultSemiBold">Gérer les scouts</ThemedText>
+                <ThemedText style={styles.actionTitle} type="defaultSemiBold">Gérer les scouts</ThemedText>
                 <ThemedText style={styles.actionDescription}>
                   Voir et gérer les scouts de votre unité
                 </ThemedText>
@@ -245,5 +245,8 @@ const styles = StyleSheet.create({
   unitDescription: {
     fontSize: 14,
     color: '#999999',
+  },
+  actionTitle: {
+    color: '#FFFFFF',
   },
 });
