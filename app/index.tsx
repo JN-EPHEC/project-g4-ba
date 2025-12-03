@@ -39,7 +39,7 @@ export default function IndexScreen() {
   // Afficher un loader pendant le chargement
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" />
+      <ActivityIndicator size="large" color="#000000" />
     </View>
   );
 }
@@ -49,5 +49,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
 });

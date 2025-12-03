@@ -307,7 +307,6 @@ export default function ScoutDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
 
   scrollContent: {
@@ -342,10 +341,8 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: '47%',
-    backgroundColor: '#2A2A2A',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   statCardTablet: {
     minWidth: 200,
@@ -371,14 +368,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.8,
-    color: '#FFFFFF',
   },
   statValueTablet: {
     fontSize: 32,
   },
   statLabel: {
     fontSize: 14,
-    color: '#999999',
     fontWeight: '500',
   },
 
@@ -393,13 +388,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#3A3A3A',
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: -0.6,
-    color: '#FFFFFF',
   },
   sectionTitleTablet: {
     fontSize: 24,
@@ -411,11 +404,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#3A3A3A',
   },
   seeAllText: {
     fontSize: 14,
-    color: '#FFFFFF',
     fontWeight: '600',
   },
 
@@ -429,13 +420,11 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   challengeCard: {
-    backgroundColor: '#2A2A2A',
     borderRadius: 12,
     padding: 20,
     flexDirection: 'row',
     gap: 16,
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   challengeCardTablet: {
     flex: 1,
@@ -462,12 +451,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 2,
-    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   challengeDescription: {
     fontSize: 14,
-    color: '#999999',
     lineHeight: 20,
   },
   challengeFooter: {
@@ -477,13 +464,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#3A3A3A',
   },
   challengePoints: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#3A3A3A',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
@@ -491,17 +476,14 @@ const styles = StyleSheet.create({
   challengePointsText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FF9500',
   },
   challengeDays: {
     fontSize: 13,
-    color: '#999999',
     fontWeight: '500',
   },
 
   // Events
   eventCard: {
-    backgroundColor: '#2A2A2A',
     borderRadius: 12,
     padding: 20,
     flexDirection: 'row',
@@ -509,7 +491,6 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   eventDate: {
     width: 64,
@@ -521,13 +502,11 @@ const styles = StyleSheet.create({
   eventDay: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
     letterSpacing: -0.5,
   },
   eventMonth: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
     letterSpacing: 1,
   },
   eventContent: {
@@ -538,7 +517,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 2,
-    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   eventDetail: {
@@ -548,36 +526,29 @@ const styles = StyleSheet.create({
   },
   eventDetailText: {
     fontSize: 14,
-    color: '#999999',
   },
 
   // Empty States
   emptyEventsContainer: {
-    backgroundColor: '#2A2A2A',
     borderRadius: 12,
     padding: 40,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   emptyEventsText: {
     fontSize: 14,
-    color: '#999999',
     textAlign: 'center',
   },
 
   // Empty Challenges
   emptyChallengesContainer: {
-    backgroundColor: '#2A2A2A',
     borderRadius: 12,
     padding: 40,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   emptyChallengesText: {
     fontSize: 14,
-    color: '#999999',
     textAlign: 'center',
   },
 });

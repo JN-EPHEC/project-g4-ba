@@ -10,6 +10,7 @@ import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Animator } from '@/types';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const { isDark, setMode, mode } = useTheme();
 
   const handleLogout = () => {
     console.log('🔘 Bouton Déconnexion cliqué!');
@@ -122,6 +124,35 @@ export default function ProfileScreen() {
                   trackColor={{ false: '#767577', true: '#3b82f6' }}
                   thumbColor="#fff"
                 />
+              </View>
+
+              {/* Apparence (Thème) */}
+              <View style={styles.settingItem}>
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="color-palette-outline" size={20} color={iconColor} />
+                  <View style={styles.settingItemText}>
+                    <ThemedText type="defaultSemiBold">Apparence</ThemedText>
+                    <ThemedText style={styles.settingItemDescription}>
+                      Mode Jour / Nuit (ou suivre le système)
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity onPress={async () => await setMode('light')} style={{ paddingHorizontal: 8 }}>
+                    <Ionicons name="sunny" size={20} color={iconColor} />
+                  </TouchableOpacity>
+
+                  <Switch
+                    value={isDark}
+                    onValueChange={async (v) => await setMode(v ? 'dark' : 'light')}
+                    trackColor={{ false: '#767577', true: '#3b82f6' }}
+                    thumbColor="#fff"
+                  />
+
+                  <TouchableOpacity onPress={async () => await setMode('dark')} style={{ paddingHorizontal: 8 }}>
+                    <Ionicons name="moon" size={20} color={iconColor} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* À propos */}

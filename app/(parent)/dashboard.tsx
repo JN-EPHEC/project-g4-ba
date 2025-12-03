@@ -110,7 +110,6 @@ export default function ParentDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
     padding: 20,
@@ -118,14 +117,11 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 20,
-    color: '#FFFFFF',
   },
   statsCard: {
     padding: 20,
     marginBottom: 24,
-    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   statsRow: {
     flexDirection: 'row',
@@ -138,25 +134,20 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 32,
     marginBottom: 4,
-    color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 12,
-    color: '#999999',
     textAlign: 'center',
   },
   sectionTitle: {
     marginBottom: 12,
-    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
   },
   scoutCard: {
     padding: 16,
     marginBottom: 12,
-    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   scoutHeader: {
     flexDirection: 'row',
@@ -173,7 +164,6 @@ const styles = StyleSheet.create({
   },
   scoutDetail: {
     fontSize: 12,
-    color: '#999999',
     marginTop: 2,
   },
   loadingContainer: {
@@ -183,12 +173,9 @@ const styles = StyleSheet.create({
   emptyCard: {
     padding: 20,
     alignItems: 'center',
-    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   emptyText: {
-    color: '#999999',
     textAlign: 'center',
   },
 });

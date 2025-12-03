@@ -172,7 +172,6 @@ export default function AnimatorDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
     padding: 20,
@@ -180,14 +179,12 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 20,
-    color: '#FFFFFF',
   },
   statsCard: {
     padding: 20,
     marginBottom: 24,
-    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
+    // background is provided by Card (themed)
   },
   statsRow: {
     flexDirection: 'row',
@@ -200,16 +197,14 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     marginBottom: 4,
-    color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 11,
-    color: '#999999',
+    // color comes from ThemedText
     textAlign: 'center',
   },
   sectionTitle: {
     marginBottom: 12,
-    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -219,31 +214,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   actionContent: {
     flex: 1,
   },
   actionDescription: {
     fontSize: 12,
-    color: '#999999',
     marginTop: 2,
   },
   unitCard: {
     padding: 16,
     marginBottom: 20,
-    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   unitTitle: {
     marginBottom: 4,
-    color: '#FFFFFF',
   },
   unitDescription: {
     fontSize: 14,
-    color: '#999999',
+    // themed
   },
 });
