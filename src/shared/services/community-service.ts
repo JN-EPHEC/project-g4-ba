@@ -13,12 +13,19 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
+export interface PostAttachment {
+  type: 'image' | 'file';
+  url: string;
+  name?: string;
+}
+
 export interface Post {
   id: string;
   content: string;
   authorId: string;
   unitId: string;
   imageUrls?: string[];
+  attachment?: PostAttachment;
   createdAt: Date;
 }
 
@@ -48,18 +55,29 @@ export class CommunityService {
     content: string,
     authorId: string,
     unitId: string,
-    imageUrls?: string[]
+    attachment?: PostAttachment
   ): Promise<Post> {
-    const postData = {
+    const postData: Record<string, unknown> = {
       content,
       authorId,
       unitId,
-      imageUrls: imageUrls || [],
       createdAt: Timestamp.fromDate(new Date()),
     };
+
+    if (attachment) {
+      postData.attachment = attachment;
+    }
+
     const postRef = doc(collection(db, this.POSTS_COLLECTION));
     await setDoc(postRef, postData);
-    return { id: postRef.id, ...postData, createdAt: postData.createdAt.toDate() };
+    return {
+      id: postRef.id,
+      content,
+      authorId,
+      unitId,
+      attachment,
+      createdAt: (postData.createdAt as Timestamp).toDate()
+    };
   }
 
   static async getPostsByUnit(unitId: string): Promise<Post[]> {

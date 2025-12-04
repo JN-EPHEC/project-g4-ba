@@ -1,5 +1,4 @@
 import { storage } from '@/config/firebase';
-import * as FileSystem from 'expo-file-system';
 import {
     deleteObject,
     getDownloadURL,
@@ -21,14 +20,12 @@ export class StorageService {
     metadata?: { contentType?: string }
   ): Promise<string> {
     try {
-      // Lire le fichier
-      const fileInfo = await FileSystem.getInfoAsync(localUri);
-      if (!fileInfo.exists) {
-        throw new Error('Le fichier n\'existe pas');
+      // Lire les bytes du fichier via fetch (fonctionne sur web et native)
+      const response = await fetch(localUri);
+      if (!response.ok) {
+        throw new Error('Le fichier n\'existe pas ou n\'est pas accessible');
       }
-
-      // Lire les bytes du fichier
-      const fileBlob = await fetch(localUri).then((response) => response.blob());
+      const fileBlob = await response.blob();
 
       // Créer la référence dans Storage
       const storageRef = ref(storage, path);
@@ -103,6 +100,31 @@ export class StorageService {
     return this.uploadImage(localUri, path, {
       contentType: 'image/jpeg',
     });
+  }
+
+  /**
+   * Upload une pièce jointe pour un post du fil d'unité
+   */
+  static async uploadPostAttachment(
+    unitId: string,
+    localUri: string,
+    fileName?: string
+  ): Promise<{ url: string; type: 'image' | 'file'; name: string }> {
+    const timestamp = Date.now();
+    const isImage = localUri.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+
+    if (isImage) {
+      const path = `units/${unitId}/feed/${timestamp}.jpg`;
+      const url = await this.uploadImage(localUri, path, {
+        contentType: 'image/jpeg',
+      });
+      return { url, type: 'image', name: fileName || 'image.jpg' };
+    } else {
+      const name = fileName || `file_${timestamp}`;
+      const path = `units/${unitId}/feed/${name}`;
+      const url = await this.uploadImage(localUri, path);
+      return { url, type: 'file', name };
+    }
   }
 
   /**

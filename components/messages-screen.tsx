@@ -11,18 +11,20 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { PostCard, PostComposer, ChannelList, type PostAuthor } from '@/components/ui';
-import { useAuth } from '@/context/auth-context';
 import { ChannelService } from '@/src/shared/services/channel-service';
 import { StorageService } from '@/src/shared/services/storage-service';
 import { UserService } from '@/services/user-service';
 import type { Channel, ChannelMessage } from '@/src/shared/types/channel';
-import type { Animator } from '@/types';
+import type { AnyUser } from '@/types';
 import { UserRole } from '@/types';
 
-export default function MessagesScreen() {
-  const { user } = useAuth();
-  const animator = user as Animator;
+interface MessagesScreenProps {
+  user: AnyUser;
+  unitId: string;
+  userRole: UserRole;
+}
 
+export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
@@ -31,36 +33,41 @@ export default function MessagesScreen() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Charger les canaux
+  // Charger les canaux accessibles selon le rôle
   const loadChannels = useCallback(async () => {
-    console.log('[Messages] loadChannels appelé, unitId:', animator?.unitId);
-
-    if (!animator?.unitId) {
-      console.log('[Messages] Pas de unitId, arrêt du chargement');
+    if (!unitId) {
+      console.log('[Messages] Pas de unitId, skip chargement');
       setIsLoading(false);
       return;
     }
 
+    console.log('[Messages] Chargement des canaux pour unitId:', unitId, 'role:', userRole);
+
     try {
-      console.log('[Messages] Création/vérification des canaux par défaut...');
-      // S'assurer que les canaux par défaut existent
-      const fetchedChannels = await ChannelService.ensureDefaultChannels(
-        animator.unitId,
-        animator.id
-      );
-      console.log('[Messages] Canaux reçus:', fetchedChannels.length);
-      setChannels(fetchedChannels);
+      // S'assurer que les canaux par défaut existent (uniquement pour les animateurs)
+      if (userRole === UserRole.ANIMATOR) {
+        console.log('[Messages] Création/vérification des canaux par défaut...');
+        await ChannelService.ensureDefaultChannels(unitId, user.id);
+        console.log('[Messages] Canaux par défaut OK');
+      }
+
+      // Récupérer les canaux accessibles pour ce rôle
+      console.log('[Messages] Récupération des canaux accessibles...');
+      const accessibleChannels = await ChannelService.getAccessibleChannels(unitId, userRole);
+      console.log('[Messages] Canaux reçus:', accessibleChannels.length);
+      setChannels(accessibleChannels);
 
       // Sélectionner le premier canal par défaut
-      if (fetchedChannels.length > 0 && !selectedChannel) {
-        setSelectedChannel(fetchedChannels[0]);
+      if (accessibleChannels.length > 0 && !selectedChannel) {
+        setSelectedChannel(accessibleChannels[0]);
       }
     } catch (error) {
       console.error('[Messages] Erreur chargement canaux:', error);
     } finally {
+      console.log('[Messages] Fin du chargement');
       setIsLoading(false);
     }
-  }, [animator?.unitId, animator?.id]);
+  }, [unitId, userRole, user.id]);
 
   // Charger les messages du canal sélectionné
   const loadMessages = useCallback(async () => {
@@ -125,13 +132,13 @@ export default function MessagesScreen() {
   };
 
   const handleSubmitMessage = async (content: string, attachmentUri?: string) => {
-    if (!selectedChannel || !animator) return;
+    if (!selectedChannel || !user) return;
 
     let attachment: { type: 'image' | 'file'; url: string; name?: string } | undefined;
 
     if (attachmentUri) {
       const uploadResult = await StorageService.uploadPostAttachment(
-        animator.unitId,
+        unitId,
         attachmentUri
       );
       attachment = {
@@ -143,7 +150,7 @@ export default function MessagesScreen() {
 
     const newMessage = await ChannelService.sendMessage(
       selectedChannel.id,
-      animator.id,
+      user.id,
       content,
       attachment
     );
@@ -152,21 +159,21 @@ export default function MessagesScreen() {
     setMessages((prev) => [...prev, newMessage]);
 
     // Ajouter l'auteur s'il n'existe pas
-    if (!authors[animator.id]) {
+    if (!authors[user.id]) {
       setAuthors((prev) => ({
         ...prev,
-        [animator.id]: {
-          id: animator.id,
-          firstName: animator.firstName,
-          lastName: animator.lastName,
-          profilePicture: animator.profilePicture,
+        [user.id]: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profilePicture: user.profilePicture,
         },
       }));
     }
   };
 
   const canWriteInChannel = selectedChannel
-    ? ChannelService.canWrite(selectedChannel, UserRole.ANIMATOR)
+    ? ChannelService.canWrite(selectedChannel, userRole)
     : false;
 
   if (isLoading) {
@@ -176,6 +183,22 @@ export default function MessagesScreen() {
           <ActivityIndicator size="large" color="#3b82f6" />
           <ThemedText style={styles.loadingText}>
             Chargement des canaux...
+          </ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  if (channels.length === 0) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ThemedText style={styles.emptyIcon}>📭</ThemedText>
+          <ThemedText type="subtitle" style={styles.emptyTitle}>
+            Aucun canal disponible
+          </ThemedText>
+          <ThemedText style={styles.emptyText}>
+            Les canaux de discussion n'ont pas encore été créés pour votre unité.
           </ThemedText>
         </View>
       </ThemedView>
@@ -203,7 +226,7 @@ export default function MessagesScreen() {
             channels={channels}
             selectedChannelId={selectedChannel?.id || null}
             onSelectChannel={handleSelectChannel}
-            userRole={UserRole.ANIMATOR}
+            userRole={userRole}
           />
         </Animated.View>
 
@@ -223,13 +246,19 @@ export default function MessagesScreen() {
               </View>
             </View>
 
-            {canWriteInChannel && (
+            {canWriteInChannel ? (
               <Animated.View entering={FadeIn.duration(300)}>
                 <PostComposer
                   onSubmit={handleSubmitMessage}
                   placeholder={`Message dans #${selectedChannel.name}...`}
                 />
               </Animated.View>
+            ) : (
+              <View style={styles.readOnlyBanner}>
+                <ThemedText style={styles.readOnlyText}>
+                  Ce canal est en lecture seule
+                </ThemedText>
+              </View>
             )}
 
             {isLoadingMessages ? (
@@ -243,7 +272,9 @@ export default function MessagesScreen() {
                   Aucun message
                 </ThemedText>
                 <ThemedText style={styles.emptyText}>
-                  Soyez le premier à écrire dans ce canal !
+                  {canWriteInChannel
+                    ? 'Soyez le premier à écrire dans ce canal !'
+                    : 'Aucun message pour le moment.'}
                 </ThemedText>
               </Animated.View>
             ) : (
@@ -315,6 +346,17 @@ const styles = StyleSheet.create({
     color: '#999999',
     fontSize: 13,
     marginTop: 2,
+  },
+  readOnlyBanner: {
+    backgroundColor: '#2A2A2A',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  readOnlyText: {
+    color: '#999999',
+    fontSize: 13,
   },
   emptyState: {
     alignItems: 'center',

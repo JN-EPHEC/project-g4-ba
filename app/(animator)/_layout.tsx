@@ -87,6 +87,18 @@ export default function AnimatorLayout() {
           href: null, // Cache l'onglet de la barre de navigation
         }}
       />
+      <Tabs.Screen
+        name="validate-scouts"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
+        }}
+      />
+      <Tabs.Screen
+        name="validate-challenges"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
+        }}
+      />
     </Tabs>
   );
 }

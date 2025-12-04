@@ -62,5 +62,41 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator'
       );
     }
+
+    // Règles pour les posts du fil d'unité (legacy)
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.authorId;
+      allow update, delete: if request.auth != null && (
+        request.auth.uid == resource.data.authorId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator'
+      );
+    }
+
+    // Règles pour les canaux de discussion
+    match /channels/{channelId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow update: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
+        resource.data.isDefault == false;
+    }
+
+    // Règles pour les messages des canaux
+    match /channelMessages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.authorId;
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.authorId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator'
+      );
+      allow delete: if request.auth != null && (
+        request.auth.uid == resource.data.authorId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator'
+      );
+    }
   }
 }
