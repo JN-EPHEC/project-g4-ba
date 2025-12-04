@@ -4,9 +4,9 @@
  */
 
 import { Colors } from '@/constants/theme';
+import { ThemeContext } from '@/context/ThemeContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useContext } from 'react';
-import { ThemeContext } from '@/context/ThemeContext';
 
 export function useThemeColor(
   props: { light?: string; dark?: string },

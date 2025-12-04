@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Appearance } from 'react-native';
+import { darkTheme, lightTheme, Theme } from '@/constants/themes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { lightTheme, darkTheme, Theme } from '@/constants/themes';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'wecamp:theme-mode'; // 'light' | 'dark'
 

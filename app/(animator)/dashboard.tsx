@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeInLeft } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
-import { UnitService } from '@/services/unit-service';
-import { EventService } from '@/services/event-service';
 import { ChallengeService } from '@/services/challenge-service';
+import { EventService } from '@/services/event-service';
+import { UnitService } from '@/services/unit-service';
 import { Animator, Unit } from '@/types';
 
 export default function AnimatorDashboardScreen() {

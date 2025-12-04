@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInUp, FadeInLeft } from 'react-native-reanimated';
+import Animated, { FadeInLeft, FadeInUp } from 'react-native-reanimated';
 
+import { RankBadge } from '@/components/rank-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Avatar, Badge, Card } from '@/components/ui';
-import { RankBadge } from '@/components/rank-badge';
 import { useAuth } from '@/context/auth-context';
 import { ParentScoutService } from '@/services/parent-scout-service';
 import { Parent, Scout } from '@/types';

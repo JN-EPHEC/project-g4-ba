@@ -1,16 +1,15 @@
-import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/ThemeContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Animator } from '@/types';
-import { useTheme } from '@/context/ThemeContext';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();

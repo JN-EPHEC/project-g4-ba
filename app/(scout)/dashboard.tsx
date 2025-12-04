@@ -1,16 +1,16 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInUp, FadeInLeft, ZoomIn } from 'react-native-reanimated';
+import React from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import Animated, { FadeInLeft, FadeInUp, ZoomIn } from 'react-native-reanimated';
 
-import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/auth-context';
-import { Scout } from '@/types';
-import { useEvents } from '@/src/features/events/hooks/use-events';
-import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
 import { useAllChallengeProgress } from '@/src/features/challenges/hooks/use-all-challenge-progress';
+import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
+import { useEvents } from '@/src/features/events/hooks/use-events';
+import { Scout } from '@/types';
 
 export default function ScoutDashboardScreen() {
   const { user } = useAuth();

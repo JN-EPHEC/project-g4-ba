@@ -1,9 +1,8 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Switch } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { ThemedText } from '@/components/themed-text';
+import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 
 export function ThemeToggle() {
   const { isDark, mode, setMode } = useTheme();
