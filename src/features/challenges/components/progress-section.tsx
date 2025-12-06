@@ -1,5 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
 
 interface ProgressSectionProps {
   completed: number;
@@ -9,18 +12,22 @@ interface ProgressSectionProps {
 export function ProgressSection({ completed, total }: ProgressSectionProps) {
   const progress = total > 0 ? (completed / total) * 100 : 0;
 
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorderColor = useThemeColor({}, 'cardBorder');
+  const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Votre progression</Text>
+    <View style={[styles.container, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
+      <ThemedText type="subtitle" style={styles.title}>Votre progression</ThemedText>
 
       <View style={styles.progressHeader}>
-        <Text style={styles.label}>Challenges complétés</Text>
-        <Text style={styles.count}>
+        <ThemedText color="secondary">Challenges complétés</ThemedText>
+        <ThemedText type="bodySemiBold">
           {completed} / {total}
-        </Text>
+        </ThemedText>
       </View>
 
-      <View style={styles.progressBarContainer}>
+      <View style={[styles.progressBarContainer, { backgroundColor: surfaceSecondary }]}>
         <View style={[styles.progressBar, { width: `${progress}%` }]} />
       </View>
     </View>
@@ -29,7 +36,6 @@ export function ProgressSection({ completed, total }: ProgressSectionProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     marginBottom: 24,
@@ -39,12 +45,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 16,
   },
   progressHeader: {
@@ -53,24 +55,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  label: {
-    fontSize: 15,
-    color: '#666666',
-  },
-  count: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
   progressBarContainer: {
     height: 8,
-    backgroundColor: '#F0E6D2',
     borderRadius: 4,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#D4AF37',
+    backgroundColor: BrandColors.accent[500],
     borderRadius: 4,
   },
 });

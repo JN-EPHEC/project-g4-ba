@@ -71,7 +71,7 @@ export default function ManagementScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <ThemedText type="title" style={styles.title}>
           Gestion
         </ThemedText>
@@ -192,7 +192,7 @@ export default function ManagementScreen() {
               <Ionicons name="people" size={28} color="#10b981" />
             </View>
             <View style={styles.actionContent}>
-              <ThemedText type="defaultSemiBold">Scouts</ThemedText>
+              <ThemedText type="defaultSemiBold">Gérer les scouts</ThemedText>
               <ThemedText style={styles.actionDescription}>
                 Voir et gérer les scouts de votre unité
               </ThemedText>
@@ -256,6 +256,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   title: {
     marginBottom: 20,

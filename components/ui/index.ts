@@ -23,3 +23,6 @@ export * from './icon-symbol';
 export * from './post-card';
 export * from './post-composer';
 export * from './channel-list';
+
+// Paramètres
+export * from './theme-selector';

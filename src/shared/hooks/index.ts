@@ -4,4 +4,4 @@
  */
 
 export * from './use-color-scheme';
-export * from './use-themed-color';
+export * from './use-theme-color';

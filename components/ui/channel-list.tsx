@@ -26,18 +26,11 @@ export function ChannelList({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
-          Canaux
-        </ThemedText>
-        {canCreateChannel && onCreateChannel && (
-          <TouchableOpacity onPress={onCreateChannel} style={styles.addButton}>
-            <Ionicons name="add" size={20} color="#3b82f6" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {channels.map((channel) => {
           const isSelected = channel.id === selectedChannelId;
           const canWrite = ChannelService.canWrite(channel, userRole);
@@ -50,22 +43,29 @@ export function ChannelList({
               activeOpacity={0.7}
             >
               <ThemedText style={styles.channelIcon}>{channel.icon}</ThemedText>
-              <View style={styles.channelInfo}>
-                <ThemedText
-                  style={[styles.channelName, isSelected && styles.channelNameSelected]}
-                  numberOfLines={1}
-                >
-                  {channel.name}
-                </ThemedText>
-                {!canWrite && (
-                  <View style={styles.readOnlyBadge}>
-                    <Ionicons name="eye-outline" size={10} color="#999" />
-                  </View>
-                )}
-              </View>
+              <ThemedText
+                style={[styles.channelName, isSelected && styles.channelNameSelected]}
+                numberOfLines={1}
+              >
+                {channel.name}
+              </ThemedText>
+              {!canWrite && (
+                <Ionicons
+                  name="eye-outline"
+                  size={12}
+                  color={isSelected ? '#FFFFFF' : '#999'}
+                  style={styles.readOnlyIcon}
+                />
+              )}
             </TouchableOpacity>
           );
         })}
+
+        {canCreateChannel && onCreateChannel && (
+          <TouchableOpacity onPress={onCreateChannel} style={styles.addButton}>
+            <Ionicons name="add" size={20} color="#3b82f6" />
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
@@ -73,64 +73,50 @@ export function ChannelList({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1F1F1F',
-    borderRadius: 12,
-    padding: 12,
     marginBottom: 16,
   },
-  header: {
+  scrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  headerTitle: {
-    color: '#999',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  addButton: {
-    padding: 4,
-  },
-  list: {
-    maxHeight: 200,
+    gap: 8,
+    paddingVertical: 4,
   },
   channelItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    marginBottom: 4,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#2A2A2A',
+    gap: 6,
   },
   channelItemSelected: {
     backgroundColor: '#3b82f6',
   },
   channelIcon: {
-    fontSize: 18,
-    marginRight: 10,
-  },
-  channelInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    fontSize: 16,
   },
   channelName: {
     color: '#CCCCCC',
-    fontSize: 15,
-    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
   channelNameSelected: {
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  readOnlyBadge: {
-    backgroundColor: '#333',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
+  readOnlyIcon: {
+    marginLeft: 2,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2A2A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    borderStyle: 'dashed',
   },
 });

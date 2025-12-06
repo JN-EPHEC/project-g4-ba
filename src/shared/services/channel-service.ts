@@ -256,8 +256,8 @@ export class ChannelService {
       updatedAt: doc.data().updatedAt?.toDate(),
     })) as ChannelMessage[];
 
-    // Retourner dans l'ordre chronologique (plus ancien en premier)
-    return messages.reverse();
+    // Retourner du plus récent au plus ancien
+    return messages;
   }
 
   /**
@@ -311,5 +311,137 @@ export class ChannelService {
    */
   static canRead(channel: Channel, userRole: UserRole): boolean {
     return channel.permissions.canRead.includes(userRole);
+  }
+
+  // ========== MESSAGES NON LUS ==========
+
+  private static readonly READ_STATUS_COLLECTION = 'channelReadStatus';
+
+  /**
+   * Marquer un canal comme lu pour un utilisateur
+   */
+  static async markChannelAsRead(channelId: string, userId: string): Promise<void> {
+    const readStatusRef = doc(db, this.READ_STATUS_COLLECTION, `${userId}_${channelId}`);
+    await setDoc(readStatusRef, {
+      userId,
+      channelId,
+      lastReadAt: Timestamp.fromDate(new Date()),
+    });
+  }
+
+  /**
+   * Récupérer la date de dernière lecture d'un canal par un utilisateur
+   */
+  static async getLastReadAt(channelId: string, userId: string): Promise<Date | null> {
+    const readStatusRef = doc(db, this.READ_STATUS_COLLECTION, `${userId}_${channelId}`);
+    const readStatusDoc = await getDoc(readStatusRef);
+
+    if (!readStatusDoc.exists()) {
+      return null;
+    }
+
+    return readStatusDoc.data().lastReadAt?.toDate() || null;
+  }
+
+  /**
+   * Compter les messages non lus d'un canal pour un utilisateur
+   */
+  static async getUnreadCount(channelId: string, userId: string): Promise<number> {
+    const lastReadAt = await this.getLastReadAt(channelId, userId);
+
+    let q;
+    if (lastReadAt) {
+      q = query(
+        collection(db, this.MESSAGES_COLLECTION),
+        where('channelId', '==', channelId),
+        where('createdAt', '>', Timestamp.fromDate(lastReadAt)),
+        where('authorId', '!=', userId)
+      );
+    } else {
+      // Si jamais lu, compter tous les messages sauf les siens
+      q = query(
+        collection(db, this.MESSAGES_COLLECTION),
+        where('channelId', '==', channelId),
+        where('authorId', '!=', userId)
+      );
+    }
+
+    const snapshot = await getDocs(q);
+    return snapshot.size;
+  }
+
+  /**
+   * Récupérer le dernier message d'un canal
+   */
+  static async getLastMessage(channelId: string): Promise<ChannelMessage | null> {
+    const q = query(
+      collection(db, this.MESSAGES_COLLECTION),
+      where('channelId', '==', channelId),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    );
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate(),
+    } as ChannelMessage;
+  }
+
+  /**
+   * Récupérer les infos de messages non lus pour tous les canaux d'une unité
+   */
+  static async getUnreadSummary(
+    unitId: string,
+    userId: string,
+    userRole: UserRole
+  ): Promise<{
+    totalUnread: number;
+    channelUnreads: Array<{
+      channel: Channel;
+      unreadCount: number;
+      lastMessage: ChannelMessage | null;
+    }>;
+  }> {
+    const channels = await this.getAccessibleChannels(unitId, userRole);
+    let totalUnread = 0;
+    const channelUnreads: Array<{
+      channel: Channel;
+      unreadCount: number;
+      lastMessage: ChannelMessage | null;
+    }> = [];
+
+    for (const channel of channels) {
+      const unreadCount = await this.getUnreadCount(channel.id, userId);
+      const lastMessage = await this.getLastMessage(channel.id);
+
+      if (unreadCount > 0 || lastMessage) {
+        channelUnreads.push({
+          channel,
+          unreadCount,
+          lastMessage,
+        });
+        totalUnread += unreadCount;
+      }
+    }
+
+    // Trier par nombre de messages non lus (desc) puis par date du dernier message
+    channelUnreads.sort((a, b) => {
+      if (b.unreadCount !== a.unreadCount) {
+        return b.unreadCount - a.unreadCount;
+      }
+      const aTime = a.lastMessage?.createdAt?.getTime() || 0;
+      const bTime = b.lastMessage?.createdAt?.getTime() || 0;
+      return bTime - aTime;
+    });
+
+    return { totalUnread, channelUnreads };
   }
 }

@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, Text } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollView, StyleSheet, View, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,9 +18,14 @@ export default function ScoutsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadScouts();
-  }, [animator?.unitId]);
+  // Recharger les scouts quand on revient sur la page
+  useFocusEffect(
+    useCallback(() => {
+      if (animator?.unitId) {
+        loadScouts();
+      }
+    }, [animator?.unitId])
+  );
 
   const loadScouts = async () => {
     try {
@@ -61,7 +68,7 @@ export default function ScoutsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <ThemedText type="title" style={styles.title}>
           Scouts
         </ThemedText>
@@ -93,33 +100,40 @@ export default function ScoutsScreen() {
         ) : (
           <View style={styles.scoutsList}>
             {scouts.map((scout) => (
-              <Card key={scout.id} style={styles.scoutCard}>
-                <View style={styles.scoutHeader}>
-                  <View style={styles.scoutAvatar}>
-                    <Text style={styles.avatarText}>
-                      {scout.firstName.charAt(0)}
-                      {scout.lastName.charAt(0)}
-                    </Text>
-                  </View>
-                  <View style={styles.scoutInfo}>
-                    <View style={styles.nameRow}>
-                      <ThemedText type="defaultSemiBold">
-                        {scout.firstName} {scout.lastName}
-                      </ThemedText>
-                      <RankBadge xp={scout.points || 0} size="small" />
+              <TouchableOpacity
+                key={scout.id}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/(animator)/scouts/${scout.id}`)}
+              >
+                <Card style={styles.scoutCard}>
+                  <View style={styles.scoutHeader}>
+                    <View style={styles.scoutAvatar}>
+                      <Text style={styles.avatarText}>
+                        {scout.firstName.charAt(0)}
+                        {scout.lastName.charAt(0)}
+                      </Text>
                     </View>
-                    <ThemedText style={styles.scoutEmail}>{scout.email}</ThemedText>
+                    <View style={styles.scoutInfo}>
+                      <View style={styles.nameRow}>
+                        <ThemedText type="defaultSemiBold" style={styles.scoutName}>
+                          {scout.firstName} {scout.lastName}
+                        </ThemedText>
+                        <RankBadge xp={scout.points || 0} size="small" />
+                      </View>
+                      <ThemedText style={styles.scoutEmail}>{scout.email}</ThemedText>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#666" />
                   </View>
-                </View>
-                <View style={styles.scoutStats}>
-                  <View style={styles.scoutStat}>
-                    <Text style={styles.statIcon}>⭐</Text>
-                    <ThemedText style={styles.statText}>
-                      {scout.points || 0} points
-                    </ThemedText>
+                  <View style={styles.scoutStats}>
+                    <View style={styles.scoutStat}>
+                      <Text style={styles.statIcon}>⭐</Text>
+                      <ThemedText style={styles.statText}>
+                        {scout.points || 0} points
+                      </ThemedText>
+                    </View>
                   </View>
-                </View>
-              </Card>
+                </Card>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -131,11 +145,12 @@ export default function ScoutsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -145,7 +160,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 15,
-    color: '#666666',
+    color: '#888888',
     letterSpacing: -0.3,
   },
   errorContainer: {
@@ -166,27 +181,36 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 20,
+    color: '#FFFFFF',
   },
   statsCard: {
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   statsTitle: {
     marginBottom: 8,
+    color: '#FFFFFF',
   },
   totalScouts: {
     fontSize: 48,
     marginBottom: 4,
+    color: '#FFFFFF',
   },
   statsSubtitle: {
     fontSize: 14,
-    opacity: 0.7,
+    color: '#888888',
   },
   emptyCard: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   emptyContent: {
     alignItems: 'center',
@@ -198,10 +222,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     marginBottom: 8,
+    color: '#FFFFFF',
   },
   emptyText: {
     textAlign: 'center',
-    opacity: 0.7,
+    color: '#888888',
     fontSize: 14,
   },
   scoutsList: {
@@ -209,6 +234,9 @@ const styles = StyleSheet.create({
   },
   scoutCard: {
     padding: 16,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
   },
   scoutHeader: {
     flexDirection: 'row',
@@ -237,9 +265,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  scoutName: {
+    color: '#FFFFFF',
+  },
   scoutEmail: {
     fontSize: 13,
-    opacity: 0.7,
+    color: '#888888',
     marginTop: 2,
   },
   scoutStats: {
@@ -247,7 +278,7 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e5e5e5',
+    borderTopColor: '#3A3A3A',
   },
   scoutStat: {
     flexDirection: 'row',
@@ -260,5 +291,6 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 14,
     fontWeight: '500',
+    color: '#CCCCCC',
   },
 });

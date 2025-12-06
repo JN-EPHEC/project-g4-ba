@@ -162,7 +162,7 @@ export default function AnimatorUnitSelectionScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: '#f9fafb' }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
             Choisis ta fédération
@@ -284,6 +284,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,

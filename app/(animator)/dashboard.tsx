@@ -11,7 +11,15 @@ import { useAuth } from '@/context/auth-context';
 import { ChallengeService } from '@/services/challenge-service';
 import { EventService } from '@/services/event-service';
 import { UnitService } from '@/services/unit-service';
-import { Animator, Unit } from '@/types';
+import { Animator, Unit, UserRole } from '@/types';
+
+// Import des nouveaux widgets
+import {
+  UnreadMessagesWidget,
+  ActivityWidget,
+  BirthdaysWidget,
+  WeatherWidget,
+} from '@/src/features/dashboard/components';
 
 export default function AnimatorDashboardScreen() {
   const { user } = useAuth();
@@ -71,7 +79,11 @@ export default function AnimatorDashboardScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         <ThemedText type="title" style={styles.title}>
           Bonjour {animator?.firstName} 👋
         </ThemedText>
@@ -116,11 +128,34 @@ export default function AnimatorDashboardScreen() {
           </Card>
         </Animated.View>
 
+        {/* Widget Messages non lus */}
+        {animator?.id && animator?.unitId && (
+          <UnreadMessagesWidget
+            userId={animator.id}
+            unitId={animator.unitId}
+            userRole={UserRole.ANIMATOR}
+            delay={200}
+          />
+        )}
+
+        {/* Widget Activité récente */}
+        {animator?.unitId && (
+          <ActivityWidget unitId={animator.unitId} delay={250} />
+        )}
+
+        {/* Widget Anniversaires */}
+        {animator?.unitId && (
+          <BirthdaysWidget unitId={animator.unitId} delay={300} />
+        )}
+
+        {/* Widget Météo */}
+        <WeatherWidget location="Belgique" delay={350} />
+
         <ThemedText type="subtitle" style={styles.sectionTitle}>
           Actions rapides
         </ThemedText>
 
-        <Animated.View entering={FadeInLeft.duration(400).delay(200)}>
+        <Animated.View entering={FadeInLeft.duration(400).delay(400)}>
           <TouchableOpacity onPress={() => router.push('/(animator)/events/create')}>
             <Card style={styles.actionCard}>
               <Ionicons name="add-circle" size={24} color="#3b82f6" />
@@ -135,7 +170,7 @@ export default function AnimatorDashboardScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={FadeInLeft.duration(400).delay(300)}>
+        <Animated.View entering={FadeInLeft.duration(400).delay(450)}>
           <TouchableOpacity onPress={() => router.push('/(animator)/challenges/create')}>
             <Card style={styles.actionCard}>
               <Ionicons name="flash" size={24} color="#f59e0b" />
@@ -150,7 +185,7 @@ export default function AnimatorDashboardScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={FadeInLeft.duration(400).delay(400)}>
+        <Animated.View entering={FadeInLeft.duration(400).delay(500)}>
           <TouchableOpacity onPress={() => router.push('/(animator)/scouts')}>
             <Card style={styles.actionCard}>
               <Ionicons name="people" size={24} color="#10b981" />
@@ -177,6 +212,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   title: {
     marginBottom: 20,
@@ -184,7 +220,7 @@ const styles = StyleSheet.create({
   },
   statsCard: {
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 16,
     backgroundColor: '#2A2A2A',
     borderWidth: 1,
     borderColor: '#3A3A3A',
@@ -208,6 +244,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sectionTitle: {
+    marginTop: 8,
     marginBottom: 12,
     color: '#FFFFFF',
     fontSize: 20,
@@ -233,7 +270,7 @@ const styles = StyleSheet.create({
   },
   unitCard: {
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     backgroundColor: '#2A2A2A',
     borderWidth: 1,
     borderColor: '#3A3A3A',

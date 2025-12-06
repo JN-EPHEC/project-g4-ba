@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
 
 interface EventsHeaderProps {
   totalEvents: number;
@@ -9,13 +10,13 @@ export function EventsHeader({ totalEvents }: EventsHeaderProps) {
   return (
     <View style={styles.container}>
       <View>
-        <Text style={styles.title}>Événements</Text>
-        <Text style={styles.subtitle}>
+        <ThemedText style={styles.title}>Événements</ThemedText>
+        <ThemedText style={styles.subtitle}>
           {totalEvents} événement{totalEvents !== 1 ? 's' : ''} à venir
-        </Text>
+        </ThemedText>
       </View>
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>📅</Text>
+        <ThemedText style={styles.icon}>📅</ThemedText>
       </View>
     </View>
   );
@@ -32,20 +33,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: '700',
-    color: '#1A1A1A',
     letterSpacing: -0.5,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 15,
-    color: '#666666',
+    color: '#999999',
     letterSpacing: -0.3,
   },
   iconContainer: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#E5F1FF',
+    backgroundColor: '#3b82f620',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -106,6 +106,14 @@ export default function LoginScreen() {
               disabled={isLoading}
               style={styles.loginButton}
             />
+
+            <ThemedText
+              type="link"
+              onPress={() => router.push('/(auth)/forgot-password')}
+              style={styles.forgotPassword}
+            >
+              Mot de passe oublié ?
+            </ThemedText>
           </Card>
 
           <View style={styles.footer}>
@@ -155,6 +163,11 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 8,
+  },
+  forgotPassword: {
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 14,
   },
   footer: {
     flexDirection: 'row',

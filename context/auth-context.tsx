@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
   type User as FirebaseUser
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
@@ -18,9 +19,10 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string) => Promise<AnyUser>;
+  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string, dateOfBirth?: Date) => Promise<AnyUser>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<AnyUser>) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 /**
@@ -121,7 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     firstName: string,
     lastName: string,
     role: UserRole,
-    unitId?: string
+    unitId?: string,
+    dateOfBirth?: Date
   ) => {
     try {
       setIsLoading(true);
@@ -142,14 +145,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Créer le document utilisateur dans Firestore
       console.log('📝 Création du document utilisateur dans Firestore...');
-      const additionalData = unitId ? { unitId } : undefined;
+      const additionalData: Record<string, any> = {};
+      if (unitId) additionalData.unitId = unitId;
+      if (dateOfBirth) additionalData.dateOfBirth = dateOfBirth;
+
       const newUser = await UserService.createUser(
         userCredential.user.uid,
         email,
         firstName,
         lastName,
         role,
-        additionalData
+        Object.keys(additionalData).length > 0 ? additionalData : undefined
       );
       console.log('✅ Document utilisateur créé dans Firestore:', newUser);
 
@@ -258,7 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         // Mettre à jour dans Firestore
         await UserService.updateUser(user.id, updatedData);
-        
+
         // Mettre à jour l'état local
         const updatedUser = { ...user, ...updatedData } as AnyUser;
         setUser(updatedUser);
@@ -266,6 +272,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
         throw error;
       }
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      console.log('🔑 Envoi de l\'email de réinitialisation à:', email);
+      await sendPasswordResetEmail(auth, email);
+      console.log('✅ Email de réinitialisation envoyé');
+    } catch (error: any) {
+      console.error('❌ Erreur lors de l\'envoi de l\'email de réinitialisation:', error);
+
+      let errorMessage = 'Erreur lors de l\'envoi de l\'email';
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'Aucun compte trouvé avec cet email';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Email invalide';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Trop de tentatives. Veuillez réessayer plus tard.';
+      }
+
+      throw new Error(errorMessage);
     }
   };
 
@@ -277,6 +304,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     updateUser,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

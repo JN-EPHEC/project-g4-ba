@@ -30,6 +30,8 @@ export class UserService {
       lastName: data.lastName,
       role: data.role as UserRole,
       profilePicture: data.profilePicture,
+      bio: data.bio,
+      phone: data.phone,
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
     };
@@ -44,6 +46,8 @@ export class UserService {
           points: data.points || 0,
           rank: data.rank,
           dateOfBirth: data.dateOfBirth?.toDate() || new Date(),
+          totemName: data.totemName,
+          totemAnimal: data.totemAnimal,
           validated: data.validated || false,
           validatedAt: data.validatedAt?.toDate(),
           validatedBy: data.validatedBy,
@@ -186,14 +190,22 @@ export class UserService {
   static async updateUser(userId: string, updates: Partial<AnyUser>): Promise<void> {
     try {
       const userRef = doc(db, this.COLLECTION_NAME, userId);
+
+      // Filtrer les valeurs undefined (Firestore ne les accepte pas)
+      const firestoreUpdates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (value !== undefined) {
+          firestoreUpdates[key] = value;
+        }
+      }
+
       // Convertir updatedAt en Timestamp si c'est une Date
-      const firestoreUpdates: any = { ...updates };
       if (firestoreUpdates.updatedAt instanceof Date) {
         firestoreUpdates.updatedAt = Timestamp.fromDate(firestoreUpdates.updatedAt);
       } else {
         firestoreUpdates.updatedAt = Timestamp.fromDate(new Date());
       }
-      
+
       await updateDoc(userRef, firestoreUpdates);
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);

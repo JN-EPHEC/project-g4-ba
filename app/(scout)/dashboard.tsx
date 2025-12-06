@@ -7,10 +7,19 @@ import Animated, { FadeInUp, FadeInLeft, ZoomIn } from 'react-native-reanimated'
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/auth-context';
-import { Scout } from '@/types';
+import { Scout, UserRole } from '@/types';
 import { useEvents } from '@/src/features/events/hooks/use-events';
 import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
 import { useAllChallengeProgress } from '@/src/features/challenges/hooks/use-all-challenge-progress';
+
+// Import des nouveaux widgets
+import {
+  UnreadMessagesWidget,
+  ActivityWidget,
+  ChallengeProgressWidget,
+  WeatherWidget,
+} from '@/src/features/dashboard/components';
+import { getCountdownLabel, getCountdownColor } from '@/src/shared/utils/date-utils';
 
 export default function ScoutDashboardScreen() {
   const { user } = useAuth();
@@ -39,12 +48,13 @@ export default function ScoutDashboardScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.scrollContent,
           isTablet && styles.scrollContentTablet,
           isDesktop && styles.scrollContentDesktop
         ]}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
       >
 
         {/* Stats Cards - Apple Style Grid with Animations */}
@@ -252,6 +262,8 @@ export default function ScoutDashboardScreen() {
               const month = eventDate.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase();
               const startTime = eventDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               const endTime = new Date(event.endDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+              const countdownLabel = getCountdownLabel(eventDate);
+              const countdownColor = getCountdownColor(eventDate);
 
               // Couleur selon le type d'événement
               const eventColors = {
@@ -278,7 +290,14 @@ export default function ScoutDashboardScreen() {
                       <ThemedText style={styles.eventMonth}>{month}</ThemedText>
                     </View>
                     <View style={styles.eventContent}>
-                      <ThemedText style={styles.eventTitle}>{event.title}</ThemedText>
+                      <View style={styles.eventTitleRow}>
+                        <ThemedText style={styles.eventTitle}>{event.title}</ThemedText>
+                        <View style={[styles.countdownBadge, { backgroundColor: `${countdownColor}20` }]}>
+                          <ThemedText style={[styles.countdownText, { color: countdownColor }]}>
+                            {countdownLabel}
+                          </ThemedText>
+                        </View>
+                      </View>
                       <View style={styles.eventDetail}>
                         <Ionicons name="time-outline" size={14} color="#8E8E93" />
                         <ThemedText style={styles.eventDetailText}>
@@ -299,6 +318,32 @@ export default function ScoutDashboardScreen() {
             })
           )}
         </View>
+
+        {/* Widgets supplémentaires */}
+        {scout?.id && scout?.unitId && (
+          <>
+            {/* Widget Progression défis */}
+            <ChallengeProgressWidget
+              scoutId={scout.id}
+              unitId={scout.unitId}
+              delay={700}
+            />
+
+            {/* Widget Messages non lus */}
+            <UnreadMessagesWidget
+              userId={scout.id}
+              unitId={scout.unitId}
+              userRole={UserRole.SCOUT}
+              delay={750}
+            />
+
+            {/* Widget Activité récente */}
+            <ActivityWidget unitId={scout.unitId} delay={800} />
+
+            {/* Widget Météo */}
+            <WeatherWidget location="Belgique" delay={850} />
+          </>
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -313,7 +358,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   scrollContentTablet: {
     padding: 32,
@@ -579,5 +624,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999999',
     textAlign: 'center',
+  },
+
+  // Countdown badge
+  eventTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  countdownBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  countdownText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

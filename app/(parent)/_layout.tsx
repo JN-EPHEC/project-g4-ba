@@ -73,6 +73,12 @@ export default function ParentLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
+        }}
+      />
     </Tabs>
   );
 }

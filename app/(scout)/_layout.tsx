@@ -49,10 +49,7 @@ export default function ScoutLayout() {
       <Tabs.Screen
         name="challenges"
         options={{
-          title: 'Défis',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="flash" size={size} color={color} />
-          ),
+          href: null, // Accessible depuis le dashboard
         }}
       />
       <Tabs.Screen
@@ -61,6 +58,15 @@ export default function ScoutLayout() {
           title: 'Messages',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="folder-open" size={size} color={color} />
           ),
         }}
       />
@@ -77,6 +83,12 @@ export default function ScoutLayout() {
         name="leaderboard"
         options={{
           href: null, // Cache le leaderboard de la barre de navigation
+        }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
         }}
       />
     </Tabs>

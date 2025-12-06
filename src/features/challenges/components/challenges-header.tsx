@@ -1,17 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface ChallengesHeaderProps {
   totalPoints: number;
 }
 
 export function ChallengesHeader({ totalPoints }: ChallengesHeaderProps) {
+  const warningBackground = useThemeColor({}, 'warningBackground');
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Challenges</Text>
-      <View style={styles.pointsContainer}>
-        <Text style={styles.trophy}>🏆</Text>
-        <Text style={styles.points}>{totalPoints} pts</Text>
+      <ThemedText type="title" style={styles.title}>Challenges</ThemedText>
+      <View style={[styles.pointsContainer, { backgroundColor: warningBackground }]}>
+        <ThemedText style={styles.trophy}>🏆</ThemedText>
+        <ThemedText type="bodySemiBold">{totalPoints} pts</ThemedText>
       </View>
     </View>
   );
@@ -26,14 +30,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    letterSpacing: -0.5,
   },
   pointsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF9C4',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -41,10 +42,5 @@ const styles = StyleSheet.create({
   },
   trophy: {
     fontSize: 20,
-  },
-  points: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
   },
 });

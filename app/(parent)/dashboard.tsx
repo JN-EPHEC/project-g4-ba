@@ -36,7 +36,7 @@ export default function ParentDashboardScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={true}>
         <ThemedText type="title" style={styles.title}>
           Bonjour {parent?.firstName} 👋
         </ThemedText>
@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   title: {
     marginBottom: 20,

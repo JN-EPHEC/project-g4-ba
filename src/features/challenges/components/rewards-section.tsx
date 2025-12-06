@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 const PARTNERS = [
   { id: '1', name: 'Colruyt', color: '#E31E24' },
@@ -9,21 +11,25 @@ const PARTNERS = [
 ];
 
 export function RewardsSection() {
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorderColor = useThemeColor({}, 'cardBorder');
+  const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
       <View style={styles.header}>
-        <Text style={styles.iconGift}>🎁</Text>
-        <Text style={styles.title}>Gagnez des récompenses !</Text>
+        <ThemedText style={styles.iconGift}>🎁</ThemedText>
+        <ThemedText type="subtitle">Gagnez des récompenses !</ThemedText>
       </View>
 
-      <Text style={styles.description}>
+      <ThemedText color="secondary" style={styles.description}>
         En complétant des challenges, vous gagnez des points pour votre unité qui peuvent être convertis en{' '}
-        <Text style={styles.bold}>bons d'achat</Text> chez nos partenaires.
-      </Text>
+        <ThemedText type="bodySemiBold">bons d'achat</ThemedText> chez nos partenaires.
+      </ThemedText>
 
       <View style={styles.partnersHeader}>
-        <Text style={styles.partnerIcon}>✨</Text>
-        <Text style={styles.partnersTitle}>Nos partenaires</Text>
+        <ThemedText style={styles.partnerIcon}>✨</ThemedText>
+        <ThemedText type="bodySemiBold">Nos partenaires</ThemedText>
       </View>
 
       <ScrollView
@@ -33,24 +39,23 @@ export function RewardsSection() {
       >
         {PARTNERS.map((partner) => (
           <View key={partner.id} style={[styles.partnerCard, { backgroundColor: partner.color }]}>
-            <Text style={styles.partnerName}>{partner.name}</Text>
+            <ThemedText color="inverse" type="caption" style={styles.partnerName}>{partner.name}</ThemedText>
           </View>
         ))}
-        <View style={styles.partnerCard}>
-          <Text style={styles.partnerMore}>✨ Et plus encore...</Text>
+        <View style={[styles.partnerCard, { backgroundColor: surfaceSecondary }]}>
+          <ThemedText color="tertiary" style={styles.partnerMore}>✨ Et plus encore...</ThemedText>
         </View>
       </ScrollView>
 
-      <Text style={styles.footer}>
+      <ThemedText color="tertiary" style={styles.footer}>
         Plus vous participez, plus votre unité accumule de coupons pour financer ses activités et sorties !
-      </Text>
+      </ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     marginBottom: 24,
@@ -60,7 +65,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
   },
   header: {
     flexDirection: 'row',
@@ -71,20 +75,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginRight: 8,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
   description: {
-    fontSize: 15,
-    color: '#666666',
     lineHeight: 22,
     marginBottom: 20,
-  },
-  bold: {
-    fontWeight: '700',
-    color: '#1A1A1A',
   },
   partnersHeader: {
     flexDirection: 'row',
@@ -95,17 +88,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginRight: 6,
   },
-  partnersTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
   partnersContainer: {
     paddingVertical: 8,
     gap: 12,
   },
   partnerCard: {
-    backgroundColor: '#F5F5F5',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 12,
@@ -115,17 +102,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   partnerName: {
-    fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   partnerMore: {
     fontSize: 13,
-    color: '#666666',
   },
   footer: {
     fontSize: 14,
-    color: '#999999',
     fontStyle: 'italic',
     marginTop: 16,
     lineHeight: 20,

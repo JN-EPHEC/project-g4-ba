@@ -1,18 +1,24 @@
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card } from '@/components/ui';
+import { Card, ThemeSelector } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { Scout } from '@/types';
 import { RankProgressBar } from '@/components/rank-progress-bar';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const scout = user as Scout;
+  const iconColor = useThemeColor({}, 'icon');
+  const borderColor = useThemeColor({}, 'border');
+  const backgroundColor = useThemeColor({}, 'background');
+  const [themeExpanded, setThemeExpanded] = useState(false);
 
   const handleLogout = () => {
     console.log('🔘 Bouton Déconnexion cliqué!');
@@ -38,12 +44,39 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleEditProfile = () => {
+    router.push('/(scout)/edit-profile');
+  };
+
+  // Calculer l'âge
+  const getAge = () => {
+    if (!scout?.dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(scout.dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={styles.title}>
-          Profil
-        </ThemedText>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.headerRow}>
+          <ThemedText type="title" style={styles.title}>
+            Profil
+          </ThemedText>
+          <TouchableOpacity
+            onPress={handleEditProfile}
+            style={styles.editButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="pencil" size={20} color="#3b82f6" />
+            <ThemedText style={styles.editButtonText}>Modifier</ThemedText>
+          </TouchableOpacity>
+        </View>
 
         <Card style={styles.profileCard}>
           <View style={styles.profileHeader}>
@@ -55,24 +88,83 @@ export default function ProfileScreen() {
             <ThemedText type="title" style={styles.name}>
               {scout?.firstName} {scout?.lastName}
             </ThemedText>
+
+            {/* Nom de totem */}
+            {scout?.totemName && (
+              <View style={styles.totemBadge}>
+                <Ionicons name="paw" size={14} color="#f59e0b" />
+                <ThemedText style={styles.totemName}>{scout.totemName}</ThemedText>
+              </View>
+            )}
+
             <ThemedText style={styles.email}>{scout?.email}</ThemedText>
           </View>
 
+          {/* Bio */}
+          {scout?.bio && (
+            <View style={[styles.bioSection, { borderTopColor: borderColor }]}>
+              <ThemedText style={styles.bioText}>"{scout.bio}"</ThemedText>
+            </View>
+          )}
+
           {/* Barre de progression XP */}
-          <View style={styles.rankSection}>
+          <View style={[styles.rankSection, { borderTopColor: borderColor, borderBottomColor: borderColor }]}>
             <RankProgressBar xp={scout?.points || 0} />
           </View>
 
           <View style={styles.infoSection}>
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
               <ThemedText style={styles.infoLabel}>Rôle</ThemedText>
               <ThemedText style={styles.infoValue}>Scout</ThemedText>
             </View>
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
               <ThemedText style={styles.infoLabel}>Points</ThemedText>
               <ThemedText style={styles.infoValue}>{scout?.points || 0}</ThemedText>
             </View>
+            {getAge() && (
+              <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
+                <ThemedText style={styles.infoLabel}>Âge</ThemedText>
+                <ThemedText style={styles.infoValue}>{getAge()} ans</ThemedText>
+              </View>
+            )}
+            {scout?.totemAnimal && (
+              <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
+                <ThemedText style={styles.infoLabel}>Animal totem</ThemedText>
+                <ThemedText style={styles.infoValue}>{scout.totemAnimal}</ThemedText>
+              </View>
+            )}
+            {scout?.phone && (
+              <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
+                <ThemedText style={styles.infoLabel}>Téléphone</ThemedText>
+                <ThemedText style={styles.infoValue}>{scout.phone}</ThemedText>
+              </View>
+            )}
           </View>
+        </Card>
+
+        {/* Panneau Apparence */}
+        <Card style={styles.settingsCard}>
+          <TouchableOpacity
+            style={styles.settingsHeader}
+            onPress={() => setThemeExpanded(!themeExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingsHeaderLeft}>
+              <Ionicons name="color-palette-outline" size={24} color={iconColor} />
+              <ThemedText type="defaultSemiBold">Apparence</ThemedText>
+            </View>
+            <Ionicons
+              name={themeExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color={iconColor}
+            />
+          </TouchableOpacity>
+
+          {themeExpanded && (
+            <View style={[styles.themeContent, { borderTopColor: borderColor }]}>
+              <ThemeSelector />
+            </View>
+          )}
         </Card>
 
         <TouchableOpacity
@@ -94,9 +186,31 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
+    paddingBottom: 40,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   title: {
-    marginBottom: 20,
+    marginBottom: 0,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#3b82f620',
+    borderRadius: 8,
+  },
+  editButtonText: {
+    color: '#3b82f6',
+    fontSize: 14,
+    fontWeight: '600',
   },
   profileCard: {
     padding: 24,
@@ -113,19 +227,47 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   name: {
     marginTop: 16,
     fontSize: 24,
   },
+  totemBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f59e0b20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  totemName: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   email: {
-    marginTop: 4,
+    marginTop: 8,
     opacity: 0.7,
+  },
+  bioSection: {
+    width: '100%',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    marginBottom: 0,
+  },
+  bioText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    opacity: 0.8,
+    lineHeight: 20,
   },
   infoSection: {
     width: '100%',
-    gap: 16,
+    gap: 12,
   },
   infoRow: {
     flexDirection: 'row',
@@ -161,5 +303,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  settingsCard: {
+    padding: 0,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  settingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  settingsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  themeContent: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
   },
 });

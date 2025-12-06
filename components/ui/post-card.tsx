@@ -18,6 +18,10 @@ export interface PostAuthor {
 export interface PostCardProps {
   post: Post;
   author?: PostAuthor;
+  /** Si true, affiche le bouton de suppression */
+  canDelete?: boolean;
+  /** Callback appelé quand l'utilisateur veut supprimer le message */
+  onDelete?: (postId: string) => void;
 }
 
 function formatRelativeTime(date: Date): string {
@@ -60,10 +64,20 @@ function AttachmentPreview({ attachment }: { attachment: PostAttachment }) {
   );
 }
 
-export function PostCard({ post, author }: PostCardProps) {
+export function PostCard({ post, author, canDelete, onDelete }: PostCardProps) {
   const authorName = author
     ? `${author.firstName} ${author.lastName}`
     : 'Utilisateur';
+
+  const handleDelete = () => {
+    if (onDelete) {
+      // Confirmation avant suppression
+      const confirmed = confirm('Êtes-vous sûr de vouloir supprimer ce message ?');
+      if (confirmed) {
+        onDelete(post.id);
+      }
+    }
+  };
 
   return (
     <Card style={styles.card}>
@@ -81,6 +95,15 @@ export function PostCard({ post, author }: PostCardProps) {
             {formatRelativeTime(post.createdAt)}
           </ThemedText>
         </View>
+        {canDelete && onDelete && (
+          <TouchableOpacity
+            onPress={handleDelete}
+            style={styles.deleteButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash-outline" size={18} color="#ef4444" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ThemedText style={styles.content}>{post.content}</ThemedText>
@@ -146,5 +169,10 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFFFFF',
     fontSize: 14,
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
 });

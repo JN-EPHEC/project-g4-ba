@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -18,6 +19,7 @@ export default function RegisterScreen() {
     email: '',
     password: '',
     confirmPassword: '',
+    dateOfBirth: new Date(2010, 0, 1), // Date par défaut
   });
   const [errors, setErrors] = useState({
     firstName: '',
@@ -25,9 +27,26 @@ export default function RegisterScreen() {
     email: '',
     password: '',
     confirmPassword: '',
+    dateOfBirth: '',
   });
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const iconColor = useThemeColor({}, 'icon');
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setFormData({ ...formData, dateOfBirth: selectedDate });
+    }
+  };
 
   const validateForm = () => {
     let isValid = true;
@@ -37,6 +56,7 @@ export default function RegisterScreen() {
       email: '',
       password: '',
       confirmPassword: '',
+      dateOfBirth: '',
     };
 
     if (!formData.firstName.trim()) {
@@ -70,6 +90,14 @@ export default function RegisterScreen() {
       isValid = false;
     }
 
+    // Vérifier que la date de naissance est valide (entre 5 et 100 ans)
+    const today = new Date();
+    const age = today.getFullYear() - formData.dateOfBirth.getFullYear();
+    if (age < 5 || age > 100) {
+      newErrors.dateOfBirth = 'La date de naissance doit correspondre à un âge entre 5 et 100 ans';
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
   };
@@ -85,6 +113,7 @@ export default function RegisterScreen() {
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        dateOfBirth: formData.dateOfBirth.toISOString(),
       },
     });
   };
@@ -128,6 +157,35 @@ export default function RegisterScreen() {
               autoComplete="family-name"
               icon={<Ionicons name="person-outline" size={20} color={iconColor} />}
             />
+
+            {/* Date de naissance */}
+            <View style={styles.datePickerContainer}>
+              <ThemedText style={styles.dateLabel}>Date de naissance</ThemedText>
+              <TouchableOpacity
+                style={[styles.dateButton, errors.dateOfBirth ? styles.dateButtonError : null]}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="calendar-outline" size={20} color={iconColor} />
+                <ThemedText style={styles.dateText}>
+                  {formatDate(formData.dateOfBirth)}
+                </ThemedText>
+              </TouchableOpacity>
+              {errors.dateOfBirth ? (
+                <ThemedText style={styles.errorText}>{errors.dateOfBirth}</ThemedText>
+              ) : null}
+            </View>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={formData.dateOfBirth}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+                minimumDate={new Date(1920, 0, 1)}
+              />
+            )}
 
             <Input
               label="Email"
@@ -226,5 +284,34 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
+  },
+  datePickerContainer: {
+    marginBottom: 16,
+  },
+  dateLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+    backgroundColor: '#2A2A2A',
+  },
+  dateButtonError: {
+    borderColor: '#ef4444',
+  },
+  dateText: {
+    fontSize: 16,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 4,
   },
 });

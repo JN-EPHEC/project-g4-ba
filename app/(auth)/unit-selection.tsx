@@ -101,6 +101,9 @@ export default function UnitSelectionScreen() {
     try {
       console.log('🚀 Inscription scout avec l\'unité:', selectedUnit);
 
+      // Convertir la date de naissance
+      const dateOfBirth = params.dateOfBirth ? new Date(params.dateOfBirth as string) : new Date();
+
       // Créer le compte scout
       const registeredUser = await register(
         params.email as string,
@@ -108,7 +111,8 @@ export default function UnitSelectionScreen() {
         params.firstName as string,
         params.lastName as string,
         UserRole.SCOUT,
-        selectedUnit // Passer l'unitId
+        selectedUnit, // Passer l'unitId
+        dateOfBirth // Passer la date de naissance
       );
 
       console.log('✅ Inscription réussie, redirection vers la page d\'attente');
@@ -135,7 +139,7 @@ export default function UnitSelectionScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: '#f9fafb' }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
             Choisis ta fédération
@@ -233,6 +237,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,

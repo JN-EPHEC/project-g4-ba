@@ -257,6 +257,33 @@ export class UnitService {
   }
 
   /**
+   * Récupère tous les membres d'une unité (scouts + animateurs)
+   */
+  static async getUnitMembers(unitId: string): Promise<{ id: string; firstName: string; lastName: string; role: UserRole }[]> {
+    try {
+      // Récupérer tous les utilisateurs de l'unité
+      const q = query(
+        collection(db, 'users'),
+        where('unitId', '==', unitId)
+      );
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          role: data.role as UserRole,
+        };
+      });
+    } catch (error) {
+      console.error('Erreur lors de la récupération des membres:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Supprime une unité
    */
   static async deleteUnit(unitId: string): Promise<void> {

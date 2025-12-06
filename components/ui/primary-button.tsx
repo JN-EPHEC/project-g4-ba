@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, ViewStyle, ActivityIndicator, type PressableProps } from 'react-native';
+import { TouchableOpacity, StyleSheet, ViewStyle, ActivityIndicator, type TouchableOpacityProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -9,7 +9,7 @@ import { BrandColors } from '@/constants/theme';
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
-export type PrimaryButtonProps = PressableProps & {
+export type PrimaryButtonProps = TouchableOpacityProps & {
   title: string;
   style?: ViewStyle | ViewStyle[];
   disabled?: boolean;
@@ -103,10 +103,11 @@ export function PrimaryButton({
   const sizeStyles = getSizeStyles();
 
   return (
-    <Pressable
+    <TouchableOpacity
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled }}
-      style={({ pressed }) => [
+      activeOpacity={Opacity.pressed}
+      style={[
         styles.button,
         sizeStyles,
         {
@@ -116,7 +117,7 @@ export function PrimaryButton({
         },
         fullWidth && styles.fullWidth,
         variant === 'primary' && !isDisabled && Shadows.sm,
-        pressed && !isDisabled && styles.buttonPressed,
+        isDisabled && styles.buttonDisabled,
         style,
       ]}
       disabled={isDisabled}
@@ -135,7 +136,7 @@ export function PrimaryButton({
           {title}
         </ThemedText>
       )}
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
@@ -146,10 +147,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: Spacing.sm,
+    cursor: 'pointer',
   },
-  buttonPressed: {
-    opacity: Opacity.pressed,
-    transform: [{ scale: 0.98 }],
+  buttonDisabled: {
+    opacity: 0.6,
+    cursor: 'not-allowed',
   },
   fullWidth: {
     width: '100%',

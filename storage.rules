@@ -82,6 +82,23 @@ service firebase.storage {
                    && request.resource.contentType == 'application/pdf';
     }
 
+    // Règles pour le Drive (stockage de fichiers)
+    match /drive/{unitId}/{folderId}/{allPaths=**} {
+      // Lecture: Tout le monde authentifié peut lire
+      allow read: if isAuthenticated();
+
+      // Écriture: Utilisateurs authentifiés peuvent uploader (max 20MB)
+      allow write: if isAuthenticated()
+                   && request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // Règles pour les pièces jointes des posts/messages
+    match /units/{unitId}/feed/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated()
+                   && request.resource.size < 10 * 1024 * 1024;
+    }
+
     // Par défaut, bloquer tout le reste
     match /{allPaths=**} {
       allow read, write: if false;

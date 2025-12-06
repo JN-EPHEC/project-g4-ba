@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card } from '@/components/ui';
+import { Card, ThemeSelector } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Animator } from '@/types';
@@ -15,9 +15,12 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const animator = user as Animator;
   const iconColor = useThemeColor({}, 'icon');
+  const borderColor = useThemeColor({}, 'border');
+  const tintColor = useThemeColor({}, 'tint');
 
   // États pour les paramètres
   const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [themeExpanded, setThemeExpanded] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
 
@@ -45,12 +48,26 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleEditProfile = () => {
+    router.push('/(animator)/edit-profile');
+  };
+
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={styles.title}>
-          Profil
-        </ThemedText>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.headerRow}>
+          <ThemedText type="title" style={styles.title}>
+            Profil
+          </ThemedText>
+          <TouchableOpacity
+            onPress={handleEditProfile}
+            style={styles.editButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="pencil" size={20} color="#3b82f6" />
+            <ThemedText style={styles.editButtonText}>Modifier</ThemedText>
+          </TouchableOpacity>
+        </View>
 
         <Card style={styles.profileCard}>
           <View style={styles.profileHeader}>
@@ -62,8 +79,69 @@ export default function ProfileScreen() {
             <ThemedText type="title" style={styles.name}>
               {animator?.firstName} {animator?.lastName}
             </ThemedText>
+
+            {/* Badge animateur */}
+            <View style={styles.roleBadge}>
+              <Ionicons name="star" size={14} color="#f59e0b" />
+              <ThemedText style={styles.roleText}>
+                {animator?.isUnitLeader ? 'Chef d\'unité' : 'Animateur'}
+              </ThemedText>
+            </View>
+
             <ThemedText style={styles.email}>{animator?.email}</ThemedText>
           </View>
+
+          {/* Bio */}
+          {animator?.bio && (
+            <View style={[styles.bioSection, { borderTopColor: borderColor }]}>
+              <ThemedText style={styles.bioText}>"{animator.bio}"</ThemedText>
+            </View>
+          )}
+
+          {/* Infos */}
+          {(animator?.phone || (animator?.specialties && animator.specialties.length > 0)) && (
+            <View style={[styles.infoSection, { borderTopColor: borderColor }]}>
+              {animator?.phone && (
+                <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
+                  <ThemedText style={styles.infoLabel}>Téléphone</ThemedText>
+                  <ThemedText style={styles.infoValue}>{animator.phone}</ThemedText>
+                </View>
+              )}
+              {animator?.specialties && animator.specialties.length > 0 && (
+                <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
+                  <ThemedText style={styles.infoLabel}>Spécialités</ThemedText>
+                  <ThemedText style={styles.infoValue}>
+                    {animator.specialties.join(', ')}
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+          )}
+        </Card>
+
+        {/* Panneau Apparence */}
+        <Card style={styles.settingsCard}>
+          <TouchableOpacity
+            style={styles.settingsHeader}
+            onPress={() => setThemeExpanded(!themeExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingsHeaderLeft}>
+              <Ionicons name="color-palette-outline" size={24} color={iconColor} />
+              <ThemedText type="defaultSemiBold">Apparence</ThemedText>
+            </View>
+            <Ionicons
+              name={themeExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color={iconColor}
+            />
+          </TouchableOpacity>
+
+          {themeExpanded && (
+            <View style={[styles.themeContent, { borderTopColor: borderColor }]}>
+              <ThemeSelector />
+            </View>
+          )}
         </Card>
 
         {/* Panneau Paramètres */}
@@ -85,9 +163,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {settingsExpanded && (
-            <View style={styles.settingsContent}>
+            <View style={[styles.settingsContent, { borderTopColor: borderColor }]}>
               {/* Notifications Push */}
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, { borderBottomColor: borderColor }]}>
                 <View style={styles.settingItemLeft}>
                   <Ionicons name="notifications-outline" size={20} color={iconColor} />
                   <View style={styles.settingItemText}>
@@ -100,13 +178,13 @@ export default function ProfileScreen() {
                 <Switch
                   value={notifications}
                   onValueChange={setNotifications}
-                  trackColor={{ false: '#767577', true: '#3b82f6' }}
+                  trackColor={{ false: '#767577', true: tintColor }}
                   thumbColor="#fff"
                 />
               </View>
 
               {/* Notifications Email */}
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, { borderBottomColor: borderColor }]}>
                 <View style={styles.settingItemLeft}>
                   <Ionicons name="mail-outline" size={20} color={iconColor} />
                   <View style={styles.settingItemText}>
@@ -119,13 +197,13 @@ export default function ProfileScreen() {
                 <Switch
                   value={emailNotifications}
                   onValueChange={setEmailNotifications}
-                  trackColor={{ false: '#767577', true: '#3b82f6' }}
+                  trackColor={{ false: '#767577', true: tintColor }}
                   thumbColor="#fff"
                 />
               </View>
 
               {/* À propos */}
-              <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <TouchableOpacity style={[styles.settingItem, { borderBottomColor: borderColor }]} activeOpacity={0.7}>
                 <View style={styles.settingItemLeft}>
                   <Ionicons name="information-circle-outline" size={20} color={iconColor} />
                   <View style={styles.settingItemText}>
@@ -160,9 +238,83 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
+    paddingBottom: 40,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   title: {
-    marginBottom: 20,
+    marginBottom: 0,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#3b82f620',
+    borderRadius: 8,
+  },
+  editButtonText: {
+    color: '#3b82f6',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f59e0b20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  roleText: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bioSection: {
+    width: '100%',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    marginTop: 16,
+  },
+  bioText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    opacity: 0.8,
+    lineHeight: 20,
+  },
+  infoSection: {
+    width: '100%',
+    borderTopWidth: 1,
+    paddingTop: 16,
+    marginTop: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e520',
+  },
+  infoLabel: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    maxWidth: '60%',
+    textAlign: 'right',
   },
   profileCard: {
     padding: 24,
@@ -216,6 +368,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   settingsContent: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+  },
+  themeContent: {
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
   },

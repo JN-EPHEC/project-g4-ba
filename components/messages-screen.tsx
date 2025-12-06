@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -6,14 +6,16 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { PostCard, PostComposer, ChannelList, type PostAuthor } from '@/components/ui';
+import type { MentionableUser } from '@/components/ui/post-composer';
 import { ChannelService } from '@/src/shared/services/channel-service';
 import { StorageService } from '@/src/shared/services/storage-service';
 import { UserService } from '@/services/user-service';
+import { UnitService } from '@/services/unit-service';
 import type { Channel, ChannelMessage } from '@/src/shared/types/channel';
 import type { AnyUser } from '@/types';
 import { UserRole } from '@/types';
@@ -29,9 +31,34 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
   const [authors, setAuthors] = useState<Record<string, PostAuthor>>({});
+  const [mentionableUsers, setMentionableUsers] = useState<MentionableUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  // Compteur pour forcer le re-rendu de la liste
+  const [listKey, setListKey] = useState(0);
+
+  // Charger les membres de l'unité pour les mentions
+  const loadUnitMembers = useCallback(async () => {
+    if (!unitId) return;
+
+    try {
+      console.log('[Messages] Chargement des membres pour mentions...');
+      const members = await UnitService.getUnitMembers(unitId);
+      const mentionable: MentionableUser[] = members
+        .filter((member) => member.id !== user.id) // Exclure l'utilisateur actuel
+        .map((member) => ({
+          id: member.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+        }));
+      setMentionableUsers(mentionable);
+      console.log('[Messages] Membres chargés:', mentionable.length);
+    } catch (error) {
+      console.error('[Messages] Erreur chargement membres:', error);
+    }
+  }, [unitId, user.id]);
 
   // Charger les canaux accessibles selon le rôle
   const loadChannels = useCallback(async () => {
@@ -113,7 +140,8 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
 
   useEffect(() => {
     loadChannels();
-  }, [loadChannels]);
+    loadUnitMembers();
+  }, [loadChannels, loadUnitMembers]);
 
   useEffect(() => {
     if (selectedChannel) {
@@ -155,10 +183,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       attachment
     );
 
-    // Ajouter le nouveau message à la fin de la liste
-    setMessages((prev) => [...prev, newMessage]);
-
-    // Ajouter l'auteur s'il n'existe pas
+    // Ajouter l'auteur s'il n'existe pas (faire avant d'ajouter le message)
     if (!authors[user.id]) {
       setAuthors((prev) => ({
         ...prev,
@@ -170,11 +195,37 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
         },
       }));
     }
+
+    // Ajouter le nouveau message au début de la liste (plus récent en premier)
+    setMessages((prev) => [newMessage, ...prev]);
+
+    // Forcer le re-rendu de la liste pour que React recalcule l'ordre
+    setListKey((prev) => prev + 1);
+
+    // Scroller vers le haut après l'ajout du message
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
   };
 
   const canWriteInChannel = selectedChannel
     ? ChannelService.canWrite(selectedChannel, userRole)
     : false;
+
+  // Les animateurs peuvent supprimer les messages
+  const canDeleteMessages = userRole === UserRole.ANIMATOR;
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await ChannelService.deleteMessage(messageId);
+      // Retirer le message de la liste locale
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      console.log('[Messages] Message supprimé:', messageId);
+    } catch (error) {
+      console.error('[Messages] Erreur lors de la suppression:', error);
+      alert('Erreur lors de la suppression du message');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -208,7 +259,10 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
   return (
     <ThemedView style={styles.container}>
       <ScrollView
+        ref={scrollViewRef}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -251,6 +305,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                 <PostComposer
                   onSubmit={handleSubmitMessage}
                   placeholder={`Message dans #${selectedChannel.name}...`}
+                  mentionableUsers={mentionableUsers}
                 />
               </Animated.View>
             ) : (
@@ -278,24 +333,25 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                 </ThemedText>
               </Animated.View>
             ) : (
-              messages.map((message, index) => (
-                <Animated.View
-                  key={message.id}
-                  entering={FadeInDown.duration(300).delay(index * 30)}
-                >
-                  <PostCard
-                    post={{
-                      id: message.id,
-                      content: message.content,
-                      authorId: message.authorId,
-                      unitId: selectedChannel.unitId,
-                      attachment: message.attachment,
-                      createdAt: message.createdAt,
-                    }}
-                    author={authors[message.authorId]}
-                  />
-                </Animated.View>
-              ))
+              <View key={`messages-list-${listKey}`}>
+                {messages.map((message, index) => (
+                  <View key={`${message.id}-${index}`}>
+                    <PostCard
+                      post={{
+                        id: message.id,
+                        content: message.content,
+                        authorId: message.authorId,
+                        unitId: selectedChannel.unitId,
+                        attachment: message.attachment,
+                        createdAt: message.createdAt,
+                      }}
+                      author={authors[message.authorId]}
+                      canDelete={canDeleteMessages}
+                      onDelete={handleDeleteMessage}
+                    />
+                  </View>
+                ))}
+              </View>
             )}
           </>
         )}
@@ -312,6 +368,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   title: {
     marginBottom: 20,

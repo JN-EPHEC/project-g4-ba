@@ -56,7 +56,7 @@ export default function LeaderboardScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
             Classement
@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',

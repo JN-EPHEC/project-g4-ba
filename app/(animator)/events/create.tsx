@@ -154,7 +154,7 @@ export default function CreateEventScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
           <ThemedText type="title" style={styles.title}>
             Créer un événement
           </ThemedText>
@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   title: {
     marginBottom: 24,

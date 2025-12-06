@@ -63,6 +63,7 @@ export default function RoleSelectionScreen() {
           password: params.password as string,
           firstName: params.firstName as string,
           lastName: params.lastName as string,
+          dateOfBirth: params.dateOfBirth as string,
           role: selectedRole,
         },
       });
@@ -78,6 +79,7 @@ export default function RoleSelectionScreen() {
           password: params.password as string,
           firstName: params.firstName as string,
           lastName: params.lastName as string,
+          dateOfBirth: params.dateOfBirth as string,
           role: selectedRole,
         },
       });
@@ -127,7 +129,7 @@ export default function RoleSelectionScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
             Qui es-tu ?
@@ -212,6 +214,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 24,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   header: {
     alignItems: 'center',

@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface ChallengeCardProps {
   title: string;
@@ -11,25 +13,49 @@ interface ChallengeCardProps {
 }
 
 export function ChallengeCard({ title, points, icon, iconBgColor, onPress, completed = false }: ChallengeCardProps) {
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorderColor = useThemeColor({}, 'cardBorder');
+  const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
+  const successColor = useThemeColor({}, 'success');
+  const successBackground = useThemeColor({}, 'successBackground');
+
   return (
     <TouchableOpacity
-      style={[styles.card, completed && styles.cardCompleted]}
+      style={[
+        styles.card,
+        { backgroundColor: cardColor, borderColor: cardBorderColor },
+        completed && { opacity: 0.7, borderColor: successColor, borderWidth: 2 }
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       {completed && (
-        <View style={styles.completedBadge}>
-          <Text style={styles.completedBadgeText}>✓</Text>
+        <View style={[styles.completedBadge, { backgroundColor: successColor }]}>
+          <ThemedText color="inverse" style={styles.completedBadgeText}>✓</ThemedText>
         </View>
       )}
       <View style={[styles.iconContainer, { backgroundColor: iconBgColor }, completed && styles.iconCompleted]}>
-        <Text style={styles.iconText}>{icon}</Text>
+        <ThemedText style={styles.iconText}>{icon}</ThemedText>
       </View>
-      <Text style={[styles.title, completed && styles.titleCompleted]}>{title}</Text>
-      <View style={[styles.pointsContainer, completed && styles.pointsContainerCompleted]}>
-        <Text style={[styles.points, completed && styles.pointsCompleted]}>
+      <ThemedText
+        type="bodySemiBold"
+        color={completed ? "secondary" : "default"}
+        style={styles.title}
+      >
+        {title}
+      </ThemedText>
+      <View style={[
+        styles.pointsContainer,
+        { backgroundColor: surfaceSecondary },
+        completed && { backgroundColor: successBackground }
+      ]}>
+        <ThemedText
+          type="caption"
+          color={completed ? "success" : "secondary"}
+          style={styles.points}
+        >
           {completed ? `${points} pts` : `+${points} pts`}
-        </Text>
+        </ThemedText>
       </View>
     </TouchableOpacity>
   );
@@ -37,7 +63,6 @@ export function ChallengeCard({ title, points, icon, iconBgColor, onPress, compl
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -49,7 +74,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
   },
   iconContainer: {
     width: 80,
@@ -63,27 +87,16 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 12,
   },
   pointsContainer: {
-    backgroundColor: '#F5F5F5',
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
   },
   points: {
-    fontSize: 14,
     fontWeight: '500',
-    color: '#666666',
-  },
-  cardCompleted: {
-    opacity: 0.7,
-    borderColor: '#34C759',
-    borderWidth: 2,
   },
   completedBadge: {
     position: 'absolute',
@@ -92,26 +105,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#34C759',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
   completedBadgeText: {
     fontSize: 18,
-    color: '#FFFFFF',
     fontWeight: '700',
   },
   iconCompleted: {
     opacity: 0.6,
-  },
-  titleCompleted: {
-    color: '#666666',
-  },
-  pointsContainerCompleted: {
-    backgroundColor: '#E8F5E9',
-  },
-  pointsCompleted: {
-    color: '#34C759',
   },
 });

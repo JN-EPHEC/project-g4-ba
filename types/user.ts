@@ -17,6 +17,8 @@ export interface User {
   lastName: string;
   role: UserRole;
   profilePicture?: string;
+  bio?: string;
+  phone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +33,8 @@ export interface Scout extends User {
   points: number;
   rank?: string;
   dateOfBirth: Date;
+  totemName?: string; // Nom de totem scout
+  totemAnimal?: string; // Animal du totem
   validated: boolean; // Validé par l'animateur
   validatedAt?: Date; // Date de validation
   validatedBy?: string; // ID de l'animateur qui a validé

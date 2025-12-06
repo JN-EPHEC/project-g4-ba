@@ -41,11 +41,29 @@ export default function AnimatorLayout() {
         }}
       />
       <Tabs.Screen
+        name="events"
+        options={{
+          title: 'Événements',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="messages"
         options={{
           title: 'Messagerie',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="folder-open" size={size} color={color} />
           ),
         }}
       />
@@ -76,13 +94,13 @@ export default function AnimatorLayout() {
         }}
       />
       <Tabs.Screen
-        name="events"
+        name="scouts"
         options={{
           href: null, // Cache l'onglet de la barre de navigation
         }}
       />
       <Tabs.Screen
-        name="scouts"
+        name="scouts/[id]"
         options={{
           href: null, // Cache l'onglet de la barre de navigation
         }}
@@ -95,6 +113,12 @@ export default function AnimatorLayout() {
       />
       <Tabs.Screen
         name="validate-challenges"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
+        }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
         options={{
           href: null, // Cache l'onglet de la barre de navigation
         }}

@@ -67,14 +67,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: '#3A3A3A',
     gap: 8,
   },
   filterButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
   },
   filterIcon: {
     fontSize: 16,
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   filterLabelSelected: {

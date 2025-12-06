@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions, ActivityIndicator, Text, Modal, TouchableOpacity, Alert } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions, ActivityIndicator, Modal, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { ChallengeCard } from '@/src/features/challenges/components/challenge-card';
 import { RewardsSection } from '@/src/features/challenges/components/rewards-section';
 import { ProgressSection } from '@/src/features/challenges/components/progress-section';
@@ -13,11 +16,11 @@ import { useAuth } from '@/context/auth-context';
 import { Challenge } from '@/types';
 import { Scout } from '@/types';
 
-// Mapper les icônes et couleurs par difficulté
-const DIFFICULTY_CONFIG = {
-  easy: { icon: '🌱', bgColor: '#E8F5E9' },
-  medium: { icon: '⭐', bgColor: '#FFF9C4' },
-  hard: { icon: '🏆', bgColor: '#FFE5E5' },
+// Mapper les icônes par difficulté
+const DIFFICULTY_ICONS = {
+  easy: '🌱',
+  medium: '⭐',
+  hard: '🏆',
 };
 
 export default function ChallengesScreen() {
@@ -27,6 +30,25 @@ export default function ChallengesScreen() {
   const { challenges, loading, error } = useChallenges();
   const { submissions, completedCount, isCompleted, refetch: refetchProgress } = useAllChallengeProgress();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorderColor = useThemeColor({}, 'cardBorder');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const successBackground = useThemeColor({}, 'successBackground');
+  const warningBackground = useThemeColor({}, 'warningBackground');
+  const errorBackground = useThemeColor({}, 'errorBackground');
+  const tintColor = useThemeColor({}, 'tint');
+
+  // Dynamic difficulty colors based on theme
+  const getDifficultyBgColor = (difficulty: 'easy' | 'medium' | 'hard') => {
+    switch (difficulty) {
+      case 'easy': return successBackground;
+      case 'medium': return warningBackground;
+      case 'hard': return errorBackground;
+    }
+  };
 
   // Calculer le nombre de colonnes en fonction de la largeur
   const getColumns = () => {
@@ -49,28 +71,28 @@ export default function ChallengesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <ThemedView darkColor="#000000" style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Chargement des défis...</Text>
+          <ActivityIndicator size="large" color={tintColor} />
+          <ThemedText color="secondary" style={styles.loadingText}>Chargement des défis...</ThemedText>
         </View>
-      </View>
+      </ThemedView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
+      <ThemedView darkColor="#000000" style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
+          <ThemedText style={styles.errorIcon}>⚠️</ThemedText>
+          <ThemedText color="error" style={styles.errorText}>{error}</ThemedText>
         </View>
-      </View>
+      </ThemedView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ThemedView darkColor="#000000" style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -95,12 +117,13 @@ export default function ChallengesScreen() {
           return pendingChallenges.length > 0 ? (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionIcon}>⏳</Text>
-                <Text style={styles.sectionTitle}>En attente de validation</Text>
+                <ThemedText style={styles.sectionIcon}>⏳</ThemedText>
+                <ThemedText type="subtitle" style={styles.sectionTitle}>En attente de validation</ThemedText>
               </View>
               <View style={[styles.challengesGrid, { gap: 16 }]}>
                 {pendingChallenges.map((challenge) => {
-                  const config = DIFFICULTY_CONFIG[challenge.difficulty];
+                  const icon = DIFFICULTY_ICONS[challenge.difficulty];
+                  const bgColor = getDifficultyBgColor(challenge.difficulty);
 
                   return (
                     <View
@@ -118,8 +141,8 @@ export default function ChallengesScreen() {
                       <ChallengeCard
                         title={challenge.title}
                         points={challenge.points}
-                        icon={config.icon}
-                        iconBgColor={config.bgColor}
+                        icon={icon}
+                        iconBgColor={bgColor}
                         onPress={() => handleChallengeClick(challenge)}
                         completed={false}
                       />
@@ -141,21 +164,22 @@ export default function ChallengesScreen() {
 
           return availableChallenges.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🎯</Text>
-              <Text style={styles.emptyTitle}>Aucun défi disponible</Text>
-              <Text style={styles.emptyText}>
+              <ThemedText style={styles.emptyIcon}>🎯</ThemedText>
+              <ThemedText type="heading" style={styles.emptyTitle}>Aucun défi disponible</ThemedText>
+              <ThemedText color="secondary" style={styles.emptyText}>
                 Revenez plus tard pour découvrir de nouveaux défis !
-              </Text>
+              </ThemedText>
             </View>
           ) : (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionIcon}>🎯</Text>
-                <Text style={styles.sectionTitle}>Défis disponibles</Text>
+                <ThemedText style={styles.sectionIcon}>🎯</ThemedText>
+                <ThemedText type="subtitle" style={styles.sectionTitle}>Défis disponibles</ThemedText>
               </View>
               <View style={[styles.challengesGrid, { gap: 16 }]}>
                 {availableChallenges.map((challenge) => {
-                  const config = DIFFICULTY_CONFIG[challenge.difficulty];
+                  const icon = DIFFICULTY_ICONS[challenge.difficulty];
+                  const bgColor = getDifficultyBgColor(challenge.difficulty);
 
                   return (
                     <View
@@ -173,8 +197,8 @@ export default function ChallengesScreen() {
                       <ChallengeCard
                         title={challenge.title}
                         points={challenge.points}
-                        icon={config.icon}
-                        iconBgColor={config.bgColor}
+                        icon={icon}
+                        iconBgColor={bgColor}
                         onPress={() => handleChallengeClick(challenge)}
                         completed={false}
                       />
@@ -193,12 +217,13 @@ export default function ChallengesScreen() {
           return completedChallenges.length > 0 ? (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionIcon}>✅</Text>
-                <Text style={styles.sectionTitle}>Défis complétés</Text>
+                <ThemedText style={styles.sectionIcon}>✅</ThemedText>
+                <ThemedText type="subtitle" style={styles.sectionTitle}>Défis complétés</ThemedText>
               </View>
               <View style={[styles.challengesGrid, { gap: 16 }]}>
                 {completedChallenges.map((challenge) => {
-                  const config = DIFFICULTY_CONFIG[challenge.difficulty];
+                  const icon = DIFFICULTY_ICONS[challenge.difficulty];
+                  const bgColor = getDifficultyBgColor(challenge.difficulty);
 
                   return (
                     <View
@@ -216,8 +241,8 @@ export default function ChallengesScreen() {
                       <ChallengeCard
                         title={challenge.title}
                         points={challenge.points}
-                        icon={config.icon}
-                        iconBgColor={config.bgColor}
+                        icon={icon}
+                        iconBgColor={bgColor}
                         onPress={() => handleChallengeClick(challenge)}
                         completed={true}
                       />
@@ -238,7 +263,7 @@ export default function ChallengesScreen() {
           onComplete={refetchProgress}
         />
       )}
-    </View>
+    </ThemedView>
   );
 }
 
@@ -261,6 +286,18 @@ function ChallengeModal({
     submitting,
   } = useChallengeProgress(challenge.id);
 
+  // Theme colors
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorderColor = useThemeColor({}, 'cardBorder');
+  const overlayColor = useThemeColor({}, 'overlay');
+  const successBackground = useThemeColor({}, 'successBackground');
+  const warningBackground = useThemeColor({}, 'warningBackground');
+  const infoBackground = useThemeColor({}, 'infoBackground');
+  const tintColor = useThemeColor({}, 'tint');
+  const successColor = useThemeColor({}, 'success');
+  const warningColor = useThemeColor({}, 'warning');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+
   const handleTakePhoto = () => {
     // Fermer le modal et naviguer vers la page de détails avec le défi
     onClose();
@@ -270,15 +307,15 @@ function ChallengeModal({
   const getStatusBadge = () => {
     if (isCompleted) {
       return (
-        <View style={[styles.statusBadge, styles.statusBadgeCompleted]}>
-          <Text style={styles.statusBadgeText}>✓ Complété</Text>
+        <View style={[styles.statusBadge, { backgroundColor: successBackground }]}>
+          <ThemedText color="success" style={styles.statusBadgeText}>✓ Complété</ThemedText>
         </View>
       );
     }
     if (isPending) {
       return (
-        <View style={[styles.statusBadge, styles.statusBadgePending]}>
-          <Text style={styles.statusBadgeText}>⏳ En attente</Text>
+        <View style={[styles.statusBadge, { backgroundColor: warningBackground }]}>
+          <ThemedText color="warning" style={styles.statusBadgeText}>⏳ En attente</ThemedText>
         </View>
       );
     }
@@ -300,23 +337,23 @@ function ChallengeModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <View style={[styles.modalOverlay, { backgroundColor: overlayColor }]}>
+        <View style={[styles.modalContent, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleContainer}>
-                <Text style={styles.modalIcon}>
-                  {DIFFICULTY_CONFIG[challenge.difficulty].icon}
-                </Text>
-                <Text style={styles.modalTitle}>{challenge.title}</Text>
+                <ThemedText style={styles.modalIcon}>
+                  {DIFFICULTY_ICONS[challenge.difficulty]}
+                </ThemedText>
+                <ThemedText type="title" style={styles.modalTitle}>{challenge.title}</ThemedText>
               </View>
               <TouchableOpacity
-                style={styles.closeButton}
+                style={[styles.closeButton, { backgroundColor: cardBorderColor }]}
                 onPress={onClose}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Text style={styles.closeButtonText}>✕</Text>
+                <ThemedText color="secondary" style={styles.closeButtonText}>✕</ThemedText>
               </TouchableOpacity>
             </View>
 
@@ -324,75 +361,75 @@ function ChallengeModal({
             {getStatusBadge()}
 
             {/* Points */}
-            <View style={styles.pointsBadge}>
-              <Text style={styles.pointsIcon}>⭐</Text>
-              <Text style={styles.pointsText}>{challenge.points} points</Text>
+            <View style={[styles.pointsBadge, { backgroundColor: warningBackground }]}>
+              <ThemedText style={styles.pointsIcon}>⭐</ThemedText>
+              <ThemedText type="bodySemiBold">{challenge.points} points</ThemedText>
             </View>
 
             {/* Description */}
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Description</Text>
-              <Text style={styles.modalDescription}>{challenge.description}</Text>
+              <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Description</ThemedText>
+              <ThemedText style={styles.modalDescription}>{challenge.description}</ThemedText>
             </View>
 
             {/* Dates */}
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Période</Text>
-              <Text style={styles.modalDate}>
+              <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Période</ThemedText>
+              <ThemedText style={styles.modalDate}>
                 Du {formatDate(challenge.startDate)} au {formatDate(challenge.endDate)}
-              </Text>
+              </ThemedText>
             </View>
 
             {/* Difficulté */}
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Difficulté</Text>
+              <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Difficulté</ThemedText>
               <View style={styles.difficultyBadge}>
-                <Text style={styles.difficultyText}>
+                <ThemedText style={styles.difficultyText}>
                   {challenge.difficulty === 'easy' && '🟢 Facile'}
                   {challenge.difficulty === 'medium' && '🟡 Moyen'}
                   {challenge.difficulty === 'hard' && '🔴 Difficile'}
-                </Text>
+                </ThemedText>
               </View>
             </View>
 
             {/* Photo requirement notice */}
             {canSubmit && (
-              <View style={styles.photoNotice}>
-                <View style={styles.photoNoticeIcon}>
-                  <Ionicons name="camera" size={20} color="#007AFF" />
+              <View style={[styles.photoNotice, { backgroundColor: infoBackground }]}>
+                <View style={[styles.photoNoticeIcon, { backgroundColor: cardColor }]}>
+                  <Ionicons name="camera" size={20} color={tintColor} />
                 </View>
-                <Text style={styles.photoNoticeText}>
+                <ThemedText color="tint" style={styles.photoNoticeText}>
                   Une photo de preuve est requise pour valider ce défi
-                </Text>
+                </ThemedText>
               </View>
             )}
 
             {/* Button */}
             {canSubmit && (
               <TouchableOpacity
-                style={styles.takePhotoButton}
+                style={[styles.takePhotoButton, { backgroundColor: tintColor }]}
                 onPress={handleTakePhoto}
               >
                 <Ionicons name="camera" size={24} color="#FFFFFF" />
-                <Text style={styles.takePhotoButtonText}>
+                <ThemedText color="inverse" type="bodySemiBold" style={styles.takePhotoButtonText}>
                   Relever le défi
-                </Text>
+                </ThemedText>
               </TouchableOpacity>
             )}
 
             {isCompleted && submission && (
-              <View style={styles.completedInfo}>
-                <Text style={styles.completedInfoText}>
+              <View style={[styles.completedInfo, { backgroundColor: successBackground }]}>
+                <ThemedText color="success" style={styles.completedInfoText}>
                   Complété le {formatDate(submission.validatedAt || submission.submittedAt)}
-                </Text>
+                </ThemedText>
               </View>
             )}
 
             {isPending && (
-              <View style={styles.pendingInfo}>
-                <Text style={styles.pendingInfoText}>
+              <View style={[styles.pendingInfo, { backgroundColor: warningBackground }]}>
+                <ThemedText color="warning" style={styles.pendingInfoText}>
                   En attente de validation par votre animateur
-                </Text>
+                </ThemedText>
               </View>
             )}
           </ScrollView>
@@ -405,7 +442,6 @@ function ChallengeModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
   },
   scrollView: {
     flex: 1,
@@ -422,7 +458,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 15,
-    color: '#666666',
+    color: '#888888',
     letterSpacing: -0.3,
   },
   errorContainer: {
@@ -462,13 +498,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 15,
-    color: '#666666',
+    color: '#888888',
     textAlign: 'center',
     letterSpacing: -0.3,
   },
@@ -488,18 +524,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: -0.5,
   },
 
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2A2A',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
@@ -523,7 +559,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: -0.5,
     flex: 1,
   },
@@ -531,13 +567,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#3A3A3A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButtonText: {
     fontSize: 20,
-    color: '#8E8E93',
+    color: '#888888',
     fontWeight: '600',
   },
   statusBadge: {
@@ -548,20 +584,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statusBadgeCompleted: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#1B4332',
   },
   statusBadgePending: {
-    backgroundColor: '#FFF9C4',
+    backgroundColor: '#4A4520',
   },
   statusBadgeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
   },
   pointsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF9C4',
+    backgroundColor: '#4A4520',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
@@ -575,7 +611,7 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   modalSection: {
@@ -584,19 +620,19 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: '#888888',
     marginBottom: 8,
     letterSpacing: -0.3,
   },
   modalDescription: {
     fontSize: 17,
-    color: '#1A1A1A',
+    color: '#CCCCCC',
     lineHeight: 24,
     letterSpacing: -0.3,
   },
   modalDate: {
     fontSize: 17,
-    color: '#1A1A1A',
+    color: '#CCCCCC',
     letterSpacing: -0.3,
   },
   difficultyBadge: {
@@ -606,11 +642,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '500',
     letterSpacing: -0.3,
+    color: '#CCCCCC',
   },
   photoNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E5F1FF',
+    backgroundColor: '#1E3A5F',
     padding: 16,
     borderRadius: 12,
     marginTop: 8,
@@ -620,19 +657,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2A2A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoNoticeText: {
     flex: 1,
     fontSize: 14,
-    color: '#007AFF',
+    color: '#3b82f6',
     fontWeight: '500',
     lineHeight: 20,
   },
   takePhotoButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3b82f6',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -641,7 +678,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 16,
-    shadowColor: '#007AFF',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -654,7 +691,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   completedInfo: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#1B4332',
     padding: 16,
     borderRadius: 12,
     marginTop: 8,
@@ -666,14 +703,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   pendingInfo: {
-    backgroundColor: '#FFF9C4',
+    backgroundColor: '#4A4520',
     padding: 16,
     borderRadius: 12,
     marginTop: 8,
   },
   pendingInfoText: {
     fontSize: 15,
-    color: '#FF9500',
+    color: '#FFD60A',
     textAlign: 'center',
     fontWeight: '500',
   },
