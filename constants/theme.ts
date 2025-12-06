@@ -8,47 +8,47 @@
 import { Platform } from 'react-native';
 
 // =============================================================================
-// COULEURS DE MARQUE
+// COULEURS DE MARQUE - Palette Nature WeCamp
 // =============================================================================
 export const BrandColors = {
-  /** Couleur principale - Bleu scout */
+  /** Couleur principale - Vert Forêt */
   primary: {
-    50: '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6', // Principal
-    600: '#2563eb',
-    700: '#1d4ed8',
-    800: '#1e40af',
-    900: '#1e3a8a',
+    50: '#f0f5f3',
+    100: '#d9e8e2',
+    200: '#b5d4c8',
+    300: '#8bbaaa',
+    400: '#5d9a86',
+    500: '#2D5A45', // Vert forêt principal
+    600: '#264d3b',
+    700: '#1f4031',
+    800: '#183327',
+    900: '#12261d',
   },
-  /** Couleur secondaire - Vert nature */
+  /** Couleur secondaire - Taupe/Gris chaud */
   secondary: {
-    50: '#ecfdf5',
-    100: '#d1fae5',
-    200: '#a7f3d0',
-    300: '#6ee7b7',
-    400: '#34d399',
-    500: '#10b981', // Principal
-    600: '#059669',
-    700: '#047857',
-    800: '#065f46',
-    900: '#064e3b',
+    50: '#f8f7f6',
+    100: '#eeece9',
+    200: '#ddd9d4',
+    300: '#c7c1b9',
+    400: '#a9a197',
+    500: '#8B7E74', // Taupe principal
+    600: '#756960',
+    700: '#5f554d',
+    800: '#4a423b',
+    900: '#36302b',
   },
-  /** Accent - Orange énergie */
+  /** Accent - Orange Terracotta */
   accent: {
-    50: '#fff7ed',
-    100: '#ffedd5',
-    200: '#fed7aa',
-    300: '#fdba74',
-    400: '#fb923c',
-    500: '#f97316', // Principal
-    600: '#ea580c',
-    700: '#c2410c',
-    800: '#9a3412',
-    900: '#7c2d12',
+    50: '#fdf4f0',
+    100: '#fbe6dd',
+    200: '#f7cbb8',
+    300: '#f1a98a',
+    400: '#e99265',
+    500: '#D97B4A', // Orange terracotta principal
+    600: '#c46839',
+    700: '#a3552e',
+    800: '#824425',
+    900: '#61331c',
   },
 };
 
@@ -91,23 +91,27 @@ export const SemanticColors = {
 };
 
 // =============================================================================
-// ÉCHELLE DE GRIS
+// ÉCHELLE DE GRIS - Tons chauds naturels
 // =============================================================================
 export const NeutralColors = {
   white: '#FFFFFF',
   black: '#000000',
+  /** Fond crème clair */
+  cream: '#FAF9F7',
+  /** Fond crème */
+  canvas: '#F5F4F1',
   gray: {
-    50: '#fafafa',
-    100: '#f4f4f5',
-    200: '#e4e4e7',
-    300: '#d4d4d8',
-    400: '#a1a1aa',
-    500: '#71717a',
-    600: '#52525b',
-    700: '#3f3f46',
-    800: '#27272a',
-    900: '#18181b',
-    950: '#09090b',
+    50: '#FAFAF9',
+    100: '#F5F5F3',
+    200: '#E8E7E4',
+    300: '#D6D5D1',
+    400: '#A8A7A3',
+    500: '#78776F',
+    600: '#5C5B55',
+    700: '#46453F',
+    800: '#2E2D2A',
+    900: '#1C1B19',
+    950: '#0F0E0D',
   },
 };
 
@@ -117,78 +121,78 @@ export const NeutralColors = {
 export const Colors = {
   light: {
     // Base
-    text: '#18181b',
-    textSecondary: '#71717a',
-    textTertiary: '#a1a1aa',
+    text: NeutralColors.gray[900],
+    textSecondary: NeutralColors.gray[500],
+    textTertiary: NeutralColors.gray[400],
     textInverse: '#FFFFFF',
 
-    // Backgrounds
-    background: '#FFFFFF',
-    backgroundSecondary: '#fafafa',
-    backgroundTertiary: '#f4f4f5',
+    // Backgrounds - Tons crème naturels
+    background: NeutralColors.cream,
+    backgroundSecondary: NeutralColors.canvas,
+    backgroundTertiary: NeutralColors.gray[100],
     surface: '#FFFFFF',
-    surfaceSecondary: '#f4f4f5',
+    surfaceSecondary: NeutralColors.gray[100],
 
-    // Borders
-    border: '#e4e4e7',
-    borderSecondary: '#d4d4d8',
-    divider: '#e4e4e7',
+    // Borders - Plus douces
+    border: NeutralColors.gray[200],
+    borderSecondary: NeutralColors.gray[300],
+    divider: NeutralColors.gray[200],
 
-    // Interactive
+    // Interactive - Vert forêt
     tint: BrandColors.primary[500],
     tintSecondary: BrandColors.secondary[500],
     tintAccent: BrandColors.accent[500],
 
     // Icons
-    icon: '#71717a',
-    iconSecondary: '#a1a1aa',
-    tabIconDefault: '#a1a1aa',
+    icon: NeutralColors.gray[500],
+    iconSecondary: NeutralColors.gray[400],
+    tabIconDefault: NeutralColors.gray[400],
     tabIconSelected: BrandColors.primary[500],
 
     // States
-    disabled: '#d4d4d8',
-    placeholder: '#a1a1aa',
+    disabled: NeutralColors.gray[300],
+    placeholder: NeutralColors.gray[400],
     overlay: 'rgba(0, 0, 0, 0.4)',
 
     // Semantic
-    success: SemanticColors.success.light,
-    successBackground: SemanticColors.success.background.light,
+    success: BrandColors.primary[500],
+    successBackground: BrandColors.primary[50],
     warning: SemanticColors.warning.light,
     warningBackground: SemanticColors.warning.background.light,
     error: SemanticColors.error.light,
     errorBackground: SemanticColors.error.background.light,
-    info: SemanticColors.info.light,
-    infoBackground: SemanticColors.info.background.light,
+    info: BrandColors.primary[400],
+    infoBackground: BrandColors.primary[50],
 
-    // Cards
+    // Cards - Fond blanc avec bordures douces
     card: '#FFFFFF',
-    cardBorder: '#e4e4e7',
-    cardPressed: '#f4f4f5',
+    cardBorder: NeutralColors.gray[200],
+    cardPressed: NeutralColors.gray[100],
 
     // Input
-    inputBackground: '#fafafa',
-    inputBorder: '#e4e4e7',
+    inputBackground: '#FFFFFF',
+    inputBorder: NeutralColors.gray[200],
     inputBorderFocus: BrandColors.primary[500],
   },
 
   dark: {
     // Base
-    text: '#fafafa',
-    textSecondary: '#a1a1aa',
-    textTertiary: '#71717a',
-    textInverse: '#18181b',
+    text: NeutralColors.gray[50],
+    textSecondary: NeutralColors.gray[400],
+    textTertiary: NeutralColors.gray[500],
+    textInverse: NeutralColors.gray[900],
 
     // Backgrounds
-    background: '#09090b',
-    backgroundSecondary: '#18181b',
-    backgroundTertiary: '#27272a',
-    surface: '#18181b',
-    surfaceSecondary: '#27272a',
+    background: NeutralColors.gray[950],
+    backgroundSecondary: NeutralColors.gray[900],
+    backgroundTertiary: NeutralColors.gray[800],
+    surface: NeutralColors.gray[900],
+    surfaceSecondary: NeutralColors.gray[800],
 
     // Borders
-    border: '#27272a',
-    borderSecondary: '#3f3f46',
-    divider: '#27272a',
+    border: NeutralColors.gray[800],
+    borderSecondary: NeutralColors.gray[700],
+    divider: NeutralColors.gray[800],
 
     // Interactive
     tint: BrandColors.primary[400],
@@ -196,34 +200,34 @@ export const Colors = {
     tintAccent: BrandColors.accent[400],
 
     // Icons
-    icon: '#a1a1aa',
-    iconSecondary: '#71717a',
-    tabIconDefault: '#71717a',
+    icon: NeutralColors.gray[400],
+    iconSecondary: NeutralColors.gray[500],
+    tabIconDefault: NeutralColors.gray[500],
     tabIconSelected: BrandColors.primary[400],
 
     // States
-    disabled: '#3f3f46',
-    placeholder: '#71717a',
+    disabled: NeutralColors.gray[700],
+    placeholder: NeutralColors.gray[500],
     overlay: 'rgba(0, 0, 0, 0.6)',
 
     // Semantic
-    success: SemanticColors.success.dark,
-    successBackground: SemanticColors.success.background.dark,
+    success: BrandColors.primary[400],
+    successBackground: BrandColors.primary[900],
     warning: SemanticColors.warning.dark,
     warningBackground: SemanticColors.warning.background.dark,
     error: SemanticColors.error.dark,
     errorBackground: SemanticColors.error.background.dark,
-    info: SemanticColors.info.dark,
-    infoBackground: SemanticColors.info.background.dark,
+    info: BrandColors.primary[300],
+    infoBackground: BrandColors.primary[900],
 
     // Cards
-    card: '#18181b',
-    cardBorder: '#27272a',
-    cardPressed: '#27272a',
+    card: NeutralColors.gray[900],
+    cardBorder: NeutralColors.gray[800],
+    cardPressed: NeutralColors.gray[800],
 
     // Input
-    inputBackground: '#18181b',
-    inputBorder: '#3f3f46',
+    inputBackground: NeutralColors.gray[900],
+    inputBorder: NeutralColors.gray[700],
     inputBorderFocus: BrandColors.primary[400],
   },
 };
@@ -235,26 +239,27 @@ export const AppColors = {
   /** Couleurs des types d'événements */
   eventTypes: {
     meeting: BrandColors.primary[500],
-    camp: BrandColors.secondary[500],
+    camp: BrandColors.primary[600],
     activity: BrandColors.accent[500],
-    training: '#8b5cf6', // Violet
+    training: BrandColors.secondary[500],
+    other: NeutralColors.gray[500],
   },
 
   /** Couleurs des canaux de discussion */
   channels: {
-    announcements: '#ef4444',
+    announcements: BrandColors.accent[500],
     general: BrandColors.primary[500],
     parents: BrandColors.secondary[500],
-    custom: '#8b5cf6',
+    custom: BrandColors.primary[400],
   },
 
   /** Couleurs des rangs scouts */
   ranks: {
-    beginner: '#10b981',
-    intermediate: '#3b82f6',
-    advanced: '#8b5cf6',
-    expert: '#f59e0b',
-    master: '#ef4444',
+    beginner: BrandColors.primary[300],
+    intermediate: BrandColors.primary[500],
+    advanced: BrandColors.accent[500],
+    expert: BrandColors.accent[600],
+    master: BrandColors.primary[700],
   },
 };
 

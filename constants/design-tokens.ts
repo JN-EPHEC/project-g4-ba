@@ -34,23 +34,23 @@ export const Spacing = {
 } as const;
 
 // =============================================================================
-// BORDER RADIUS
+// BORDER RADIUS - Style épuré et moderne
 // =============================================================================
 export const Radius = {
-  /** 4px - Boutons petits, badges */
+  /** 4px - Badges, petits éléments */
   xs: 4,
-  /** 6px - Inputs, petits éléments */
-  sm: 6,
-  /** 8px - Cards, conteneurs */
-  md: 8,
-  /** 12px - Cards larges, modals */
-  lg: 12,
-  /** 16px - Grands conteneurs */
-  xl: 16,
-  /** 20px - Très grands éléments */
-  '2xl': 20,
-  /** 24px - Éléments arrondis */
-  '3xl': 24,
+  /** 8px - Boutons, tags */
+  sm: 8,
+  /** 12px - Inputs, petits conteneurs */
+  md: 12,
+  /** 16px - Cards standard */
+  lg: 16,
+  /** 20px - Cards principales */
+  xl: 20,
+  /** 24px - Grands conteneurs */
+  '2xl': 24,
+  /** 28px - Éléments très arrondis */
+  '3xl': 28,
   /** 9999px - Cercle parfait */
   full: 9999,
 } as const;
