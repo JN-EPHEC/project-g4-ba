@@ -2,6 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors, NeutralColors } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/design-tokens';
+
 export interface Participant {
   id: string;
   firstName: string;
@@ -29,29 +33,30 @@ interface EventCardProps {
   onViewParticipants?: () => void;
 }
 
+// Nature theme event types
 const EVENT_TYPE_CONFIG = {
   meeting: {
     label: 'Réunion',
-    color: '#3b82f6',
-    bgColor: '#3b82f620',
+    color: BrandColors.primary[500],
+    bgColor: `${BrandColors.primary[500]}20`,
     icon: '📋',
   },
   camp: {
     label: 'Camp',
-    color: '#34C759',
-    bgColor: '#34C75920',
+    color: BrandColors.primary[600],
+    bgColor: `${BrandColors.primary[600]}20`,
     icon: '⛺',
   },
   activity: {
     label: 'Activité',
-    color: '#FF9500',
-    bgColor: '#FF950020',
+    color: BrandColors.accent[500],
+    bgColor: `${BrandColors.accent[500]}20`,
     icon: '🎯',
   },
   training: {
     label: 'Formation',
-    color: '#AF52DE',
-    bgColor: '#AF52DE20',
+    color: BrandColors.secondary[500],
+    bgColor: `${BrandColors.secondary[500]}20`,
     icon: '📚',
   },
 };
@@ -71,6 +76,12 @@ export function EventCard({
   onViewParticipants,
 }: EventCardProps) {
   const config = EVENT_TYPE_CONFIG[type];
+
+  // Theme colors
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   const handleDelete = () => {
     if (onDelete) {
@@ -94,14 +105,17 @@ export function EventCard({
   const { day, month, time } = formatDate(date);
   const isFull = maxParticipants ? participantCount >= maxParticipants : false;
 
+  // Event color based on type
+  const eventColor = type === 'activity' ? BrandColors.accent[500] : BrandColors.primary[500];
+
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { backgroundColor: cardColor, borderColor: cardBorder }]}
       onPress={onPress}
       activeOpacity={0.6}
     >
       {/* Date Badge */}
-      <View style={styles.dateContainer}>
+      <View style={[styles.dateContainer, { backgroundColor: eventColor }]}>
         <Text style={styles.day}>{day}</Text>
         <Text style={styles.month}>{month.toUpperCase()}</Text>
       </View>
@@ -128,19 +142,19 @@ export function EventCard({
         </View>
 
         {/* Title */}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: textColor }]} numberOfLines={2}>
           {title}
         </Text>
 
         {/* Time and Location */}
         <View style={styles.infoRow}>
           <Text style={styles.infoIcon}>🕐</Text>
-          <Text style={styles.infoText}>{time}</Text>
+          <Text style={[styles.infoText, { color: textSecondary }]}>{time}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <Text style={styles.infoIcon}>📍</Text>
-          <Text style={styles.infoText} numberOfLines={1}>
+          <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
             {location}
           </Text>
         </View>
@@ -153,21 +167,27 @@ export function EventCard({
           disabled={!onViewParticipants}
         >
           <Text style={styles.infoIcon}>👥</Text>
-          <Text style={[styles.participantsText, onViewParticipants && styles.participantsTextClickable]}>
+          <Text style={[
+            styles.participantsText,
+            { color: textSecondary },
+            onViewParticipants && { color: BrandColors.primary[500], textDecorationLine: 'underline' }
+          ]}>
             {participantCount}
             {maxParticipants ? ` / ${maxParticipants}` : ''} participants
           </Text>
           {onViewParticipants && participantCount > 0 && (
-            <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+            <Ionicons name="chevron-forward" size={16} color={BrandColors.primary[500]} />
           )}
           {isFull && <Text style={styles.fullBadge}>COMPLET</Text>}
         </TouchableOpacity>
 
-        {/* Attendance Button */}
+        {/* Attendance Button - Orange accent for action */}
         <TouchableOpacity
           style={[
             styles.attendanceButton,
-            isRegistered ? styles.attendanceButtonRegistered : styles.attendanceButtonUnregistered,
+            isRegistered
+              ? { backgroundColor: `${BrandColors.primary[500]}15`, borderWidth: 1, borderColor: BrandColors.primary[500] }
+              : { backgroundColor: BrandColors.accent[500] },
             isFull && !isRegistered && styles.attendanceButtonDisabled,
           ]}
           onPress={onAttendancePress}
@@ -177,7 +197,9 @@ export function EventCard({
           <Text
             style={[
               styles.attendanceButtonText,
-              isRegistered ? styles.attendanceButtonTextRegistered : styles.attendanceButtonTextUnregistered,
+              isRegistered
+                ? { color: BrandColors.primary[500] }
+                : { color: '#FFFFFF' },
             ]}
           >
             {isRegistered ? '✓ Inscrit' : isFull ? 'Complet' : "S'inscrire"}
@@ -190,19 +212,16 @@ export function EventCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 16,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   dateContainer: {
     width: 80,
-    backgroundColor: '#3b82f6',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: Spacing.md,
   },
   day: {
     fontSize: 32,
@@ -219,27 +238,27 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: Spacing.md,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
     minHeight: 32,
   },
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.md,
     gap: 4,
     flexShrink: 0,
   },
   deleteButton: {
-    padding: 8,
-    borderRadius: 8,
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
     backgroundColor: '#FF3B3020',
   },
   typeIcon: {
@@ -253,80 +272,59 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
     letterSpacing: -0.5,
-    marginBottom: 12,
+    marginBottom: Spacing.sm,
     lineHeight: 24,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
-    gap: 8,
+    gap: Spacing.sm,
   },
   infoIcon: {
     fontSize: 14,
   },
   infoText: {
     fontSize: 14,
-    color: '#999999',
     flex: 1,
   },
   participantsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
-    marginBottom: 16,
-    gap: 8,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
   },
   participantsText: {
     fontSize: 14,
-    color: '#999999',
     flex: 1,
-  },
-  participantsTextClickable: {
-    color: '#3b82f6',
-    textDecorationLine: 'underline',
   },
   fullBadge: {
     fontSize: 11,
     fontWeight: '700',
     color: '#FF3B30',
     backgroundColor: '#FF3B3020',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.sm,
     letterSpacing: 0.5,
   },
   attendanceButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  attendanceButtonUnregistered: {
-    backgroundColor: '#3b82f6',
-  },
-  attendanceButtonRegistered: {
-    backgroundColor: '#3b82f620',
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-  },
   attendanceButtonDisabled: {
-    backgroundColor: '#3A3A3A',
+    backgroundColor: NeutralColors.gray[200],
     borderWidth: 1,
-    borderColor: '#4A4A4A',
+    borderColor: NeutralColors.gray[300],
   },
   attendanceButtonText: {
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.3,
-  },
-  attendanceButtonTextUnregistered: {
-    color: '#FFFFFF',
-  },
-  attendanceButtonTextRegistered: {
-    color: '#3b82f6',
   },
 });

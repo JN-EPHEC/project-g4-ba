@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInLeft } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
@@ -7,14 +8,24 @@ import { ThemedView } from '@/components/themed-view';
 import { Avatar, Badge, Card } from '@/components/ui';
 import { RankBadge } from '@/components/rank-badge';
 import { useAuth } from '@/context/auth-context';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { ParentScoutService } from '@/services/parent-scout-service';
 import { Parent, Scout } from '@/types';
+import { BrandColors } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/design-tokens';
 
 export default function ParentDashboardScreen() {
   const { user } = useAuth();
   const parent = user as Parent;
   const [scouts, setScouts] = useState<Scout[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   useEffect(() => {
     loadScouts();
@@ -37,70 +48,136 @@ export default function ParentDashboardScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={true}>
-        <ThemedText type="title" style={styles.title}>
-          Bonjour {parent?.firstName} 👋
+        <ThemedText type="title" style={[styles.title, { color: textColor }]}>
+          Bonjour {parent?.firstName}
         </ThemedText>
 
-        <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-          <Card style={styles.statsCard}>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <ThemedText type="title" style={styles.statValue}>
-                  {scouts.length}
-                </ThemedText>
-                <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+        {/* Stats Cards - Nature Theme */}
+        <View style={styles.statsRow}>
+          <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.statCardWrapper}>
+            <View style={[styles.statCard, { backgroundColor: BrandColors.primary[500] }]}>
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <Ionicons name="people" size={24} color="#FFFFFF" />
               </View>
-              <View style={styles.statItem}>
-                <ThemedText type="title" style={styles.statValue}>0</ThemedText>
-                <ThemedText style={styles.statLabel}>Documents à signer</ThemedText>
-              </View>
+              <ThemedText style={styles.statValue}>{scouts.length}</ThemedText>
+              <ThemedText style={styles.statLabel}>Scouts</ThemedText>
             </View>
-          </Card>
-        </Animated.View>
+          </Animated.View>
 
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Mes scouts
-        </ThemedText>
+          <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.statCardWrapper}>
+            <View style={[styles.statCard, { backgroundColor: BrandColors.accent[500] }]}>
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <Ionicons name="document-text" size={24} color="#FFFFFF" />
+              </View>
+              <ThemedText style={styles.statValue}>0</ThemedText>
+              <ThemedText style={styles.statLabel}>Documents</ThemedText>
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Section Scouts */}
+        <View style={[styles.sectionHeader, { borderBottomColor: cardBorder }]}>
+          <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
+            Mes scouts
+          </ThemedText>
+        </View>
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color={BrandColors.primary[500]} />
           </View>
         ) : scouts.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <ThemedText style={styles.emptyText}>
+          <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+            <Ionicons name="people-outline" size={48} color={textSecondary} />
+            <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
               Aucun scout lié pour le moment
             </ThemedText>
-          </Card>
+            <TouchableOpacity
+              style={[styles.linkButton, { backgroundColor: BrandColors.accent[500] }]}
+            >
+              <ThemedText style={styles.linkButtonText}>Lier un scout</ThemedText>
+            </TouchableOpacity>
+          </View>
         ) : (
           scouts.map((scout, index) => (
             <Animated.View
               key={scout.id}
-              entering={FadeInLeft.duration(400).delay(200 + index * 100)}
+              entering={FadeInLeft.duration(400).delay(300 + index * 100)}
             >
-              <Card style={styles.scoutCard}>
-                <View style={styles.scoutHeader}>
-                  <Avatar
-                    name={`${scout.firstName} ${scout.lastName}`}
-                    imageUrl={scout.profilePicture}
-                    size="medium"
-                  />
-                  <View style={styles.scoutInfo}>
-                    <View style={styles.nameRow}>
-                      <ThemedText type="defaultSemiBold">
-                        {scout.firstName} {scout.lastName}
-                      </ThemedText>
-                      <RankBadge xp={scout.points || 0} size="small" />
-                    </View>
-                    <ThemedText style={styles.scoutDetail}>
-                      {scout.points || 0} points
+              <TouchableOpacity
+                style={[styles.scoutCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+                activeOpacity={0.7}
+              >
+                <Avatar
+                  name={`${scout.firstName} ${scout.lastName}`}
+                  imageUrl={scout.profilePicture}
+                  size="medium"
+                />
+                <View style={styles.scoutInfo}>
+                  <View style={styles.nameRow}>
+                    <ThemedText style={[styles.scoutName, { color: textColor }]}>
+                      {scout.firstName} {scout.lastName}
                     </ThemedText>
+                    <RankBadge xp={scout.points || 0} size="small" />
                   </View>
-                  <Badge variant="success">Actif</Badge>
+                  <View style={styles.scoutStats}>
+                    <View style={[styles.pointsBadge, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+                      <Ionicons name="star" size={14} color={BrandColors.accent[500]} />
+                      <ThemedText style={[styles.pointsText, { color: BrandColors.accent[500] }]}>
+                        {scout.points || 0} points
+                      </ThemedText>
+                    </View>
+                  </View>
                 </View>
-              </Card>
+                <View style={[styles.statusBadge, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+                  <View style={[styles.statusDot, { backgroundColor: BrandColors.primary[500] }]} />
+                  <ThemedText style={[styles.statusText, { color: BrandColors.primary[500] }]}>
+                    Actif
+                  </ThemedText>
+                </View>
+              </TouchableOpacity>
             </Animated.View>
           ))
+        )}
+
+        {/* Quick Actions */}
+        {scouts.length > 0 && (
+          <View style={styles.actionsSection}>
+            <ThemedText style={[styles.sectionTitle, { color: textColor, marginBottom: Spacing.md }]}>
+              Actions rapides
+            </ThemedText>
+            <View style={styles.actionsGrid}>
+              <TouchableOpacity
+                style={[styles.actionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+                  <Ionicons name="calendar" size={24} color={BrandColors.primary[500]} />
+                </View>
+                <ThemedText style={[styles.actionText, { color: textColor }]}>Événements</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+                  <Ionicons name="chatbubbles" size={24} color={BrandColors.accent[500]} />
+                </View>
+                <ThemedText style={[styles.actionText, { color: textColor }]}>Messages</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.secondary[500]}15` }]}>
+                  <Ionicons name="document" size={24} color={BrandColors.secondary[500]} />
+                </View>
+                <ThemedText style={[styles.actionText, { color: textColor }]}>Documents</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
       </ScrollView>
     </ThemedView>
@@ -110,59 +187,72 @@ export default function ParentDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingTop: 60,
     paddingBottom: 100,
   },
   title: {
-    marginBottom: 20,
-    color: '#FFFFFF',
+    marginBottom: Spacing.xl,
+    fontSize: 28,
+    fontWeight: '700',
   },
-  statsCard: {
-    padding: 20,
-    marginBottom: 24,
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
-  },
+
+  // Stats Cards
   statsRow: {
     flexDirection: 'row',
-    gap: 20,
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
   },
-  statItem: {
+  statCardWrapper: {
     flex: 1,
+  },
+  statCard: {
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
     alignItems: 'center',
+  },
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
   },
   statValue: {
     fontSize: 32,
-    marginBottom: 4,
+    fontWeight: '700',
     color: '#FFFFFF',
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#999999',
-    textAlign: 'center',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+
+  // Section Header
+  sectionHeader: {
+    paddingBottom: Spacing.sm,
+    marginBottom: Spacing.lg,
+    borderBottomWidth: 1,
   },
   sectionTitle: {
-    marginBottom: 12,
-    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
   },
+
+  // Scout Cards
   scoutCard: {
-    padding: 16,
-    marginBottom: 12,
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
-  },
-  scoutHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    padding: Spacing.lg,
+    borderRadius: Radius.xl,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    gap: Spacing.md,
   },
   scoutInfo: {
     flex: 1,
@@ -170,26 +260,104 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
+    marginBottom: 4,
   },
-  scoutDetail: {
-    fontSize: 12,
-    color: '#999999',
-    marginTop: 2,
+  scoutName: {
+    fontSize: 16,
+    fontWeight: '600',
   },
+  scoutStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  pointsText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Empty State
+  emptyCard: {
+    padding: Spacing.xl,
+    alignItems: 'center',
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    gap: Spacing.md,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 15,
+  },
+  linkButton: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.sm,
+  },
+  linkButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+
+  // Loading
   loadingContainer: {
     padding: 40,
     alignItems: 'center',
   },
-  emptyCard: {
-    padding: 20,
-    alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
+
+  // Actions Section
+  actionsSection: {
+    marginTop: Spacing.xl,
   },
-  emptyText: {
-    color: '#999999',
+  actionsGrid: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  actionCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    gap: Spacing.sm,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });

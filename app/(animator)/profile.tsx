@@ -10,6 +10,8 @@ import { Card, ThemeSelector } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Animator } from '@/types';
+import { BrandColors } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/design-tokens';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -61,11 +63,11 @@ export default function ProfileScreen() {
           </ThemedText>
           <TouchableOpacity
             onPress={handleEditProfile}
-            style={styles.editButton}
+            style={[styles.editButton, { backgroundColor: `${BrandColors.accent[500]}15` }]}
             activeOpacity={0.7}
           >
-            <Ionicons name="pencil" size={20} color="#3b82f6" />
-            <ThemedText style={styles.editButtonText}>Modifier</ThemedText>
+            <Ionicons name="pencil" size={20} color={BrandColors.accent[500]} />
+            <ThemedText style={[styles.editButtonText, { color: BrandColors.accent[500] }]}>Modifier</ThemedText>
           </TouchableOpacity>
         </View>
 
@@ -81,9 +83,9 @@ export default function ProfileScreen() {
             </ThemedText>
 
             {/* Badge animateur */}
-            <View style={styles.roleBadge}>
-              <Ionicons name="star" size={14} color="#f59e0b" />
-              <ThemedText style={styles.roleText}>
+            <View style={[styles.roleBadge, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+              <Ionicons name="star" size={14} color={BrandColors.accent[500]} />
+              <ThemedText style={[styles.roleText, { color: BrandColors.accent[500] }]}>
                 {animator?.isUnitLeader ? 'Chef d\'unité' : 'Animateur'}
               </ThemedText>
             </View>
