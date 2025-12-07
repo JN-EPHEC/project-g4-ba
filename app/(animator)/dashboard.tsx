@@ -12,9 +12,12 @@ import { ChallengeService } from '@/services/challenge-service';
 import { EventService } from '@/services/event-service';
 import { UnitService } from '@/services/unit-service';
 import { ChannelService } from '@/src/shared/services/channel-service';
-import { Animator, Unit, UserRole } from '@/types';
+import { Animator, Unit } from '@/types';
 import { BrandColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/design-tokens';
+
+// Import des widgets
+import { WeatherWidget, BirthdaysWidget } from '@/src/features/dashboard/components';
 
 export default function AnimatorDashboardScreen() {
   const { user } = useAuth();
@@ -32,7 +35,7 @@ export default function AnimatorDashboardScreen() {
   const cardBorder = useThemeColor({}, 'cardBorder');
   const textColor = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
-  const tintColor = useThemeColor({}, 'tint');
+  const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
 
   useEffect(() => {
     loadDashboardData();
@@ -187,32 +190,8 @@ export default function AnimatorDashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* Quick Actions */}
-        <Animated.View
-          entering={FadeInUp.duration(400).delay(200)}
-          style={styles.quickActions}
-        >
-          <TouchableOpacity
-            style={[styles.quickActionButton, { backgroundColor: BrandColors.accent[500] }]}
-            onPress={() => router.push('/(animator)/events/create')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={20} color="#FFFFFF" />
-            <ThemedText style={styles.quickActionText}>Nouvel événement</ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickActionButtonOutline, { borderColor: cardBorder, backgroundColor: cardColor }]}
-            onPress={() => router.push('/(animator)/scouts')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="people-outline" size={20} color={textSecondary} />
-            <ThemedText style={[styles.quickActionTextOutline, { color: textColor }]}>Inviter</ThemedText>
-          </TouchableOpacity>
-        </Animated.View>
-
         {/* Messages Section */}
-        <Animated.View entering={FadeInUp.duration(400).delay(300)}>
+        <Animated.View entering={FadeInUp.duration(400).delay(200)}>
           <View style={styles.sectionHeader}>
             <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
               Messages récents
@@ -222,7 +201,7 @@ export default function AnimatorDashboardScreen() {
               style={styles.seeAllButton}
             >
               <ThemedText style={[styles.seeAllText, { color: textSecondary }]}>
-                Tout voir
+                Messagerie
               </ThemedText>
               <Ionicons name="chevron-forward" size={16} color={textSecondary} />
             </TouchableOpacity>
@@ -237,12 +216,12 @@ export default function AnimatorDashboardScreen() {
           ) : (
             recentMessages.map((item, index) => {
               const channelColor = getChannelColor(item.channel.type);
-              const hasUnread = item.channel.type === 'announcements'; // Simuler les non-lus
+              const hasUnread = item.channel.type === 'announcements';
 
               return (
                 <Animated.View
                   key={item.channel.id}
-                  entering={FadeInLeft.duration(300).delay(350 + index * 50)}
+                  entering={FadeInLeft.duration(300).delay(250 + index * 50)}
                 >
                   <TouchableOpacity
                     style={[
@@ -292,39 +271,79 @@ export default function AnimatorDashboardScreen() {
           )}
         </Animated.View>
 
-        {/* Activity Section */}
+        {/* Widget Météo */}
+        <WeatherWidget location="Belgique" delay={400} />
+
+        {/* Actions rapides */}
         <Animated.View entering={FadeInUp.duration(400).delay(500)}>
           <View style={styles.sectionHeader}>
             <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
-              Activité récente
+              Actions rapides
             </ThemedText>
           </View>
 
-          <View style={[styles.activityCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityDot, { backgroundColor: BrandColors.primary[500] }]} />
-              <View style={styles.activityContent}>
-                <ThemedText style={[styles.activityText, { color: textColor }]}>
-                  Nouvelle inscription dans l'unité
-                </ThemedText>
-                <ThemedText style={[styles.activityTime, { color: textSecondary }]}>
-                  Il y a 2 heures
-                </ThemedText>
-              </View>
+          {/* Bouton principal orange */}
+          <TouchableOpacity
+            style={[styles.primaryActionCard, { backgroundColor: BrandColors.accent[500] }]}
+            onPress={() => router.push('/(animator)/events/create')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.actionIconCircle}>
+              <Ionicons name="calendar-outline" size={24} color={BrandColors.accent[500]} />
             </View>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityDot, { backgroundColor: BrandColors.accent[500] }]} />
-              <View style={styles.activityContent}>
-                <ThemedText style={[styles.activityText, { color: textColor }]}>
-                  Défi complété par 3 scouts
-                </ThemedText>
-                <ThemedText style={[styles.activityTime, { color: textSecondary }]}>
-                  Hier
-                </ThemedText>
-              </View>
+            <View style={styles.actionContent}>
+              <ThemedText style={styles.primaryActionTitle}>Créer un événement</ThemedText>
+              <ThemedText style={styles.primaryActionSubtitle}>
+                Planifier une nouvelle activité
+              </ThemedText>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+
+          {/* Actions secondaires */}
+          <TouchableOpacity
+            style={[styles.secondaryActionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+            onPress={() => router.push('/(animator)/challenges/create')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.actionIconCircle, { backgroundColor: surfaceSecondary }]}>
+              <Ionicons name="star-outline" size={22} color={textSecondary} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText style={[styles.secondaryActionTitle, { color: textColor }]}>
+                Créer un défi
+              </ThemedText>
+              <ThemedText style={[styles.secondaryActionSubtitle, { color: textSecondary }]}>
+                Lancer un nouveau défi pour les scouts
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryActionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+            onPress={() => router.push('/(animator)/scouts')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.actionIconCircle, { backgroundColor: surfaceSecondary }]}>
+              <Ionicons name="people-outline" size={22} color={textSecondary} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText style={[styles.secondaryActionTitle, { color: textColor }]}>
+                Gérer les scouts
+              </ThemedText>
+              <ThemedText style={[styles.secondaryActionSubtitle, { color: textSecondary }]}>
+                Voir et gérer les scouts de votre unité
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={textSecondary} />
+          </TouchableOpacity>
         </Animated.View>
+
+        {/* Widget Anniversaires */}
+        {animator?.unitId && (
+          <BirthdaysWidget unitId={animator.unitId} delay={600} />
+        )}
 
       </ScrollView>
     </ThemedView>
@@ -359,7 +378,7 @@ const styles = StyleSheet.create({
   statsCard: {
     borderRadius: Radius.xl,
     padding: Spacing['2xl'],
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   statsRow: {
     flexDirection: 'row',
@@ -387,47 +406,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Quick Actions
-  quickActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing['2xl'],
-  },
-  quickActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.lg,
-    borderRadius: Radius.lg,
-  },
-  quickActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  quickActionButtonOutline: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.lg,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-  },
-  quickActionTextOutline: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
   // Section
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.md,
   },
   sectionTitle: {
     fontSize: 18,
@@ -490,34 +475,51 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
 
-  // Activity
-  activityCard: {
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing['2xl'],
-  },
-  activityItem: {
+  // Actions
+  primaryActionCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: Radius.xl,
+    marginBottom: Spacing.md,
     gap: Spacing.md,
-    paddingVertical: Spacing.sm,
   },
-  activityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 6,
+  actionIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  activityContent: {
+  actionContent: {
     flex: 1,
   },
-  activityText: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: Spacing.xxs,
+  primaryActionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
-  activityTime: {
-    fontSize: 12,
+  primaryActionSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  secondaryActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+    gap: Spacing.md,
+  },
+  secondaryActionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  secondaryActionSubtitle: {
+    fontSize: 13,
   },
 });

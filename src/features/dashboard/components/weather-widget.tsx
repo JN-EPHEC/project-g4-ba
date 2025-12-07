@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { WidgetCard } from './widget-card';
 import { WeatherService, WeatherForecast } from '@/src/shared/services/weather-service';
+import { BrandColors } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/design-tokens';
 
 interface WeatherWidgetProps {
-  location?: string; // Nom de la ville ou coordonnées
+  location?: string;
   latitude?: number;
   longitude?: number;
   delay?: number;
@@ -31,7 +33,6 @@ export function WeatherWidget({
       setError(null);
       let coords = { latitude: latitude || 0, longitude: longitude || 0 };
 
-      // Si pas de coordonnées fournies, utiliser le geocoding ou les valeurs par défaut
       if (!latitude || !longitude) {
         if (location) {
           const geoResult = await WeatherService.getCoordinates(location);
@@ -67,108 +68,110 @@ export function WeatherWidget({
 
   if (isLoading) {
     return (
-      <WidgetCard
-        title="Météo"
-        icon="partly-sunny"
-        iconColor="#06b6d4"
-        delay={delay}
-      >
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#06b6d4" />
+      <Animated.View entering={FadeInDown.duration(400).delay(delay)}>
+        <View style={styles.card}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          </View>
         </View>
-      </WidgetCard>
+      </Animated.View>
     );
   }
 
   if (error || !forecast) {
     return (
-      <WidgetCard
-        title="Météo"
-        icon="partly-sunny"
-        iconColor="#06b6d4"
-        delay={delay}
-      >
-        <View style={styles.errorState}>
-          <Ionicons name="cloud-offline" size={32} color="#666" />
-          <ThemedText style={styles.errorText}>{error || 'Données indisponibles'}</ThemedText>
+      <Animated.View entering={FadeInDown.duration(400).delay(delay)}>
+        <View style={styles.card}>
+          <View style={styles.errorState}>
+            <Ionicons name="cloud-offline" size={32} color="rgba(255,255,255,0.6)" />
+            <ThemedText style={styles.errorText}>{error || 'Données indisponibles'}</ThemedText>
+          </View>
         </View>
-      </WidgetCard>
+      </Animated.View>
     );
   }
 
   const isBadWeather = WeatherService.isBadWeather(forecast.current.weatherCode);
 
   return (
-    <WidgetCard
-      title={`Météo • ${locationName}`}
-      icon="partly-sunny"
-      iconColor="#06b6d4"
-      delay={delay}
-    >
-      {/* Météo actuelle */}
-      <View style={styles.currentWeather}>
-        <View style={styles.currentMain}>
-          <ThemedText style={styles.currentIcon}>
-            {WeatherService.getWeatherIcon(forecast.current.weatherCode)}
-          </ThemedText>
-          <ThemedText style={styles.currentTemp}>{forecast.current.temperature}°</ThemedText>
-        </View>
-        <View style={styles.currentDetails}>
-          <ThemedText style={styles.currentDescription}>
-            {WeatherService.getWeatherDescription(forecast.current.weatherCode)}
-          </ThemedText>
-          <View style={styles.currentStats}>
-            <View style={styles.statItem}>
-              <Ionicons name="water" size={14} color="#06b6d4" />
-              <ThemedText style={styles.statText}>{forecast.current.humidity}%</ThemedText>
-            </View>
-            <View style={styles.statItem}>
-              <Ionicons name="flag" size={14} color="#06b6d4" />
-              <ThemedText style={styles.statText}>{forecast.current.windSpeed} km/h</ThemedText>
-            </View>
+    <Animated.View entering={FadeInDown.duration(400).delay(delay)}>
+      <View style={styles.card}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerIcon}>
+            <Ionicons name="partly-sunny" size={16} color="#FFFFFF" />
           </View>
+          <ThemedText style={styles.headerTitle}>Météo • {locationName}</ThemedText>
         </View>
-      </View>
 
-      {/* Alerte si mauvais temps */}
-      {isBadWeather && (
-        <View style={styles.alert}>
-          <Ionicons name="warning" size={16} color="#ef4444" />
-          <ThemedText style={styles.alertText}>
-            Conditions météo défavorables prévues
-          </ThemedText>
-        </View>
-      )}
-
-      {/* Prévisions */}
-      <View style={styles.forecast}>
-        {forecast.daily.slice(1).map((day, index) => (
-          <View key={index} style={styles.forecastDay}>
-            <ThemedText style={styles.forecastDayName}>
-              {DAYS_FR[day.date.getDay()]}
+        {/* Current Weather */}
+        <View style={styles.currentWeather}>
+          <View style={styles.currentMain}>
+            <ThemedText style={styles.currentTemp}>{forecast.current.temperature}°</ThemedText>
+          </View>
+          <View style={styles.currentDetails}>
+            <ThemedText style={styles.currentDescription}>
+              {WeatherService.getWeatherDescription(forecast.current.weatherCode)}
             </ThemedText>
-            <ThemedText style={styles.forecastIcon}>
-              {WeatherService.getWeatherIcon(day.weatherCode)}
-            </ThemedText>
-            <ThemedText style={styles.forecastTemp}>
-              {day.tempMax}° / {day.tempMin}°
-            </ThemedText>
-            {day.precipitationProbability > 30 && (
-              <View style={styles.rainIndicator}>
-                <Ionicons name="rainy" size={10} color="#06b6d4" />
-                <ThemedText style={styles.rainText}>{day.precipitationProbability}%</ThemedText>
+            <View style={styles.currentStats}>
+              <View style={styles.statItem}>
+                <Ionicons name="water" size={14} color="#FFFFFF" />
+                <ThemedText style={styles.statText}>{forecast.current.humidity}%</ThemedText>
               </View>
-            )}
+              <View style={styles.statItem}>
+                <Ionicons name="flag" size={14} color="#FFFFFF" />
+                <ThemedText style={styles.statText}>{forecast.current.windSpeed} km/h</ThemedText>
+              </View>
+            </View>
           </View>
-        ))}
+        </View>
+
+        {/* Alert si mauvais temps */}
+        {isBadWeather && (
+          <View style={styles.alert}>
+            <Ionicons name="warning" size={14} color="#FFFFFF" />
+            <ThemedText style={styles.alertText}>
+              Conditions météo défavorables
+            </ThemedText>
+          </View>
+        )}
+
+        {/* Forecast */}
+        <View style={styles.forecast}>
+          {forecast.daily.slice(1).map((day, index) => (
+            <View key={index} style={styles.forecastDay}>
+              <ThemedText style={styles.forecastDayName}>
+                {DAYS_FR[day.date.getDay()]}
+              </ThemedText>
+              <ThemedText style={styles.forecastIcon}>
+                {WeatherService.getWeatherIcon(day.weatherCode)}
+              </ThemedText>
+              <ThemedText style={styles.forecastTemp}>
+                {day.tempMax}° / {day.tempMin}°
+              </ThemedText>
+              {day.precipitationProbability > 30 && (
+                <View style={styles.rainIndicator}>
+                  <Ionicons name="rainy" size={10} color={BrandColors.accent[500]} />
+                  <ThemedText style={styles.rainText}>{day.precipitationProbability}%</ThemedText>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
       </View>
-    </WidgetCard>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  card: {
+    backgroundColor: BrandColors.primary[500],
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
   loadingContainer: {
-    padding: 20,
+    padding: 40,
     alignItems: 'center',
   },
   errorState: {
@@ -177,78 +180,96 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   errorText: {
-    color: '#666',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  headerIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    opacity: 0.9,
   },
   currentWeather: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 16,
+    gap: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
   currentMain: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  currentIcon: {
-    fontSize: 40,
+    alignItems: 'flex-start',
   },
   currentTemp: {
-    fontSize: 36,
-    fontWeight: '700',
+    fontSize: 56,
+    fontWeight: '300',
     color: '#FFFFFF',
+    letterSpacing: -2,
   },
   currentDetails: {
     flex: 1,
-    gap: 4,
+    gap: Spacing.xs,
   },
   currentDescription: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
   },
   currentStats: {
     flexDirection: 'row',
-    gap: 16,
+    gap: Spacing.lg,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
   },
   statText: {
-    color: '#999',
-    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
   },
   alert: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ef444420',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
-    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
   },
   alertText: {
-    color: '#ef4444',
-    fontSize: 13,
+    color: '#FFFFFF',
+    fontSize: 12,
     flex: 1,
   },
   forecast: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#3A3A3A',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
   },
   forecastDay: {
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     flex: 1,
   },
   forecastDayName: {
-    color: '#888',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -266,7 +287,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   rainText: {
-    color: '#06b6d4',
+    color: BrandColors.accent[500],
     fontSize: 10,
+    fontWeight: '600',
   },
 });

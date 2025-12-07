@@ -6,6 +6,9 @@ import { ThemedText } from '@/components/themed-text';
 import { WidgetCard } from './widget-card';
 import { BirthdayService, BirthdayInfo } from '@/src/shared/services/birthday-service';
 import { formatShortDate } from '@/src/shared/utils/date-utils';
+import { BrandColors, NeutralColors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { Radius, Spacing } from '@/constants/design-tokens';
 
 interface BirthdaysWidgetProps {
   unitId: string;
@@ -16,6 +19,10 @@ interface BirthdaysWidgetProps {
 export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWidgetProps) {
   const [birthdays, setBirthdays] = useState<BirthdayInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
 
   const loadBirthdays = useCallback(async () => {
     try {
@@ -39,11 +46,11 @@ export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWi
       <WidgetCard
         title="Anniversaires"
         icon="gift"
-        iconColor="#ec4899"
+        iconColor={BrandColors.accent[500]}
         delay={delay}
       >
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#ec4899" />
+          <ActivityIndicator size="small" color={BrandColors.accent[500]} />
         </View>
       </WidgetCard>
     );
@@ -53,14 +60,14 @@ export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWi
     <WidgetCard
       title="Anniversaires"
       icon="gift"
-      iconColor="#ec4899"
+      iconColor={BrandColors.accent[500]}
       badge={todayCount > 0 ? `${todayCount} 🎂` : undefined}
       delay={delay}
     >
       {birthdays.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="calendar-outline" size={32} color="#666" />
-          <ThemedText style={styles.emptyText}>
+          <Ionicons name="calendar-outline" size={32} color={textSecondary} />
+          <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
             Aucun anniversaire prévu ce mois-ci
           </ThemedText>
         </View>
@@ -71,6 +78,7 @@ export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWi
               key={birthday.id}
               style={[
                 styles.birthdayItem,
+                { backgroundColor: surfaceSecondary },
                 birthday.isToday && styles.birthdayItemToday,
               ]}
             >
@@ -78,19 +86,19 @@ export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWi
               {birthday.avatarUrl ? (
                 <Image source={{ uri: birthday.avatarUrl }} style={styles.avatar} />
               ) : (
-                <View style={styles.avatarPlaceholder}>
+                <View style={[styles.avatarPlaceholder, { backgroundColor: BrandColors.primary[500] }]}>
                   <ThemedText style={styles.avatarInitial}>
-                    {birthday.firstName.charAt(0).toUpperCase()}
+                    {birthday.firstName.charAt(0).toUpperCase()}{birthday.lastName.charAt(0).toUpperCase()}
                   </ThemedText>
                 </View>
               )}
 
               {/* Info */}
               <View style={styles.birthdayInfo}>
-                <ThemedText style={styles.birthdayName} numberOfLines={1}>
+                <ThemedText style={[styles.birthdayName, { color: textColor }]} numberOfLines={1}>
                   {birthday.firstName} {birthday.lastName}
                 </ThemedText>
-                <ThemedText style={styles.birthdayDate}>
+                <ThemedText style={[styles.birthdayDate, { color: textSecondary }]}>
                   {formatShortDate(birthday.dateOfBirth)} • {birthday.age} ans
                 </ThemedText>
               </View>
@@ -99,13 +107,15 @@ export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWi
               <View
                 style={[
                   styles.countdownBadge,
-                  birthday.isToday && styles.countdownBadgeToday,
+                  birthday.isToday
+                    ? { backgroundColor: BrandColors.accent[500] }
+                    : { backgroundColor: `${BrandColors.accent[500]}20` }
                 ]}
               >
                 <ThemedText
                   style={[
                     styles.countdownText,
-                    birthday.isToday && styles.countdownTextToday,
+                    { color: birthday.isToday ? '#FFFFFF' : BrandColors.accent[500] }
                   ]}
                 >
                   {BirthdayService.getBirthdayLabel(birthday.daysUntil)}
@@ -127,45 +137,41 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: 20,
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   emptyText: {
-    color: '#666',
     fontSize: 14,
     textAlign: 'center',
   },
   birthdayList: {
-    gap: 10,
+    gap: Spacing.sm,
   },
   birthdayItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3A3A3A',
-    padding: 10,
-    borderRadius: 10,
-    gap: 10,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    gap: Spacing.md,
   },
   birthdayItemToday: {
-    backgroundColor: '#ec489920',
-    borderWidth: 1,
-    borderColor: '#ec4899',
+    borderWidth: 1.5,
+    borderColor: BrandColors.accent[500],
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   avatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4A4A4A',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarInitial: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   birthdayInfo: {
@@ -173,29 +179,19 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   birthdayName: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   birthdayDate: {
-    color: '#888',
-    fontSize: 12,
+    fontSize: 13,
   },
   countdownBadge: {
-    backgroundColor: '#4A4A4A',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  countdownBadgeToday: {
-    backgroundColor: '#ec4899',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
   },
   countdownText: {
-    color: '#999',
     fontSize: 12,
-    fontWeight: '500',
-  },
-  countdownTextToday: {
-    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
