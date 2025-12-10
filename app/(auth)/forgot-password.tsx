@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Input, PrimaryButton, Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
 
 export default function ForgotPasswordScreen() {
   const { resetPassword } = useAuth();
@@ -50,10 +51,10 @@ export default function ForgotPasswordScreen() {
       <ThemedView style={styles.container}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
           <View style={styles.successContainer}>
-            <View style={styles.successIcon}>
-              <Ionicons name="mail-open-outline" size={64} color="#34C759" />
+            <View style={[styles.successIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+              <Ionicons name="mail-open-outline" size={64} color={BrandColors.primary[500]} />
             </View>
-            <ThemedText type="title" style={styles.successTitle}>
+            <ThemedText type="title" style={[styles.successTitle, { color: BrandColors.primary[600] }]}>
               Email envoy
             </ThemedText>
             <ThemedText style={styles.successText}>
@@ -85,10 +86,10 @@ export default function ForgotPasswordScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="lock-open-outline" size={48} color={iconColor} />
+            <View style={[styles.iconContainer, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+              <Ionicons name="lock-open-outline" size={48} color={BrandColors.accent[500]} />
             </View>
-            <ThemedText type="title" style={styles.title}>
+            <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
               Mot de passe oubli ?
             </ThemedText>
             <ThemedText style={styles.subtitle}>
@@ -122,11 +123,11 @@ export default function ForgotPasswordScreen() {
           </Card>
 
           <View style={styles.footer}>
-            <Ionicons name="arrow-back" size={16} color={iconColor} />
+            <Ionicons name="arrow-back" size={16} color={BrandColors.accent[500]} />
             <ThemedText
               type="link"
               onPress={() => router.back()}
-              style={styles.backLink}
+              style={[styles.backLink, { color: BrandColors.accent[500] }]}
             >
               Retour  la connexion
             </ThemedText>
@@ -155,6 +156,11 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginBottom: 16,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 28,
@@ -190,6 +196,11 @@ const styles = StyleSheet.create({
   },
   successIcon: {
     marginBottom: 24,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   successTitle: {
     fontSize: 28,

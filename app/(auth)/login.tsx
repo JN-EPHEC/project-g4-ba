@@ -9,6 +9,7 @@ import { Input, PrimaryButton, Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { UserRole } from '@/types';
+import { BrandColors } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login, isLoading } = useAuth();
@@ -68,7 +69,13 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <ThemedText type="title" style={styles.title}>
+            {/* Logo avec icône nature */}
+            <View style={styles.logoContainer}>
+              <View style={[styles.logoIcon, { backgroundColor: BrandColors.primary[500] }]}>
+                <Ionicons name="leaf" size={32} color="#FFFFFF" />
+              </View>
+            </View>
+            <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
               WeCamp
             </ThemedText>
             <ThemedText style={styles.subtitle}>
@@ -123,6 +130,7 @@ export default function LoginScreen() {
             <ThemedText
               type="link"
               onPress={() => router.push('/(auth)/register')}
+              style={{ color: BrandColors.accent[500] }}
             >
               S'inscrire
             </ThemedText>
@@ -148,6 +156,16 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 32,
+  },
+  logoContainer: {
+    marginBottom: 16,
+  },
+  logoIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 42,

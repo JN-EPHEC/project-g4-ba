@@ -10,6 +10,8 @@ import { RankBadge } from '@/components/rank-badge';
 import { useAuth } from '@/context/auth-context';
 import { UnitService } from '@/services/unit-service';
 import { Animator, Scout } from '@/types';
+import { BrandColors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function ScoutsScreen() {
   const { user } = useAuth();
@@ -17,6 +19,7 @@ export default function ScoutsScreen() {
   const [scouts, setScouts] = useState<Scout[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const iconColor = useThemeColor({}, 'icon');
 
   // Recharger les scouts quand on revient sur la page
   useFocusEffect(
@@ -48,7 +51,7 @@ export default function ScoutsScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={BrandColors.primary[500]} />
           <Text style={styles.loadingText}>Chargement des scouts...</Text>
         </View>
       </ThemedView>
@@ -69,7 +72,7 @@ export default function ScoutsScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Scouts
         </ThemedText>
 
@@ -122,7 +125,7 @@ export default function ScoutsScreen() {
                       </View>
                       <ThemedText style={styles.scoutEmail}>{scout.email}</ThemedText>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
+                    <Ionicons name="chevron-forward" size={20} color={iconColor} />
                   </View>
                   <View style={styles.scoutStats}>
                     <View style={styles.scoutStat}>
@@ -145,7 +148,6 @@ export default function ScoutsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
     padding: 20,
@@ -160,7 +162,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 15,
-    color: '#888888',
+    opacity: 0.7,
     letterSpacing: -0.3,
   },
   errorContainer: {
@@ -181,36 +183,28 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 20,
-    color: '#FFFFFF',
   },
   statsCard: {
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   statsTitle: {
     marginBottom: 8,
-    color: '#FFFFFF',
   },
   totalScouts: {
     fontSize: 48,
     marginBottom: 4,
-    color: '#FFFFFF',
+    color: BrandColors.primary[500],
   },
   statsSubtitle: {
     fontSize: 14,
-    color: '#888888',
+    opacity: 0.7,
   },
   emptyCard: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   emptyContent: {
     alignItems: 'center',
@@ -222,11 +216,10 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     marginBottom: 8,
-    color: '#FFFFFF',
   },
   emptyText: {
     textAlign: 'center',
-    color: '#888888',
+    opacity: 0.7,
     fontSize: 14,
   },
   scoutsList: {
@@ -234,9 +227,6 @@ const styles = StyleSheet.create({
   },
   scoutCard: {
     padding: 16,
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   scoutHeader: {
     flexDirection: 'row',
@@ -248,7 +238,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#3b82f6',
+    backgroundColor: BrandColors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -266,11 +256,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   scoutName: {
-    color: '#FFFFFF',
   },
   scoutEmail: {
     fontSize: 13,
-    color: '#888888',
+    opacity: 0.7,
     marginTop: 2,
   },
   scoutStats: {
@@ -278,7 +267,7 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#3A3A3A',
+    borderTopColor: '#e5e5e520',
   },
   scoutStat: {
     flexDirection: 'row',
@@ -291,6 +280,6 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#CCCCCC',
+    color: BrandColors.accent[500],
   },
 });

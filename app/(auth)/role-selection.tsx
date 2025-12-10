@@ -9,6 +9,7 @@ import { Card, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { UserRole } from '@/types';
+import { BrandColors } from '@/constants/theme';
 
 type RoleOption = {
   role: UserRole;
@@ -24,21 +25,21 @@ const roleOptions: RoleOption[] = [
     title: 'Je suis scout',
     description: 'Participe aux activités et relève des défis',
     icon: 'flash',
-    color: '#3b82f6',
+    color: BrandColors.accent[500], // Orange terracotta
   },
   {
     role: UserRole.PARENT,
     title: 'Je suis parent',
     description: 'Suis les activités de mon enfant',
     icon: 'people',
-    color: '#8b5cf6',
+    color: BrandColors.primary[500], // Vert forêt
   },
   {
     role: UserRole.ANIMATOR,
     title: 'Je suis animateur',
     description: 'Gère mon unité et crée des activités',
     icon: 'star',
-    color: '#f59e0b',
+    color: BrandColors.primary[600], // Vert forêt foncé
   },
 ];
 
@@ -131,7 +132,13 @@ export default function RoleSelectionScreen() {
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
+          {/* Icône nature */}
+          <View style={styles.logoContainer}>
+            <View style={[styles.logoIcon, { backgroundColor: BrandColors.primary[500] }]}>
+              <Ionicons name="compass" size={32} color="#FFFFFF" />
+            </View>
+          </View>
+          <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
             Qui es-tu ?
           </ThemedText>
           <ThemedText style={styles.subtitle}>
@@ -198,6 +205,7 @@ export default function RoleSelectionScreen() {
           <ThemedText
             type="link"
             onPress={() => router.back()}
+            style={{ color: BrandColors.accent[500] }}
           >
             Retour
           </ThemedText>
@@ -219,6 +227,16 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 32,
+  },
+  logoContainer: {
+    marginBottom: 16,
+  },
+  logoIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 32,

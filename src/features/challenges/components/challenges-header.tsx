@@ -1,21 +1,21 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
 
 interface ChallengesHeaderProps {
   totalPoints: number;
 }
 
 export function ChallengesHeader({ totalPoints }: ChallengesHeaderProps) {
-  const warningBackground = useThemeColor({}, 'warningBackground');
-
   return (
     <View style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Challenges</ThemedText>
-      <View style={[styles.pointsContainer, { backgroundColor: warningBackground }]}>
+      <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
+        Challenges
+      </ThemedText>
+      <View style={[styles.pointsContainer, { backgroundColor: BrandColors.accent[500] }]}>
         <ThemedText style={styles.trophy}>🏆</ThemedText>
-        <ThemedText type="bodySemiBold">{totalPoints} pts</ThemedText>
+        <ThemedText type="bodySemiBold" style={{ color: '#FFFFFF' }}>{totalPoints} pts</ThemedText>
       </View>
     </View>
   );

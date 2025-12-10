@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { PrimaryButton } from '@/components/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
 
 export default function PendingApprovalScreen() {
   const tintColor = useThemeColor({}, 'tint');
@@ -13,11 +14,11 @@ export default function PendingApprovalScreen() {
   return (
     <View style={[styles.container, { backgroundColor: '#f9fafb' }]}>
       <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: tintColor + '20' }]}>
-          <Ionicons name="time-outline" size={80} color={tintColor} />
+        <View style={[styles.iconContainer, { backgroundColor: `${BrandColors.accent[500]}20` }]}>
+          <Ionicons name="time-outline" size={80} color={BrandColors.accent[500]} />
         </View>
 
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Inscription en attente
         </ThemedText>
 
@@ -33,8 +34,8 @@ export default function PendingApprovalScreen() {
 
         <View style={styles.stepsContainer}>
           <View style={styles.step}>
-            <View style={[styles.stepIcon, { backgroundColor: '#10b981' + '20' }]}>
-              <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+            <View style={[styles.stepIcon, { backgroundColor: `${BrandColors.primary[500]}20` }]}>
+              <Ionicons name="checkmark-circle" size={24} color={BrandColors.primary[500]} />
             </View>
             <ThemedText style={styles.stepText}>
               Compte créé
@@ -44,8 +45,8 @@ export default function PendingApprovalScreen() {
           <View style={styles.stepDivider} />
 
           <View style={styles.step}>
-            <View style={[styles.stepIcon, { backgroundColor: tintColor + '20' }]}>
-              <Ionicons name="time" size={24} color={tintColor} />
+            <View style={[styles.stepIcon, { backgroundColor: `${BrandColors.accent[500]}20` }]}>
+              <Ionicons name="time" size={24} color={BrandColors.accent[500]} />
             </View>
             <ThemedText style={styles.stepText}>
               En attente de validation
@@ -55,7 +56,7 @@ export default function PendingApprovalScreen() {
           <View style={styles.stepDivider} />
 
           <View style={styles.step}>
-            <View style={[styles.stepIcon, { backgroundColor: '#9ca3af' + '20' }]}>
+            <View style={[styles.stepIcon, { backgroundColor: '#9ca3af20' }]}>
               <Ionicons name="rocket" size={24} color="#9ca3af" />
             </View>
             <ThemedText style={styles.stepText}>
@@ -84,7 +85,7 @@ export default function PendingApprovalScreen() {
         <ThemedText
           type="link"
           onPress={() => router.push('/(auth)/register')}
-          style={styles.link}
+          style={[styles.link, { color: BrandColors.accent[500] }]}
         >
           Créer un autre compte
         </ThemedText>

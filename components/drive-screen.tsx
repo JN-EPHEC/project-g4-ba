@@ -21,8 +21,12 @@ import {
 } from '@/src/features/drive/components';
 import { DriveService } from '@/src/shared/services/drive-service';
 import type { StorageFolder, StorageFile } from '@/src/shared/types/document';
+import { FolderCategory, FOLDER_LABELS } from '@/src/shared/types/document';
 import type { AnyUser } from '@/types';
 import { UserRole } from '@/types';
+import { BrandColors, NeutralColors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { Radius, Spacing } from '@/constants/design-tokens';
 
 interface DriveScreenProps {
   user: AnyUser;
@@ -31,6 +35,14 @@ interface DriveScreenProps {
 }
 
 type ViewMode = 'folders' | 'folder-content' | 'search';
+type FilterCategory = 'all' | FolderCategory;
+
+const FILTER_TABS: { key: FilterCategory; label: string }[] = [
+  { key: 'all', label: 'Tous' },
+  { key: FolderCategory.ADMINISTRATIVE, label: 'Administratif' },
+  { key: FolderCategory.ACTIVITIES, label: 'Activités' },
+  { key: FolderCategory.OTHER, label: 'Autres' },
+];
 
 export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
   const [folders, setFolders] = useState<StorageFolder[]>([]);
@@ -45,8 +57,15 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
   const [showUploader, setShowUploader] = useState(false);
   const [showFolderCreator, setShowFolderCreator] = useState(false);
   const [fileCounts, setFileCounts] = useState<Record<string, number>>({});
+  const [selectedFilter, setSelectedFilter] = useState<FilterCategory>('all');
 
   const canManage = userRole === UserRole.ANIMATOR;
+  const iconColor = useThemeColor({}, 'icon');
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const backgroundColor = useThemeColor({}, 'background');
 
   const loadFolders = useCallback(async () => {
     if (!unitId) return;
@@ -190,12 +209,18 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
     }
   };
 
+  // Filtrer les dossiers par catégorie
+  const filteredFolders = folders.filter((folder) => {
+    if (selectedFilter === 'all') return true;
+    return folder.category === selectedFilter;
+  });
+
   if (isLoading) {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
-          <ThemedText style={styles.loadingText}>
+          <ActivityIndicator size="large" color={BrandColors.primary[500]} />
+          <ThemedText style={[styles.loadingText, { color: textSecondary }]}>
             Chargement des documents...
           </ThemedText>
         </View>
@@ -211,7 +236,7 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#3b82f6"
+            tintColor={BrandColors.primary[500]}
           />
         }
       >
@@ -219,15 +244,15 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
         <View style={styles.header}>
           {currentFolder ? (
             <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-              <Ionicons name="arrow-back" size={24} color="#3b82f6" />
+              <Ionicons name="arrow-back" size={24} color={BrandColors.primary[500]} />
             </TouchableOpacity>
           ) : null}
           <View style={styles.titleContainer}>
-            <ThemedText type="title" style={styles.title}>
+            <ThemedText type="title" style={[styles.title, { color: textColor }]}>
               {currentFolder ? currentFolder.name : 'Documents'}
             </ThemedText>
             {currentFolder && (
-              <ThemedText style={styles.breadcrumb}>
+              <ThemedText style={[styles.breadcrumb, { color: textSecondary }]}>
                 {folderPath.map((f) => f.name).join(' / ')}
               </ThemedText>
             )}
@@ -235,40 +260,93 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
         </View>
 
         {/* Barre de recherche */}
-        <Animated.View entering={FadeIn.duration(300)} style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          style={[styles.searchContainer, { backgroundColor: cardColor, borderColor: cardBorder }]}
+        >
+          <Ionicons name="search" size={20} color={textSecondary} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: textColor }]}
             placeholder="Rechercher des fichiers..."
-            placeholderTextColor="#666"
+            placeholderTextColor={textSecondary}
             value={searchQuery}
             onChangeText={handleSearch}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => handleSearch('')}>
-              <Ionicons name="close-circle" size={20} color="#666" />
+              <Ionicons name="close-circle" size={20} color={textSecondary} />
             </TouchableOpacity>
           )}
         </Animated.View>
 
-        {/* Actions pour les animateurs */}
-        {canManage && !showUploader && !showFolderCreator && (
-          <Animated.View entering={FadeIn.duration(300)} style={styles.actions}>
-            {currentFolder && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => setShowUploader(true)}
-              >
-                <Ionicons name="cloud-upload" size={20} color="#3b82f6" />
-                <ThemedText style={styles.actionText}>Ajouter un fichier</ThemedText>
-              </TouchableOpacity>
-            )}
+        {/* Filtres par catégorie - seulement en vue dossiers */}
+        {viewMode === 'folders' && (
+          <Animated.View entering={FadeIn.duration(300).delay(100)} style={styles.filterContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterScroll}
+            >
+              {FILTER_TABS.map((tab) => {
+                const isActive = selectedFilter === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[
+                      styles.filterTab,
+                      {
+                        backgroundColor: isActive ? BrandColors.primary[500] : cardColor,
+                        borderColor: isActive ? BrandColors.primary[500] : cardBorder,
+                      }
+                    ]}
+                    onPress={() => setSelectedFilter(tab.key)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.filterTabText,
+                        { color: isActive ? '#FFFFFF' : textSecondary }
+                      ]}
+                    >
+                      {tab.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        {/* Bouton Nouveau dossier (pour animateurs, en vue dossiers) */}
+        {canManage && viewMode === 'folders' && !showFolderCreator && (
+          <Animated.View entering={FadeIn.duration(300).delay(150)}>
             <TouchableOpacity
-              style={[styles.actionButton, !currentFolder && styles.actionButtonFull]}
+              style={[styles.newFolderButton, { borderColor: BrandColors.primary[500] }]}
               onPress={() => setShowFolderCreator(true)}
             >
-              <Ionicons name="folder-open" size={20} color="#3b82f6" />
-              <ThemedText style={styles.actionText}>Nouveau dossier</ThemedText>
+              <Ionicons name="add" size={24} color={BrandColors.primary[500]} />
+              <ThemedText style={[styles.newFolderText, { color: BrandColors.primary[500] }]}>
+                Nouveau dossier
+              </ThemedText>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Actions en vue contenu de dossier */}
+        {canManage && viewMode === 'folder-content' && !showUploader && !showFolderCreator && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: `${BrandColors.accent[500]}15`, borderColor: BrandColors.accent[500] }]}
+              onPress={() => setShowUploader(true)}
+            >
+              <Ionicons name="cloud-upload" size={20} color={BrandColors.accent[500]} />
+              <ThemedText style={[styles.actionText, { color: BrandColors.accent[500] }]}>Ajouter un fichier</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: `${BrandColors.primary[500]}15`, borderColor: BrandColors.primary[500] }]}
+              onPress={() => setShowFolderCreator(true)}
+            >
+              <Ionicons name="folder-open" size={20} color={BrandColors.primary[500]} />
+              <ThemedText style={[styles.actionText, { color: BrandColors.primary[500] }]}>Nouveau dossier</ThemedText>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -298,12 +376,12 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
         {/* Résultats de recherche */}
         {viewMode === 'search' && (
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>
+            <ThemedText style={[styles.sectionTitle, { color: textSecondary }]}>
               Résultats ({searchResults.length})
             </ThemedText>
             {searchResults.length === 0 ? (
               <View style={styles.emptyState}>
-                <ThemedText style={styles.emptyText}>
+                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
                   Aucun fichier trouvé pour "{searchQuery}"
                 </ThemedText>
               </View>
@@ -327,16 +405,31 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
         {/* Liste des dossiers (vue principale) */}
         {viewMode === 'folders' && (
           <View style={styles.section}>
-            {folders.length === 0 ? (
-              <View style={styles.emptyState}>
-                <ThemedText style={styles.emptyIcon}>📁</ThemedText>
-                <ThemedText style={styles.emptyTitle}>Aucun dossier</ThemedText>
-                <ThemedText style={styles.emptyText}>
-                  Les dossiers de documents apparaîtront ici.
+            {/* Compteur et tri */}
+            <View style={styles.sectionHeader}>
+              <ThemedText style={[styles.folderCount, { color: textSecondary }]}>
+                {filteredFolders.length} dossier{filteredFolders.length !== 1 ? 's' : ''}
+              </ThemedText>
+              <TouchableOpacity style={styles.sortButton}>
+                <ThemedText style={[styles.sortText, { color: BrandColors.primary[500] }]}>
+                  Trier
+                </ThemedText>
+                <Ionicons name="chevron-down" size={16} color={BrandColors.primary[500]} />
+              </TouchableOpacity>
+            </View>
+
+            {filteredFolders.length === 0 ? (
+              <View style={[styles.emptyState, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                <Ionicons name="folder-open-outline" size={48} color={textSecondary} />
+                <ThemedText style={[styles.emptyTitle, { color: textColor }]}>Aucun dossier</ThemedText>
+                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
+                  {selectedFilter !== 'all'
+                    ? `Aucun dossier dans la catégorie "${FILTER_TABS.find(t => t.key === selectedFilter)?.label}"`
+                    : 'Les dossiers de documents apparaîtront ici.'}
                 </ThemedText>
               </View>
             ) : (
-              folders.map((folder, index) => (
+              filteredFolders.map((folder, index) => (
                 <Animated.View
                   key={folder.id}
                   entering={FadeInDown.duration(300).delay(index * 50)}
@@ -360,7 +453,7 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
             {/* Sous-dossiers */}
             {folders.length > 0 && (
               <>
-                <ThemedText style={styles.sectionTitle}>Dossiers</ThemedText>
+                <ThemedText style={[styles.sectionTitle, { color: textSecondary }]}>Dossiers</ThemedText>
                 {folders.map((folder, index) => (
                   <Animated.View
                     key={folder.id}
@@ -380,7 +473,7 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
             {/* Fichiers */}
             {files.length > 0 && (
               <>
-                <ThemedText style={styles.sectionTitle}>
+                <ThemedText style={[styles.sectionTitle, { color: textSecondary }]}>
                   Fichiers ({files.length})
                 </ThemedText>
                 {files.map((file, index) => (
@@ -400,10 +493,10 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
 
             {/* État vide */}
             {files.length === 0 && folders.length === 0 && (
-              <View style={styles.emptyState}>
-                <ThemedText style={styles.emptyIcon}>📄</ThemedText>
-                <ThemedText style={styles.emptyTitle}>Dossier vide</ThemedText>
-                <ThemedText style={styles.emptyText}>
+              <View style={[styles.emptyState, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                <Ionicons name="document-outline" size={48} color={textSecondary} />
+                <ThemedText style={[styles.emptyTitle, { color: textColor }]}>Dossier vide</ThemedText>
+                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
                   {canManage
                     ? 'Ajoutez des fichiers ou créez des sous-dossiers.'
                     : 'Aucun fichier dans ce dossier.'}
@@ -420,11 +513,11 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -433,13 +526,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    color: '#999999',
+    fontSize: 15,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
   },
   backButton: {
     padding: 8,
@@ -449,85 +542,121 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '700',
   },
   breadcrumb: {
-    color: '#666',
     fontSize: 13,
     marginTop: 4,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    marginBottom: 16,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
     fontSize: 15,
-    paddingVertical: 12,
+    paddingVertical: Spacing.md,
+  },
+  filterContainer: {
+    marginBottom: Spacing.md,
+  },
+  filterScroll: {
+    gap: Spacing.sm,
+  },
+  filterTab: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  filterTabText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  newFolderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+    borderRadius: Radius.xl,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  newFolderText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2A2A2A',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    gap: Spacing.xs,
     borderWidth: 1,
-    borderColor: '#3b82f6',
-    borderStyle: 'dashed',
-  },
-  actionButtonFull: {
-    flex: undefined,
-    width: '100%',
   },
   actionText: {
-    color: '#3b82f6',
     fontSize: 14,
     fontWeight: '500',
   },
   section: {
-    marginTop: 8,
+    marginTop: Spacing.xs,
   },
-  sectionTitle: {
-    color: '#999',
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  folderCount: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 12,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sortText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: Spacing.md,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
-    gap: 8,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+    paddingVertical: Spacing.xl * 2,
+    gap: Spacing.sm,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
   },
   emptyTitle: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
   },
   emptyText: {
-    color: '#999',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
   },
 });

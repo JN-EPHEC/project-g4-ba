@@ -9,6 +9,7 @@ import { useAuth } from '@/context/auth-context';
 import { LeaderboardService, LeaderboardEntry } from '@/services/leaderboard-service';
 import { Scout } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
 
 export default function LeaderboardScreen() {
   const { user } = useAuth();
@@ -58,7 +59,7 @@ export default function LeaderboardScreen() {
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
+          <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
             Classement
           </ThemedText>
           <Badge
@@ -134,8 +135,8 @@ export default function LeaderboardScreen() {
                 </View>
 
                 <View style={styles.pointsContainer}>
-                  <Ionicons name="star" size={20} color="#f59e0b" />
-                  <ThemedText type="title" style={styles.pointsText}>
+                  <Ionicons name="star" size={20} color={BrandColors.accent[500]} />
+                  <ThemedText type="title" style={[styles.pointsText, { color: BrandColors.accent[500] }]}>
                     {entry.points}
                   </ThemedText>
                 </View>
@@ -180,12 +181,12 @@ const styles = StyleSheet.create({
   },
   userRankValue: {
     fontSize: 32,
-    color: '#3b82f6',
+    color: BrandColors.primary[500],
     marginTop: 4,
   },
   userPointsValue: {
     fontSize: 32,
-    color: '#f59e0b',
+    color: BrandColors.accent[500],
     marginTop: 4,
   },
   loadingContainer: {
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
   },
   currentUserCard: {
     borderWidth: 2,
-    borderColor: '#3b82f6',
+    borderColor: BrandColors.primary[500],
   },
   rankContainer: {
     width: 40,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   currentUserName: {
-    color: '#3b82f6',
+    color: BrandColors.primary[500],
   },
   scoutDetail: {
     fontSize: 12,
@@ -238,7 +239,6 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f59e0b',
   },
 });
 

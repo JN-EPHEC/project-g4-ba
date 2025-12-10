@@ -11,6 +11,7 @@ import { UnitService } from '@/services/unit-service';
 import { Animator, Scout } from '@/types';
 import { db } from '@/config/firebase';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
 
 export default function ValidateScoutsScreen() {
   const { user } = useAuth();
@@ -139,7 +140,7 @@ export default function ValidateScoutsScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={BrandColors.primary[500]} />
           <ThemedText style={styles.loadingText}>Chargement...</ThemedText>
         </View>
       </ThemedView>
@@ -149,7 +150,7 @@ export default function ValidateScoutsScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Validation des scouts
         </ThemedText>
 
@@ -164,7 +165,7 @@ export default function ValidateScoutsScreen() {
 
           {pendingScouts.length === 0 ? (
             <Card style={styles.emptyCard}>
-              <Ionicons name="checkmark-circle-outline" size={48} color="#10b981" />
+              <Ionicons name="checkmark-circle-outline" size={48} color={BrandColors.primary[500]} />
               <ThemedText style={styles.emptyText}>
                 Aucun scout en attente de validation
               </ThemedText>
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#3b82f6',
+    backgroundColor: BrandColors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.6,
     marginTop: 4,
-    color: '#10b981',
+    color: BrandColors.primary[500],
   },
   actionsRow: {
     flexDirection: 'row',
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   validateButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: BrandColors.primary[500],
   },
   rejectButton: {
     backgroundColor: '#ef4444',

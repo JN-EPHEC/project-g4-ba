@@ -15,6 +15,7 @@ import { useChallengeProgress } from '@/src/features/challenges/hooks/use-challe
 import { useAuth } from '@/context/auth-context';
 import { Challenge } from '@/types';
 import { Scout } from '@/types';
+import { BrandColors } from '@/constants/theme';
 
 // Mapper les icônes par difficulté
 const DIFFICULTY_ICONS = {
@@ -669,7 +670,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   takePhotoButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: BrandColors.accent[500],
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -678,7 +679,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 16,
-    shadowColor: '#3b82f6',
+    shadowColor: BrandColors.accent[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

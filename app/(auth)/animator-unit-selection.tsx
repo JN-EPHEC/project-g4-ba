@@ -9,6 +9,7 @@ import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Unit, UserRole } from '@/types';
 import { UnitService } from '@/services/unit-service';
+import { BrandColors } from '@/constants/theme';
 
 // Codes d'accès par catégorie de fédération
 const ACCESS_CODES: Record<string, string> = {
@@ -164,7 +165,13 @@ export default function AnimatorUnitSelectionScreen() {
     <View style={[styles.container, { backgroundColor: '#f9fafb' }]}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
+          {/* Icône nature */}
+          <View style={styles.logoContainer}>
+            <View style={[styles.logoIcon, { backgroundColor: BrandColors.accent[500] }]}>
+              <Ionicons name="star" size={32} color="#FFFFFF" />
+            </View>
+          </View>
+          <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
             Choisis ta fédération
           </ThemedText>
           <ThemedText style={styles.subtitle}>
@@ -234,7 +241,7 @@ export default function AnimatorUnitSelectionScreen() {
         {/* Champ code d'accès */}
         <Card style={styles.codeCard}>
           <View style={styles.codeHeader}>
-            <Ionicons name="key" size={24} color={tintColor} />
+            <Ionicons name="key" size={24} color={BrandColors.accent[500]} />
             <ThemedText type="subtitle" style={styles.codeTitle}>
               Code d'accès animateur
             </ThemedText>
@@ -266,7 +273,7 @@ export default function AnimatorUnitSelectionScreen() {
           <ThemedText
             type="link"
             onPress={() => router.back()}
-            style={styles.backLink}
+            style={[styles.backLink, { color: BrandColors.accent[500] }]}
           >
             Retour
           </ThemedText>
@@ -300,11 +307,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
+  logoContainer: {
+    marginBottom: 16,
+  },
+  logoIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#111827',
   },
   subtitle: {
     fontSize: 16,

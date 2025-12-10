@@ -19,6 +19,8 @@ import { UnitService } from '@/services/unit-service';
 import type { Channel, ChannelMessage } from '@/src/shared/types/channel';
 import type { AnyUser } from '@/types';
 import { UserRole } from '@/types';
+import { BrandColors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface MessagesScreenProps {
   user: AnyUser;
@@ -38,6 +40,9 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
   const scrollViewRef = useRef<ScrollView>(null);
   // Compteur pour forcer le re-rendu de la liste
   const [listKey, setListKey] = useState(0);
+
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
 
   // Charger les membres de l'unité pour les mentions
   const loadUnitMembers = useCallback(async () => {
@@ -231,7 +236,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={BrandColors.primary[500]} />
           <ThemedText style={styles.loadingText}>
             Chargement des canaux...
           </ThemedText>
@@ -267,11 +272,11 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#3b82f6"
+            tintColor={BrandColors.primary[500]}
           />
         }
       >
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Messages
         </ThemedText>
 
@@ -318,7 +323,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
 
             {isLoadingMessages ? (
               <View style={styles.loadingMessages}>
-                <ActivityIndicator size="small" color="#3b82f6" />
+                <ActivityIndicator size="small" color={BrandColors.primary[500]} />
               </View>
             ) : messages.length === 0 ? (
               <Animated.View entering={FadeIn.duration(400)} style={styles.emptyState}>

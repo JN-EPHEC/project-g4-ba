@@ -12,6 +12,7 @@ import { ChallengeService } from '@/services/challenge-service';
 import { UserService } from '@/services/user-service';
 import { Animator, ChallengeSubmission, Challenge, Scout } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
 
 interface SubmissionWithDetails extends ChallengeSubmission {
   challenge?: Challenge;
@@ -119,13 +120,13 @@ export default function ValidateChallengesScreen() {
             </ThemedText>
             <View style={styles.challengeMeta}>
               <View style={styles.metaItem}>
-                <Ionicons name="star" size={14} color="#f59e0b" />
+                <Ionicons name="star" size={14} color={BrandColors.accent[500]} />
                 <ThemedText style={styles.metaText}>
                   {submission.challenge.points} points
                 </ThemedText>
               </View>
               <View style={styles.metaItem}>
-                <Ionicons name="speedometer" size={14} color="#3b82f6" />
+                <Ionicons name="speedometer" size={14} color={BrandColors.primary[500]} />
                 <ThemedText style={styles.metaText}>
                   {submission.challenge.difficulty}
                 </ThemedText>
@@ -203,7 +204,7 @@ export default function ValidateChallengesScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={BrandColors.primary[500]} />
           <ThemedText style={styles.loadingText}>Chargement...</ThemedText>
         </View>
       </ThemedView>
@@ -213,7 +214,7 @@ export default function ValidateChallengesScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Validation des défis
         </ThemedText>
 
@@ -228,7 +229,7 @@ export default function ValidateChallengesScreen() {
 
           {pendingSubmissions.length === 0 ? (
             <Card style={styles.emptyCard}>
-              <Ionicons name="checkmark-circle-outline" size={48} color="#10b981" />
+              <Ionicons name="checkmark-circle-outline" size={48} color={BrandColors.primary[500]} />
               <ThemedText style={styles.emptyText}>
                 Aucune soumission en attente de validation
               </ThemedText>
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#3b82f6',
+    backgroundColor: BrandColors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   validateButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: BrandColors.primary[500],
   },
   rejectButton: {
     backgroundColor: '#ef4444',
