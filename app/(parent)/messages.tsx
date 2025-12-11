@@ -10,6 +10,7 @@ import { UserRole } from '@/types';
 import type { Parent, Scout, Unit } from '@/types';
 import { UserService } from '@/services/user-service';
 import { UnitService } from '@/services/unit-service';
+import { getDisplayName } from '@/src/shared/utils/totem-utils';
 
 export default function ParentMessagesScreen() {
   const { user, isLoading } = useAuth();
@@ -123,7 +124,7 @@ export default function ParentMessagesScreen() {
                     {unit.name}
                   </ThemedText>
                   <ThemedText style={styles.unitScouts}>
-                    {unitScouts.map((s) => s.firstName).join(', ')}
+                    {unitScouts.map((s) => getDisplayName(s, { firstNameOnly: true })).join(', ')}
                   </ThemedText>
                 </Card>
               </TouchableOpacity>

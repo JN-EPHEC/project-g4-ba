@@ -37,11 +37,13 @@ interface DriveScreenProps {
 type ViewMode = 'folders' | 'folder-content' | 'search';
 type FilterCategory = 'all' | FolderCategory;
 
+// Génère dynamiquement les onglets de filtre à partir de FOLDER_LABELS
 const FILTER_TABS: { key: FilterCategory; label: string }[] = [
   { key: 'all', label: 'Tous' },
-  { key: FolderCategory.ADMINISTRATIVE, label: 'Administratif' },
-  { key: FolderCategory.ACTIVITIES, label: 'Activités' },
-  { key: FolderCategory.OTHER, label: 'Autres' },
+  ...Object.entries(FOLDER_LABELS).map(([key, label]) => ({
+    key: key as FolderCategory,
+    label,
+  })),
 ];
 
 export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {

@@ -12,6 +12,7 @@ import { ChallengeService } from '@/services/challenge-service';
 import { ParentScoutService } from '@/services/parent-scout-service';
 import { ChallengeSubmission, ChallengeStatus } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { getDisplayName } from '@/src/shared/utils/totem-utils';
 
 export default function ParentChallengesScreen() {
   const { user } = useAuth();
@@ -120,7 +121,7 @@ export default function ParentChallengesScreen() {
               <View style={styles.submissionHeader}>
                 <View style={styles.submissionInfo}>
                   <ThemedText type="defaultSemiBold" style={styles.scoutName}>
-                    {item.scout?.firstName} {item.scout?.lastName}
+                    {getDisplayName(item.scout)}
                   </ThemedText>
                   <ThemedText type="subtitle" style={styles.challengeTitle}>
                     {item.challenge?.title}

@@ -17,9 +17,12 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { Card, PrimaryButton } from '@/components/ui';
+import { TotemSelector, TOTEM_ANIMALS } from '@/components/totem-selector';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Animator } from '@/types';
+import { BrandColors } from '@/constants/theme';
+import { Spacing } from '@/constants/design-tokens';
 
 export default function EditProfileScreen() {
   const { user, updateUser, isLoading } = useAuth();
@@ -33,6 +36,9 @@ export default function EditProfileScreen() {
     lastName: animator?.lastName || '',
     bio: animator?.bio || '',
     phone: animator?.phone || '',
+    totemName: animator?.totemName || '',
+    totemAnimal: animator?.totemAnimal || '',
+    totemEmoji: animator?.totemEmoji || '',
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -66,6 +72,15 @@ export default function EditProfileScreen() {
       }
       if (formData.phone.trim()) {
         updates.phone = formData.phone.trim();
+      }
+      if (formData.totemName.trim()) {
+        updates.totemName = formData.totemName.trim();
+      }
+      if (formData.totemAnimal.trim()) {
+        updates.totemAnimal = formData.totemAnimal.trim();
+      }
+      if (formData.totemEmoji.trim()) {
+        updates.totemEmoji = formData.totemEmoji.trim();
       }
 
       console.log('[EditProfile] Updating with:', updates);
@@ -183,6 +198,44 @@ export default function EditProfileScreen() {
             </View>
           </Card>
 
+          {/* Totem */}
+          <Card style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="paw" size={24} color={BrandColors.accent[500]} />
+              <ThemedText type="subtitle" style={[styles.sectionTitle, { marginBottom: 0 }]}>
+                Mon totem
+              </ThemedText>
+            </View>
+
+            <ThemedText style={[styles.totemHint, { marginBottom: Spacing.md }]}>
+              Choisis ton animal totem ! Il représente tes qualités et ton esprit scout.
+            </ThemedText>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Animal totem</ThemedText>
+              <TotemSelector
+                selectedAnimal={formData.totemAnimal}
+                onSelectAnimal={(animal) => setFormData({ ...formData, totemAnimal: animal })}
+                selectedEmoji={formData.totemEmoji}
+                onSelectEmoji={(emoji) => setFormData({ ...formData, totemEmoji: emoji })}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Nom de totem (surnom)</ThemedText>
+              <TextInput
+                style={[styles.input, { borderColor, color: textColor }]}
+                value={formData.totemName}
+                onChangeText={(text) => setFormData({ ...formData, totemName: text })}
+                placeholder={formData.totemAnimal ? `Ex: ${formData.totemAnimal} Sage` : 'Ex: Hibou Sage'}
+                placeholderTextColor="#888"
+              />
+              <ThemedText style={styles.totemHint}>
+                Combine ton animal avec un adjectif qui te caractérise
+              </ThemedText>
+            </View>
+          </Card>
+
           {/* Bouton Sauvegarder */}
           <PrimaryButton
             title={isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
@@ -269,6 +322,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.5,
     marginTop: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  totemHint: {
+    fontSize: 12,
+    opacity: 0.6,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
   saveButton: {
     marginTop: 8,

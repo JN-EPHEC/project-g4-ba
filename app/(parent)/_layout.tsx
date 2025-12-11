@@ -47,11 +47,11 @@ export default function ParentLayout() {
         }}
       />
       <Tabs.Screen
-        name="documents"
+        name="challenges"
         options={{
-          title: 'Documents',
+          title: 'Validations',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
+            <Ionicons name="checkmark-circle" size={size} color={color} />
           ),
         }}
       />
@@ -65,18 +65,31 @@ export default function ParentLayout() {
         }}
       />
       <Tabs.Screen
+        name="more"
+        options={{
+          title: 'Plus',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="ellipsis-horizontal" size={size} color={color} />
+          ),
+        }}
+      />
+      {/* Routes cachées */}
+      <Tabs.Screen
+        name="documents"
+        options={{
+          href: null, // Accessible depuis Plus
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
+          href: null, // Accessible depuis Plus
         }}
       />
       <Tabs.Screen
         name="edit-profile"
         options={{
-          href: null, // Cache l'onglet de la barre de navigation
+          href: null,
         }}
       />
     </Tabs>

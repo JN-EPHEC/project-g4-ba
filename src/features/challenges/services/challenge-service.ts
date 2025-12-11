@@ -31,12 +31,18 @@ export class ChallengeService {
       description: data.description,
       points: data.points,
       difficulty: data.difficulty as ChallengeDifficulty,
+      category: data.category,
+      emoji: data.emoji,
       unitId: data.unitId,
       imageUrl: data.imageUrl,
       startDate: data.startDate?.toDate() || new Date(),
       endDate: data.endDate?.toDate() || new Date(),
       createdBy: data.createdBy,
       createdAt: data.createdAt?.toDate() || new Date(),
+      participantsCount: data.participantsCount || 0,
+      isGlobal: data.isGlobal || false,
+      allowMultipleValidations: data.allowMultipleValidations || false,
+      notifyMembers: data.notifyMembers !== false,
     };
   }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EventType } from '@/types';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
+import { Spacing, Radius } from '@/constants/design-tokens';
 
 interface EventFormProps {
   visible: boolean;
@@ -28,12 +31,22 @@ export interface EventFormData {
   maxParticipants?: number;
 }
 
-const EVENT_TYPES: { value: EventType; label: string; icon: string }[] = [
-  { value: 'meeting', label: 'Réunion', icon: '📋' },
-  { value: 'camp', label: 'Camp', icon: '⛺' },
-  { value: 'activity', label: 'Activité', icon: '🎯' },
-  { value: 'training', label: 'Formation', icon: '📚' },
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const EVENT_TYPES: { value: EventType; label: string; icon: IoniconsName }[] = [
+  { value: 'meeting', label: 'Réunion', icon: 'people' },
+  { value: 'camp', label: 'Camp', icon: 'bonfire' },
+  { value: 'activity', label: 'Activité', icon: 'compass' },
+  { value: 'training', label: 'Formation', icon: 'school' },
 ];
+
+// Interface pour les résultats Nominatim
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
 
 // Fonction pour formater une date en JJ/MM/AAAA
 const formatDate = (date: Date): string => {
@@ -53,13 +66,12 @@ const formatTime = (date: Date): string => {
 // Fonction pour obtenir les valeurs par défaut
 const getDefaultDates = () => {
   const now = new Date();
-  // Arrondir à l'heure suivante
   now.setMinutes(0);
   now.setSeconds(0);
   now.setHours(now.getHours() + 1);
 
   const endDate = new Date(now);
-  endDate.setHours(endDate.getHours() + 2); // 2 heures après le début par défaut
+  endDate.setHours(endDate.getHours() + 2);
 
   return {
     startDate: formatDate(now),
@@ -69,13 +81,47 @@ const getDefaultDates = () => {
   };
 };
 
+// Recherche d'adresses via Nominatim (OpenStreetMap)
+async function searchAddresses(query: string): Promise<NominatimResult[]> {
+  if (query.length < 3) return [];
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=fr,be,ch,lu`,
+      {
+        headers: {
+          'Accept-Language': 'fr',
+          'User-Agent': 'WeCamp-App/1.0',
+        },
+      }
+    );
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return data;
+  } catch {
+    return [];
+  }
+}
+
 export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
   const defaults = getDefaultDates();
+
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<EventType>('activity');
   const [location, setLocation] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<NominatimResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [startDateStr, setStartDateStr] = useState(defaults.startDate);
   const [startTimeStr, setStartTimeStr] = useState(defaults.startTime);
   const [endDateStr, setEndDateStr] = useState(defaults.endDate);
@@ -84,12 +130,17 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Debounce timer ref
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const resetForm = () => {
     const newDefaults = getDefaultDates();
     setTitle('');
     setDescription('');
     setType('activity');
     setLocation('');
+    setLocationSuggestions([]);
+    setShowSuggestions(false);
     setStartDateStr(newDefaults.startDate);
     setStartTimeStr(newDefaults.startTime);
     setEndDateStr(newDefaults.endDate);
@@ -98,13 +149,43 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
     setError('');
   };
 
+  // Recherche d'adresses avec debounce
+  const handleLocationChange = useCallback((text: string) => {
+    setLocation(text);
+    setShowSuggestions(true);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Debounce la recherche (400ms)
+    if (text.length >= 3) {
+      setIsSearching(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        const results = await searchAddresses(text);
+        setLocationSuggestions(results);
+        setIsSearching(false);
+      }, 400);
+    } else {
+      setLocationSuggestions([]);
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Sélection d'une suggestion
+  const handleSelectSuggestion = (suggestion: NominatimResult) => {
+    setLocation(suggestion.display_name);
+    setShowSuggestions(false);
+    setLocationSuggestions([]);
+  };
+
   const handleClose = () => {
     resetForm();
     onClose();
   };
 
   const parseDateTime = (dateStr: string, timeStr: string): Date | null => {
-    // Format attendu: DD/MM/YYYY et HH:MM
     const dateParts = dateStr.split('/');
     const timeParts = timeStr.split(':');
 
@@ -128,11 +209,11 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
   const handleSubmit = async () => {
     setError('');
 
-    // Validation
     if (!title.trim()) {
       setError('Le titre est requis');
       return;
     }
+
     if (!location.trim()) {
       setError('Le lieu est requis');
       return;
@@ -189,13 +270,13 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: cardColor, borderBottomColor: cardBorder }]}>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
+            <Ionicons name="close" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Nouvel événement</Text>
+          <Text style={[styles.headerTitle, { color: textColor }]}>Nouvel événement</Text>
           <TouchableOpacity
             onPress={handleSubmit}
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
@@ -207,7 +288,7 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
+        <ScrollView style={styles.form} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
           {error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -216,88 +297,144 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
 
           {/* Title */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Titre *</Text>
+            <Text style={[styles.label, { color: textColor }]}>Titre *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
               value={title}
               onChangeText={setTitle}
               placeholder="Ex: Réunion de rentrée"
-              placeholderTextColor="#999"
+              placeholderTextColor={textSecondary}
             />
           </View>
 
           {/* Type */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Type d'événement *</Text>
+            <Text style={[styles.label, { color: textColor }]}>Type d'événement *</Text>
             <View style={styles.typeGrid}>
-              {EVENT_TYPES.map((eventType) => (
-                <TouchableOpacity
-                  key={eventType.value}
-                  style={[
-                    styles.typeButton,
-                    type === eventType.value && styles.typeButtonSelected,
-                  ]}
-                  onPress={() => setType(eventType.value)}
-                >
-                  <Text style={styles.typeIcon}>{eventType.icon}</Text>
-                  <Text
+              {EVENT_TYPES.map((eventType) => {
+                const isSelected = type === eventType.value;
+                return (
+                  <TouchableOpacity
+                    key={eventType.value}
                     style={[
-                      styles.typeLabel,
-                      type === eventType.value && styles.typeLabelSelected,
+                      styles.typeButton,
+                      { backgroundColor: cardColor, borderColor: cardBorder },
+                      isSelected && styles.typeButtonSelected,
                     ]}
+                    onPress={() => setType(eventType.value)}
                   >
-                    {eventType.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Ionicons
+                      name={eventType.icon}
+                      size={18}
+                      color={isSelected ? BrandColors.primary[500] : textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.typeLabel,
+                        { color: textSecondary },
+                        isSelected && styles.typeLabelSelected,
+                      ]}
+                    >
+                      {eventType.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={[styles.label, { color: textColor }]}>Description</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
               value={description}
               onChangeText={setDescription}
               placeholder="Décrivez l'événement..."
-              placeholderTextColor="#999"
+              placeholderTextColor={textSecondary}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
             />
           </View>
 
-          {/* Location */}
+          {/* Location with Autocomplete */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Lieu *</Text>
-            <TextInput
-              style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Ex: Local scout, 12 rue des Scouts"
-              placeholderTextColor="#999"
-            />
+            <Text style={[styles.label, { color: textColor }]}>Lieu *</Text>
+            <View style={styles.locationInputContainer}>
+              <Ionicons
+                name="location"
+                size={20}
+                color={textSecondary}
+                style={styles.locationIcon}
+              />
+              <TextInput
+                style={[styles.input, styles.locationInput, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
+                value={location}
+                onChangeText={handleLocationChange}
+                placeholder="Rechercher une adresse..."
+                placeholderTextColor={textSecondary}
+                onFocus={() => location.length >= 3 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              />
+              {isSearching && (
+                <ActivityIndicator
+                  size="small"
+                  color={BrandColors.primary[500]}
+                  style={styles.searchingIndicator}
+                />
+              )}
+            </View>
+
+            {/* Suggestions dropdown */}
+            {showSuggestions && locationSuggestions.length > 0 && (
+              <View style={[styles.suggestionsContainer, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                {locationSuggestions.map((suggestion) => (
+                  <TouchableOpacity
+                    key={suggestion.place_id}
+                    style={[styles.suggestionItem, { borderBottomColor: cardBorder }]}
+                    onPress={() => handleSelectSuggestion(suggestion)}
+                  >
+                    <Ionicons name="location-outline" size={18} color={textSecondary} />
+                    <Text
+                      style={[styles.suggestionText, { color: textColor }]}
+                      numberOfLines={2}
+                    >
+                      {suggestion.display_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Message si pas de résultat */}
+            {showSuggestions && !isSearching && location.length >= 3 && locationSuggestions.length === 0 && (
+              <View style={[styles.noResultsContainer, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                <Text style={[styles.noResultsText, { color: textSecondary }]}>
+                  Aucune adresse trouvée
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Start Date/Time */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date et heure de début *</Text>
+            <Text style={[styles.label, { color: textColor }]}>Date et heure de début *</Text>
             <View style={styles.dateTimeRow}>
               <TextInput
-                style={[styles.input, styles.dateInput]}
+                style={[styles.input, styles.dateInput, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
                 value={startDateStr}
                 onChangeText={setStartDateStr}
                 placeholder="JJ/MM/AAAA"
-                placeholderTextColor="#999"
+                placeholderTextColor={textSecondary}
                 keyboardType="numbers-and-punctuation"
               />
               <TextInput
-                style={[styles.input, styles.timeInput]}
+                style={[styles.input, styles.timeInput, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
                 value={startTimeStr}
                 onChangeText={setStartTimeStr}
                 placeholder="HH:MM"
-                placeholderTextColor="#999"
+                placeholderTextColor={textSecondary}
                 keyboardType="numbers-and-punctuation"
               />
             </View>
@@ -305,22 +442,22 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
 
           {/* End Date/Time */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date et heure de fin *</Text>
+            <Text style={[styles.label, { color: textColor }]}>Date et heure de fin *</Text>
             <View style={styles.dateTimeRow}>
               <TextInput
-                style={[styles.input, styles.dateInput]}
+                style={[styles.input, styles.dateInput, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
                 value={endDateStr}
                 onChangeText={setEndDateStr}
                 placeholder="JJ/MM/AAAA"
-                placeholderTextColor="#999"
+                placeholderTextColor={textSecondary}
                 keyboardType="numbers-and-punctuation"
               />
               <TextInput
-                style={[styles.input, styles.timeInput]}
+                style={[styles.input, styles.timeInput, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
                 value={endTimeStr}
                 onChangeText={setEndTimeStr}
                 placeholder="HH:MM"
-                placeholderTextColor="#999"
+                placeholderTextColor={textSecondary}
                 keyboardType="numbers-and-punctuation"
               />
             </View>
@@ -328,13 +465,13 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
 
           {/* Max Participants */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nombre max. de participants (optionnel)</Text>
+            <Text style={[styles.label, { color: textColor }]}>Nombre max. de participants (optionnel)</Text>
             <TextInput
-              style={[styles.input, styles.numberInput]}
+              style={[styles.input, styles.numberInput, { backgroundColor: cardColor, borderColor: cardBorder, color: textColor }]}
               value={maxParticipants}
               onChangeText={setMaxParticipants}
               placeholder="Illimité"
-              placeholderTextColor="#999"
+              placeholderTextColor={textSecondary}
               keyboardType="number-pad"
             />
           </View>
@@ -347,30 +484,26 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#2A2A2A',
+    padding: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#3A3A3A',
   },
   closeButton: {
-    padding: 8,
+    padding: Spacing.sm,
   },
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: BrandColors.primary[500],
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
   },
   submitButtonDisabled: {
     opacity: 0.6,
@@ -384,73 +517,109 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   formContent: {
-    padding: 20,
-    gap: 20,
+    padding: Spacing.lg,
+    gap: Spacing.lg,
   },
   errorContainer: {
     backgroundColor: '#FF3B3020',
-    padding: 12,
-    borderRadius: 8,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
   },
   errorText: {
     color: '#FF3B30',
     fontSize: 14,
   },
   inputGroup: {
-    gap: 8,
+    gap: Spacing.sm,
   },
   label: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#FFFFFF',
   },
   input: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
     fontSize: 16,
-    color: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
   },
   textArea: {
     minHeight: 100,
-    paddingTop: 14,
+    paddingTop: Spacing.md,
   },
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: Spacing.sm,
   },
   typeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.lg,
     borderWidth: 2,
-    borderColor: '#3A3A3A',
-    gap: 8,
+    gap: Spacing.sm,
   },
   typeButtonSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#3b82f620',
-  },
-  typeIcon: {
-    fontSize: 18,
+    borderColor: BrandColors.primary[500],
+    backgroundColor: `${BrandColors.primary[500]}15`,
   },
   typeLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#999999',
   },
   typeLabelSelected: {
-    color: '#3b82f6',
+    color: BrandColors.primary[500],
+  },
+  locationInputContainer: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationIcon: {
+    position: 'absolute',
+    left: Spacing.md,
+    zIndex: 1,
+  },
+  locationInput: {
+    flex: 1,
+    paddingLeft: Spacing.xl + Spacing.md,
+  },
+  searchingIndicator: {
+    position: 'absolute',
+    right: Spacing.md,
+  },
+  suggestionsContainer: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginTop: Spacing.xs,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    gap: Spacing.sm,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 14,
+  },
+  noResultsContainer: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginTop: Spacing.xs,
+    padding: Spacing.md,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   dateTimeRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: Spacing.sm,
   },
   dateInput: {
     flex: 2,

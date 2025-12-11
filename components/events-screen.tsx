@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,13 +7,13 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { EventCard } from '@/src/features/events/components/event-card';
 import { EventFilters, EventTypeFilter } from '@/src/features/events/components/event-filters';
-import { EventsHeader } from '@/src/features/events/components/events-header';
 import { EventForm, EventFormData } from '@/src/features/events/components/event-form';
 import { ParticipantsModal, ParticipantInfo } from '@/src/features/events/components/participants-modal';
 import { useEvents } from '@/src/features/events/hooks/use-events';
@@ -22,14 +22,47 @@ import { EventService } from '@/services/event-service';
 import { UserService } from '@/services/user-service';
 import { Event, UserRole } from '@/types';
 import { useAuth } from '@/context/auth-context';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
+import { Spacing, Radius } from '@/constants/design-tokens';
 
 interface EventsScreenProps {
-  /** Rôle de l'utilisateur */
   userRole: UserRole;
-  /** Si true, l'utilisateur peut créer des événements */
   canCreate?: boolean;
-  /** Si true, l'utilisateur peut supprimer des événements */
   canDelete?: boolean;
+}
+
+// Jours de la semaine en français
+const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+const DAYS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+function getWeekDays(selectedDate: Date): Date[] {
+  const days: Date[] = [];
+  const today = new Date(selectedDate);
+
+  // Trouver le lundi de la semaine
+  const dayOfWeek = today.getDay();
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diff);
+
+  // Générer les 7 jours de la semaine
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + i);
+    days.push(day);
+  }
+
+  return days;
+}
+
+function isSameDay(date1: Date, date2: Date): boolean {
+  return (
+    date1.getDate() === date2.getDate() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getFullYear() === date2.getFullYear()
+  );
 }
 
 export function EventsScreen({ userRole, canCreate = false, canDelete = false }: EventsScreenProps) {
@@ -37,8 +70,19 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
   const { user } = useAuth();
   const { events, loading, error, refetch } = useEvents();
   const [selectedFilter, setSelectedFilter] = useState<EventTypeFilter>('all');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Theme colors
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+
+  // Week days for the calendar
+  const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate]);
+  const today = new Date();
 
   // Calculer le nombre de colonnes en fonction de la largeur
   const getColumns = () => {
@@ -51,12 +95,17 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
 
   // Filtrer les événements
   const filteredEvents = useMemo(() => {
-    if (selectedFilter === 'all') return events;
+    let filtered = events;
 
-    return events.filter((event) => {
-      const eventType = event.type.toLowerCase();
-      return eventType === selectedFilter;
-    });
+    // Filtrer par type si ce n'est pas 'all'
+    if (selectedFilter !== 'all') {
+      filtered = filtered.filter((event) => {
+        const eventType = event.type.toLowerCase();
+        return eventType === selectedFilter;
+      });
+    }
+
+    return filtered;
   }, [events, selectedFilter]);
 
   const handleRefresh = useCallback(async () => {
@@ -86,7 +135,6 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
       eventData.maxParticipants
     );
 
-    // Rafraîchir la liste
     await refetch();
   };
 
@@ -105,7 +153,7 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={BrandColors.primary[500]} />
           <ThemedText style={styles.loadingText}>Chargement des événements...</ThemedText>
         </View>
       </ThemedView>
@@ -116,7 +164,7 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
     return (
       <ThemedView style={styles.container}>
         <View style={styles.errorContainer}>
-          <ThemedText style={styles.errorIcon}>⚠️</ThemedText>
+          <Ionicons name="alert-circle" size={48} color="#FF3B30" />
           <ThemedText style={styles.errorText}>{error}</ThemedText>
         </View>
       </ThemedView>
@@ -133,13 +181,18 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#3b82f6"
+            tintColor={BrandColors.primary[500]}
           />
         }
       >
         {/* Header */}
         <View style={styles.headerRow}>
-          <EventsHeader totalEvents={filteredEvents.length} />
+          <View>
+            <ThemedText style={styles.title}>Événements</ThemedText>
+            <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
+              {filteredEvents.length} événement{filteredEvents.length !== 1 ? 's' : ''} à venir
+            </ThemedText>
+          </View>
           {canCreate && (
             <TouchableOpacity
               style={styles.createButton}
@@ -147,10 +200,53 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
               activeOpacity={0.7}
             >
               <Ionicons name="add" size={20} color="#FFFFFF" />
-              <ThemedText style={styles.createButtonText}>Créer</ThemedText>
+              <Text style={styles.createButtonText}>Créer</Text>
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Week Calendar */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.weekCalendar}
+          contentContainerStyle={styles.weekCalendarContent}
+        >
+          {weekDays.map((day, index) => {
+            const isToday = isSameDay(day, today);
+            const isSelected = isSameDay(day, selectedDate);
+            const dayName = DAYS_SHORT[day.getDay()];
+
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.dayCard,
+                  { backgroundColor: cardColor, borderColor: cardBorder },
+                  isSelected && styles.dayCardSelected,
+                  isToday && !isSelected && styles.dayCardToday,
+                ]}
+                onPress={() => setSelectedDate(day)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.dayName,
+                  { color: textSecondary },
+                  isSelected && styles.dayNameSelected,
+                ]}>
+                  {dayName}
+                </Text>
+                <Text style={[
+                  styles.dayNumber,
+                  { color: textColor },
+                  isSelected && styles.dayNumberSelected,
+                ]}>
+                  {day.getDate()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* Filters */}
         <EventFilters
@@ -158,15 +254,25 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
           onFilterChange={setSelectedFilter}
         />
 
-        {/* Events Grid */}
+        {/* Events Grid or Empty State */}
         {filteredEvents.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <ThemedText style={styles.emptyIcon}>📅</ThemedText>
+            {/* Calendar illustration */}
+            <View style={[styles.calendarIllustration, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+              <Text style={[styles.calendarMonth, { color: BrandColors.primary[500] }]}>
+                {MONTHS_FR[selectedDate.getMonth()].toUpperCase()}
+              </Text>
+              <Text style={[styles.calendarDay, { color: textColor }]}>{selectedDate.getDate()}</Text>
+              <Text style={[styles.calendarWeekday, { color: textSecondary }]}>
+                {DAYS_FR[selectedDate.getDay()]}
+              </Text>
+            </View>
+
             <ThemedText style={styles.emptyTitle}>Aucun événement</ThemedText>
-            <ThemedText style={styles.emptyText}>
+            <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
               {selectedFilter === 'all'
                 ? canCreate
-                  ? 'Créez votre premier événement !'
+                  ? 'Créez votre premier événement pour commencer à organiser vos activités'
                   : 'Aucun événement à venir pour le moment'
                 : 'Aucun événement de ce type'}
             </ThemedText>
@@ -175,8 +281,8 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
                 style={styles.emptyCreateButton}
                 onPress={() => setShowCreateForm(true)}
               >
-                <Ionicons name="add-circle" size={24} color="#3b82f6" />
-                <ThemedText style={styles.emptyCreateButtonText}>Créer un événement</ThemedText>
+                <Ionicons name="add" size={24} color={BrandColors.primary[600]} />
+                <Text style={styles.emptyCreateButtonText}>Créer un événement</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -230,7 +336,6 @@ function EventCardWithAttendance({
     setLoadingParticipants(true);
 
     try {
-      // Récupérer les infos de chaque participant
       const participantPromises = attendances.map(async (attendance) => {
         const user = await UserService.getUserById(attendance.scoutId);
         if (user) {
@@ -307,15 +412,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: Spacing.md,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 15,
+    letterSpacing: -0.3,
   },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: BrandColors.accent[500],
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: Radius.lg,
     gap: 6,
   },
   createButtonText: {
@@ -323,6 +438,45 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  // Week Calendar
+  weekCalendar: {
+    marginBottom: Spacing.md,
+  },
+  weekCalendarContent: {
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  dayCard: {
+    width: 60,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  dayCardSelected: {
+    backgroundColor: BrandColors.primary[500],
+    borderColor: BrandColors.primary[500],
+  },
+  dayCardToday: {
+    borderColor: BrandColors.accent[500],
+    borderWidth: 2,
+  },
+  dayName: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  dayNameSelected: {
+    color: '#FFFFFF',
+  },
+  dayNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  dayNumberSelected: {
+    color: '#FFFFFF',
+  },
+  // Loading and Error
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -339,10 +493,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    gap: 16,
   },
   errorText: {
     fontSize: 16,
@@ -350,6 +501,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.3,
   },
+  // Events Grid
   eventsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -358,41 +510,64 @@ const styles = StyleSheet.create({
   eventItem: {
     marginBottom: 20,
   },
+  // Empty State
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: 60,
     paddingHorizontal: 32,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+  calendarIllustration: {
+    width: 140,
+    height: 160,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  calendarMonth: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: Spacing.xs,
+  },
+  calendarDay: {
+    fontSize: 48,
+    fontWeight: '700',
+    letterSpacing: -1,
+  },
+  calendarWeekday: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     letterSpacing: -0.5,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: 15,
-    color: '#999999',
     textAlign: 'center',
     letterSpacing: -0.3,
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
+    lineHeight: 22,
+    maxWidth: 280,
   },
   emptyCreateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#3b82f620',
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: `${BrandColors.primary[500]}15`,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: BrandColors.primary[500],
   },
   emptyCreateButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#3b82f6',
+    color: BrandColors.primary[600],
   },
 });

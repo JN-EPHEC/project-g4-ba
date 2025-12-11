@@ -3,9 +3,6 @@ import {
   query,
   where,
   getDocs,
-  orderBy,
-  limit,
-  type DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { UserService } from './user-service';
@@ -32,35 +29,42 @@ export class LeaderboardService {
     limitCount: number = 50
   ): Promise<LeaderboardEntry[]> {
     try {
-      // Récupérer tous les scouts de l'unité
+      // Récupérer tous les scouts de l'unité (sans orderBy pour éviter index composite)
       const q = query(
         collection(db, 'users'),
         where('unitId', '==', unitId),
-        where('role', '==', UserRole.SCOUT),
-        orderBy('points', 'desc'),
-        limit(limitCount)
+        where('role', '==', UserRole.SCOUT)
       );
 
       const querySnapshot = await getDocs(q);
       const entries: LeaderboardEntry[] = [];
 
-      querySnapshot.docs.forEach((doc, index) => {
+      querySnapshot.docs.forEach((doc) => {
         const data = doc.data();
         const scout = UserService.convertFirestoreUser({ id: doc.id, ...data });
 
         if (scout && scout.role === UserRole.SCOUT) {
           entries.push({
-            rank: index + 1,
+            rank: 0, // Will be set after sorting
             scout: scout as Scout,
-            points: scout.points || 0,
+            points: (scout as Scout).points || 0,
           });
         }
       });
 
-      return entries;
+      // Trier par points (plus élevé d'abord) côté client
+      entries.sort((a, b) => b.points - a.points);
+
+      // Assigner les rangs après le tri
+      entries.forEach((entry, index) => {
+        entry.rank = index + 1;
+      });
+
+      // Appliquer la limite
+      return entries.slice(0, limitCount);
     } catch (error) {
       console.error('Erreur lors de la récupération du classement:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -71,33 +75,41 @@ export class LeaderboardService {
     limitCount: number = 50
   ): Promise<LeaderboardEntry[]> {
     try {
+      // Récupérer tous les scouts (sans orderBy pour éviter index composite)
       const q = query(
         collection(db, 'users'),
-        where('role', '==', UserRole.SCOUT),
-        orderBy('points', 'desc'),
-        limit(limitCount)
+        where('role', '==', UserRole.SCOUT)
       );
 
       const querySnapshot = await getDocs(q);
       const entries: LeaderboardEntry[] = [];
 
-      querySnapshot.docs.forEach((doc, index) => {
+      querySnapshot.docs.forEach((doc) => {
         const data = doc.data();
         const scout = UserService.convertFirestoreUser({ id: doc.id, ...data });
 
         if (scout && scout.role === UserRole.SCOUT) {
           entries.push({
-            rank: index + 1,
+            rank: 0, // Will be set after sorting
             scout: scout as Scout,
-            points: scout.points || 0,
+            points: (scout as Scout).points || 0,
           });
         }
       });
 
-      return entries;
+      // Trier par points (plus élevé d'abord) côté client
+      entries.sort((a, b) => b.points - a.points);
+
+      // Assigner les rangs après le tri
+      entries.forEach((entry, index) => {
+        entry.rank = index + 1;
+      });
+
+      // Appliquer la limite
+      return entries.slice(0, limitCount);
     } catch (error) {
       console.error('Erreur lors de la récupération du classement global:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -107,11 +119,16 @@ export class LeaderboardService {
   static async getScoutRank(scoutId: string, unitId: string): Promise<number> {
     try {
       const leaderboard = await this.getLeaderboardByUnit(unitId, 1000);
-      const scoutIndex = leaderboard.findIndex((entry) => entry.scout.id === scoutId);
-      return scoutIndex >= 0 ? scoutIndex + 1 : 0;
+
+      if (leaderboard.length === 0) {
+        return 1; // Si pas de classement, le scout est premier
+      }
+
+      const entry = leaderboard.find((e) => e.scout.id === scoutId);
+      return entry?.rank || 1; // Retourne le rang ou 1 par défaut
     } catch (error) {
       console.error('Erreur lors de la récupération du rang:', error);
-      throw error;
+      return 1; // En cas d'erreur, retourne 1
     }
   }
 

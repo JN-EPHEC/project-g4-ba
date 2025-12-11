@@ -18,11 +18,11 @@ export function useChallenges() {
       setLoading(true);
       setError(null);
 
-      // Récupérer les défis actifs
+      // Récupérer tous les défis (pas seulement les actifs)
       const unitId = user?.unitId;
-      const activeChallenges = await ChallengeService.getActiveChallenges(unitId);
+      const allChallenges = await ChallengeService.getChallenges(unitId);
 
-      setChallenges(activeChallenges);
+      setChallenges(allChallenges);
     } catch (err) {
       console.error('Erreur lors du chargement des défis:', err);
       setError('Impossible de charger les défis');

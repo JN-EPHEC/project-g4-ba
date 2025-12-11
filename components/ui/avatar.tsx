@@ -3,7 +3,33 @@ import { View, StyleSheet, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
+
+// Palette de couleurs pour les avatars
+const AVATAR_COLORS = [
+  BrandColors.primary[500],   // Vert
+  BrandColors.accent[500],    // Orange
+  BrandColors.secondary[500], // Bleu-vert
+  '#8B5CF6',                  // Violet
+  '#EC4899',                  // Rose
+  '#06B6D4',                  // Cyan
+  '#F59E0B',                  // Ambre
+  '#10B981',                  // Émeraude
+];
+
+// Génère une couleur consistante basée sur le nom
+function getAvatarColor(name?: string): string {
+  if (!name) return AVATAR_COLORS[0];
+
+  // Hash simple du nom pour obtenir un index constant
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  const index = Math.abs(hash) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[index];
+}
 
 export type AvatarProps = {
   imageUrl?: string;
@@ -13,7 +39,7 @@ export type AvatarProps = {
 };
 
 export function Avatar({ imageUrl, name, size = 'medium', style }: AvatarProps) {
-  const backgroundColor = useThemeColor({ light: '#3b82f6', dark: '#60a5fa' }, 'tint');
+  const backgroundColor = getAvatarColor(name);
   const textColor = '#ffffff';
 
   const sizeMap = {

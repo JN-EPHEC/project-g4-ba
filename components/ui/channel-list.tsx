@@ -6,6 +6,9 @@ import { ThemedText } from '@/components/themed-text';
 import type { Channel } from '@/src/shared/types/channel';
 import { ChannelService } from '@/src/shared/services/channel-service';
 import { UserRole } from '@/types';
+import { BrandColors, NeutralColors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { Radius, Spacing } from '@/constants/design-tokens';
 
 export interface ChannelListProps {
   channels: Channel[];
@@ -23,6 +26,10 @@ export function ChannelList({
   onCreateChannel,
 }: ChannelListProps) {
   const canCreateChannel = userRole === UserRole.ANIMATOR;
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   return (
     <View style={styles.container}>
@@ -38,13 +45,26 @@ export function ChannelList({
           return (
             <TouchableOpacity
               key={channel.id}
-              style={[styles.channelItem, isSelected && styles.channelItemSelected]}
+              style={[
+                styles.channelItem,
+                {
+                  backgroundColor: isSelected ? BrandColors.primary[500] : cardColor,
+                  borderColor: isSelected ? BrandColors.primary[500] : cardBorder,
+                }
+              ]}
               onPress={() => onSelectChannel(channel)}
               activeOpacity={0.7}
             >
-              <ThemedText style={styles.channelIcon}>{channel.icon}</ThemedText>
+              <Ionicons
+                name={channel.name === 'Annonces' ? 'megaphone' : channel.name === 'Parents' ? 'people' : 'chatbubble'}
+                size={16}
+                color={isSelected ? '#FFFFFF' : BrandColors.primary[500]}
+              />
               <ThemedText
-                style={[styles.channelName, isSelected && styles.channelNameSelected]}
+                style={[
+                  styles.channelName,
+                  { color: isSelected ? '#FFFFFF' : textColor }
+                ]}
                 numberOfLines={1}
               >
                 {channel.name}
@@ -53,7 +73,7 @@ export function ChannelList({
                 <Ionicons
                   name="eye-outline"
                   size={12}
-                  color={isSelected ? '#FFFFFF' : '#999'}
+                  color={isSelected ? '#FFFFFF' : textSecondary}
                   style={styles.readOnlyIcon}
                 />
               )}
@@ -62,8 +82,11 @@ export function ChannelList({
         })}
 
         {canCreateChannel && onCreateChannel && (
-          <TouchableOpacity onPress={onCreateChannel} style={styles.addButton}>
-            <Ionicons name="add" size={20} color="#3b82f6" />
+          <TouchableOpacity
+            onPress={onCreateChannel}
+            style={[styles.addButton, { borderColor: BrandColors.primary[500] }]}
+          >
+            <Ionicons name="add" size={20} color={BrandColors.primary[500]} />
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -73,36 +96,25 @@ export function ChannelList({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
   scrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     paddingVertical: 4,
   },
   channelItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#2A2A2A',
-    gap: 6,
-  },
-  channelItemSelected: {
-    backgroundColor: '#3b82f6',
-  },
-  channelIcon: {
-    fontSize: 16,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.full,
+    gap: Spacing.xs,
+    borderWidth: 1,
   },
   channelName: {
-    color: '#CCCCCC',
     fontSize: 14,
-    fontWeight: '500',
-  },
-  channelNameSelected: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
   readOnlyIcon: {
@@ -111,12 +123,10 @@ const styles = StyleSheet.create({
   addButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2A2A2A',
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#3b82f6',
+    borderWidth: 2,
     borderStyle: 'dashed',
   },
 });

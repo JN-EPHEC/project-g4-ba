@@ -68,6 +68,15 @@ export default function AnimatorLayout() {
         }}
       />
       <Tabs.Screen
+        name="challenges"
+        options={{
+          title: 'Défis',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trophy" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="management"
         options={{
           title: 'Gestion',
@@ -77,20 +86,11 @@ export default function AnimatorLayout() {
           tabBarBadge: totalNotifications > 0 ? totalNotifications : undefined,
         }}
       />
+      {/* Routes cachées - accessibles via navigation programmatique */}
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
-        }}
-      />
-      {/* Routes cachées - accessibles via navigation programmatique */}
-      <Tabs.Screen
-        name="challenges"
-        options={{
-          href: null, // Cache l'onglet de la barre de navigation
+          href: null, // Accessible depuis Gestion
         }}
       />
       <Tabs.Screen
@@ -119,6 +119,12 @@ export default function AnimatorLayout() {
       />
       <Tabs.Screen
         name="edit-profile"
+        options={{
+          href: null, // Cache l'onglet de la barre de navigation
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
         options={{
           href: null, // Cache l'onglet de la barre de navigation
         }}

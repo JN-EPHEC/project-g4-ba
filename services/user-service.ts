@@ -68,6 +68,8 @@ export class UserService {
           unitId: data.unitId || '',
           isUnitLeader: data.isUnitLeader || false,
           specialties: data.specialties || [],
+          totemName: data.totemName,
+          totemAnimal: data.totemAnimal,
         } as Animator;
 
       default:

@@ -1,35 +1,116 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions, ActivityIndicator, Text, Modal, TouchableOpacity } from 'react-native';
-import { ChallengeCard } from '@/src/features/challenges/components/challenge-card';
-import { ChallengesHeader } from '@/src/features/challenges/components/challenges-header';
+import React, { useState, useMemo } from 'react';
+import { ScrollView, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { ChallengeCardNew } from '@/src/features/challenges/components/challenge-card-new';
+import { ChallengesStats } from '@/src/features/challenges/components/challenges-stats';
+import { ChallengesFilterTabs, ChallengeFilter } from '@/src/features/challenges/components/challenges-filter-tabs';
 import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
 import { useAuth } from '@/context/auth-context';
-import { Challenge } from '@/types';
+import { Challenge, ChallengeDifficulty } from '@/types';
 import { Animator } from '@/types';
-
-// Mapper les icônes et couleurs par difficulté
-const DIFFICULTY_CONFIG = {
-  easy: { icon: '🌱', bgColor: '#E8F5E9' },
-  medium: { icon: '⭐', bgColor: '#FFF9C4' },
-  hard: { icon: '🏆', bgColor: '#FFE5E5' },
-};
+import { BrandColors } from '@/constants/theme';
 
 export default function AnimatorChallengesScreen() {
-  const { width } = useWindowDimensions();
   const { user } = useAuth();
   const animator = user as Animator;
   const { challenges, loading, error } = useChallenges();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ChallengeFilter>('all');
 
-  // Calculer le nombre de colonnes en fonction de la largeur
-  const getColumns = () => {
-    if (width >= 1200) return 4;
-    if (width >= 900) return 3;
-    if (width >= 600) return 2;
-    return 1;
+  const tintColor = useThemeColor({}, 'tint');
+
+  // Helper to check if challenge is new (created in last 7 days)
+  const isNewChallenge = (challenge: Challenge) => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return new Date(challenge.createdAt) > sevenDaysAgo;
   };
 
-  const numColumns = getColumns();
+  // Helper to calculate days remaining
+  const getDaysRemaining = (endDate: Date) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  };
+
+  // Helper to check if challenge is active (started and not ended)
+  const isActiveChallenge = (challenge: Challenge) => {
+    const now = new Date();
+    const start = new Date(challenge.startDate);
+    const end = new Date(challenge.endDate);
+    return now >= start && now <= end;
+  };
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalPoints = challenges.reduce((sum, c) => sum + c.points, 0);
+    const activeChallenges = challenges.filter(isActiveChallenge);
+    const newChallenges = challenges.filter(isNewChallenge);
+
+    return {
+      totalPoints,
+      activeCount: activeChallenges.length,
+      newCount: newChallenges.length,
+    };
+  }, [challenges]);
+
+  // Calculate counts for each filter
+  const filterCounts = useMemo(() => {
+    const activeChallenges = challenges.filter(isActiveChallenge);
+    const newChallenges = challenges.filter(isNewChallenge);
+    const endedChallenges = challenges.filter(c => {
+      const now = new Date();
+      const end = new Date(c.endDate);
+      return now > end;
+    });
+
+    return {
+      all: challenges.length,
+      in_progress: activeChallenges.length,
+      completed: endedChallenges.length,
+      new: newChallenges.length,
+    };
+  }, [challenges]);
+
+  // Filter challenges based on active filter
+  const filteredChallenges = useMemo(() => {
+    switch (activeFilter) {
+      case 'in_progress':
+        return challenges.filter(isActiveChallenge);
+      case 'completed':
+        return challenges.filter(c => {
+          const now = new Date();
+          const end = new Date(c.endDate);
+          return now > end;
+        });
+      case 'new':
+        return challenges.filter(isNewChallenge);
+      case 'all':
+      default:
+        return challenges;
+    }
+  }, [challenges, activeFilter]);
+
+  // Sort challenges: active first, then by points
+  const sortedChallenges = useMemo(() => {
+    return [...filteredChallenges].sort((a, b) => {
+      const aActive = isActiveChallenge(a);
+      const bActive = isActiveChallenge(b);
+
+      // Active challenges first
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+
+      // Then by points (highest first)
+      return b.points - a.points;
+    });
+  }, [filteredChallenges]);
 
   const handleChallengeClick = (challenge: Challenge) => {
     setSelectedChallenge(challenge);
@@ -41,72 +122,86 @@ export default function AnimatorChallengesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Chargement des défis...</Text>
+          <ActivityIndicator size="large" color={tintColor} />
+          <ThemedText color="secondary" style={styles.loadingText}>Chargement des défis...</ThemedText>
         </View>
-      </View>
+      </ThemedView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
+      <ThemedView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
+          <ThemedText style={styles.errorIcon}>⚠️</ThemedText>
+          <ThemedText color="error" style={styles.errorText}>{error}</ThemedText>
         </View>
-      </View>
+      </ThemedView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <ChallengesHeader totalPoints={0} />
+        {/* Header with Stats */}
+        <ChallengesStats
+          totalPoints={stats.totalPoints}
+          rank={null}
+          completedCount={filterCounts.completed}
+          streak={stats.activeCount}
+          inProgressCount={filterCounts.in_progress}
+          onRankPress={() => router.push('/(animator)/leaderboard')}
+          showRankAsClickable={true}
+        />
 
-        {/* Grille de défis responsive */}
-        {challenges.length === 0 ? (
+        {/* Filter Tabs */}
+        <ChallengesFilterTabs
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          counts={filterCounts}
+        />
+
+        {/* Challenges List */}
+        {sortedChallenges.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🎯</Text>
-            <Text style={styles.emptyTitle}>Aucun défi disponible</Text>
-            <Text style={styles.emptyText}>
-              Créez un nouveau défi depuis l'onglet Gestion !
-            </Text>
+            <ThemedText style={styles.emptyIcon}>🎯</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+              Aucun défi trouvé
+            </ThemedText>
+            <ThemedText color="secondary" style={styles.emptyText}>
+              {activeFilter === 'completed'
+                ? 'Aucun défi terminé pour le moment'
+                : activeFilter === 'new'
+                ? 'Pas de nouveaux défis cette semaine'
+                : 'Créez un nouveau défi depuis l\'onglet Gestion !'}
+            </ThemedText>
           </View>
         ) : (
-          <View style={[styles.challengesGrid, { gap: 16 }]}>
-            {challenges.map((challenge) => {
-              const config = DIFFICULTY_CONFIG[challenge.difficulty];
+          <View style={styles.challengesList}>
+            {sortedChallenges.map((challenge) => {
+              const isEnded = new Date() > new Date(challenge.endDate);
 
               return (
-                <View
+                <ChallengeCardNew
                   key={challenge.id}
-                  style={[
-                    styles.challengeItem,
-                    {
-                      width: width >= 600
-                        ? `${100 / numColumns - 2}%`
-                        : '100%',
-                      minWidth: width >= 600 ? 250 : undefined,
-                    },
-                  ]}
-                >
-                  <ChallengeCard
-                    title={challenge.title}
-                    points={challenge.points}
-                    icon={config.icon}
-                    iconBgColor={config.bgColor}
-                    onPress={() => handleChallengeClick(challenge)}
-                    completed={false}
-                  />
-                </View>
+                  title={challenge.title}
+                  description={challenge.description}
+                  points={challenge.points}
+                  emoji={challenge.emoji}
+                  difficulty={challenge.difficulty}
+                  category={challenge.category}
+                  daysRemaining={getDaysRemaining(challenge.endDate)}
+                  isCompleted={isEnded}
+                  isNew={isNewChallenge(challenge)}
+                  participantsCount={challenge.participantsCount || 0}
+                  onPress={() => handleChallengeClick(challenge)}
+                />
               );
             })}
           </View>
@@ -120,7 +215,7 @@ export default function AnimatorChallengesScreen() {
           onClose={handleCloseModal}
         />
       )}
-    </View>
+    </ThemedView>
   );
 }
 
@@ -132,6 +227,11 @@ function ChallengeModal({
   challenge: Challenge;
   onClose: () => void;
 }) {
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorderColor = useThemeColor({}, 'cardBorder');
+  const overlayColor = useThemeColor({}, 'overlay');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -140,6 +240,20 @@ function ChallengeModal({
     });
   };
 
+  const getDifficultyInfo = (difficulty: ChallengeDifficulty) => {
+    switch (difficulty) {
+      case ChallengeDifficulty.EASY:
+        return { label: 'Facile', color: '#10b981', emoji: '🟢' };
+      case ChallengeDifficulty.MEDIUM:
+        return { label: 'Moyen', color: '#f59e0b', emoji: '🟡' };
+      case ChallengeDifficulty.HARD:
+        return { label: 'Difficile', color: '#ef4444', emoji: '🔴' };
+    }
+  };
+
+  const difficultyInfo = getDifficultyInfo(challenge.difficulty);
+  const isEnded = new Date() > new Date(challenge.endDate);
+
   return (
     <Modal
       visible={true}
@@ -147,57 +261,95 @@ function ChallengeModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <View style={[styles.modalOverlay, { backgroundColor: overlayColor }]}>
+        <View style={[styles.modalContent, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleContainer}>
-                <Text style={styles.modalIcon}>
-                  {DIFFICULTY_CONFIG[challenge.difficulty].icon}
-                </Text>
-                <Text style={styles.modalTitle}>{challenge.title}</Text>
+                <View style={[styles.modalEmojiContainer, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+                  <ThemedText style={styles.modalEmoji}>
+                    {challenge.emoji || '🎯'}
+                  </ThemedText>
+                </View>
+                <View style={styles.modalTitleInfo}>
+                  <ThemedText type="title" style={styles.modalTitle} numberOfLines={2}>
+                    {challenge.title}
+                  </ThemedText>
+                  <View style={styles.modalBadgesRow}>
+                    <View style={[styles.modalBadge, { backgroundColor: `${difficultyInfo.color}15` }]}>
+                      <ThemedText style={[styles.modalBadgeText, { color: difficultyInfo.color }]}>
+                        {difficultyInfo.label}
+                      </ThemedText>
+                    </View>
+                    <View style={[styles.modalBadge, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+                      <ThemedText style={[styles.modalBadgeText, { color: BrandColors.accent[500] }]}>
+                        +{challenge.points} pts
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
               </View>
               <TouchableOpacity
-                style={styles.closeButton}
+                style={[styles.closeButton, { backgroundColor: cardBorderColor }]}
                 onPress={onClose}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Text style={styles.closeButtonText}>✕</Text>
+                <Ionicons name="close" size={20} color={textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {/* Points */}
-            <View style={styles.pointsBadge}>
-              <Text style={styles.pointsIcon}>⭐</Text>
-              <Text style={styles.pointsText}>{challenge.points} points</Text>
-            </View>
+            {/* Status Badge */}
+            {isEnded && (
+              <View style={[styles.statusBadge, { backgroundColor: '#f3f4f6' }]}>
+                <Ionicons name="checkmark-circle" size={18} color="#6b7280" />
+                <ThemedText style={[styles.statusBadgeText, { color: '#6b7280' }]}>Défi terminé</ThemedText>
+              </View>
+            )}
 
             {/* Description */}
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Description</Text>
-              <Text style={styles.modalDescription}>{challenge.description}</Text>
+              <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Description</ThemedText>
+              <ThemedText style={styles.modalDescription}>{challenge.description}</ThemedText>
             </View>
 
             {/* Dates */}
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Période</Text>
-              <Text style={styles.modalDate}>
-                Du {formatDate(challenge.startDate)} au {formatDate(challenge.endDate)}
-              </Text>
-            </View>
-
-            {/* Difficulté */}
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Difficulté</Text>
-              <View style={styles.difficultyBadge}>
-                <Text style={styles.difficultyText}>
-                  {challenge.difficulty === 'easy' && '🟢 Facile'}
-                  {challenge.difficulty === 'medium' && '🟡 Moyen'}
-                  {challenge.difficulty === 'hard' && '🔴 Difficile'}
-                </Text>
+              <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Période</ThemedText>
+              <View style={styles.dateRow}>
+                <Ionicons name="calendar-outline" size={16} color={textSecondary} />
+                <ThemedText style={styles.modalDate}>
+                  Du {formatDate(challenge.startDate)} au {formatDate(challenge.endDate)}
+                </ThemedText>
               </View>
             </View>
+
+            {/* Participants */}
+            {challenge.participantsCount !== undefined && challenge.participantsCount > 0 && (
+              <View style={styles.modalSection}>
+                <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Participants</ThemedText>
+                <View style={styles.participantsRow}>
+                  <Ionicons name="people" size={16} color={textSecondary} />
+                  <ThemedText style={styles.participantsText}>
+                    {challenge.participantsCount} participant{challenge.participantsCount > 1 ? 's' : ''}
+                  </ThemedText>
+                </View>
+              </View>
+            )}
+
+            {/* Edit Button */}
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: BrandColors.primary[500] }]}
+              onPress={() => {
+                onClose();
+                router.push(`/(animator)/challenges/${challenge.id}` as any);
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+              <ThemedText style={styles.editButtonText}>
+                Modifier le défi
+              </ThemedText>
+            </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
@@ -208,14 +360,14 @@ function ChallengeModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingTop: 60,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -225,8 +377,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 15,
-    color: '#666666',
-    letterSpacing: -0.3,
   },
   errorContainer: {
     flex: 1,
@@ -240,54 +390,44 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#FF3B30',
     textAlign: 'center',
-    letterSpacing: -0.3,
   },
-  challengesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-  },
-  challengeItem: {
-    marginBottom: 16,
+  challengesList: {
+    gap: 12,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: 60,
     paddingHorizontal: 32,
   },
   emptyIcon: {
-    fontSize: 64,
+    fontSize: 48,
     marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    letterSpacing: -0.5,
+    fontSize: 18,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyText: {
-    fontSize: 15,
-    color: '#666666',
+    fontSize: 14,
     textAlign: 'center',
-    letterSpacing: -0.3,
+    lineHeight: 20,
   },
 
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 24,
     maxHeight: '90%',
+    borderWidth: 1,
+    borderBottomWidth: 0,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -298,79 +438,110 @@ const styles = StyleSheet.create({
   modalTitleContainer: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
   },
-  modalIcon: {
-    fontSize: 32,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    letterSpacing: -0.5,
-    flex: 1,
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
+  modalEmojiContainer: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
-    backgroundColor: '#F2F2F7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#8E8E93',
-    fontWeight: '600',
+  modalEmoji: {
+    fontSize: 28,
   },
-  pointsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF9C4',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 24,
+  modalTitleInfo: {
+    flex: 1,
     gap: 8,
   },
-  pointsIcon: {
+  modalTitle: {
     fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 24,
   },
-  pointsText: {
-    fontSize: 17,
+  modalBadgesRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modalBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  modalBadgeText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#1A1A1A',
-    letterSpacing: -0.3,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  statusBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   modalSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   modalSectionTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E93',
     marginBottom: 8,
-    letterSpacing: -0.3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   modalDescription: {
-    fontSize: 17,
-    color: '#1A1A1A',
-    lineHeight: 24,
-    letterSpacing: -0.3,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   modalDate: {
-    fontSize: 17,
-    color: '#1A1A1A',
-    letterSpacing: -0.3,
+    fontSize: 15,
   },
-  difficultyBadge: {
-    alignSelf: 'flex-start',
+  participantsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  difficultyText: {
+  participantsText: {
+    fontSize: 15,
+  },
+  editButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    shadowColor: BrandColors.primary[500],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editButtonText: {
     fontSize: 17,
-    fontWeight: '500',
-    letterSpacing: -0.3,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

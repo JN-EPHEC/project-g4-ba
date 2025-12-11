@@ -49,7 +49,10 @@ export default function ScoutLayout() {
       <Tabs.Screen
         name="challenges"
         options={{
-          href: null, // Accessible depuis le dashboard
+          title: 'Défis',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trophy" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -62,33 +65,49 @@ export default function ScoutLayout() {
         }}
       />
       <Tabs.Screen
+        name="more"
+        options={{
+          title: 'Plus',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="ellipsis-horizontal" size={size} color={color} />
+          ),
+        }}
+      />
+      {/* Routes cachées */}
+      <Tabs.Screen
         name="documents"
         options={{
-          title: 'Documents',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="folder-open" size={size} color={color} />
-          ),
+          href: null, // Accessible depuis Plus
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
+          href: null, // Accessible depuis Plus
         }}
       />
       <Tabs.Screen
         name="leaderboard"
         options={{
-          href: null, // Cache le leaderboard de la barre de navigation
+          href: null,
         }}
       />
       <Tabs.Screen
         name="edit-profile"
         options={{
-          href: null, // Cache l'onglet de la barre de navigation
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="health"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="health/edit"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

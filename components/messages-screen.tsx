@@ -6,7 +6,8 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -19,8 +20,9 @@ import { UnitService } from '@/services/unit-service';
 import type { Channel, ChannelMessage } from '@/src/shared/types/channel';
 import type { AnyUser } from '@/types';
 import { UserRole } from '@/types';
-import { BrandColors } from '@/constants/theme';
+import { BrandColors, NeutralColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { Radius, Spacing } from '@/constants/design-tokens';
 
 interface MessagesScreenProps {
   user: AnyUser;
@@ -43,6 +45,10 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
 
   // Theme colors
   const backgroundColor = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   // Charger les membres de l'unité pour les mentions
   const loadUnitMembers = useCallback(async () => {
@@ -57,6 +63,8 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
           id: member.id,
           firstName: member.firstName,
           lastName: member.lastName,
+          totemAnimal: (member as any).totemAnimal,
+          totemEmoji: (member as any).totemEmoji,
         }));
       setMentionableUsers(mentionable);
       console.log('[Messages] Membres chargés:', mentionable.length);
@@ -126,6 +134,8 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                   firstName: userData.firstName,
                   lastName: userData.lastName,
                   profilePicture: userData.profilePicture,
+                  totemAnimal: (userData as any).totemAnimal,
+                  totemEmoji: (userData as any).totemEmoji,
                 };
               }
             } catch (error) {
@@ -197,6 +207,8 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
           firstName: user.firstName,
           lastName: user.lastName,
           profilePicture: user.profilePicture,
+          totemAnimal: (user as any).totemAnimal,
+          totemEmoji: (user as any).totemEmoji,
         },
       }));
     }
@@ -237,7 +249,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={BrandColors.primary[500]} />
-          <ThemedText style={styles.loadingText}>
+          <ThemedText style={[styles.loadingText, { color: textSecondary }]}>
             Chargement des canaux...
           </ThemedText>
         </View>
@@ -249,11 +261,11 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ThemedText style={styles.emptyIcon}>📭</ThemedText>
-          <ThemedText type="subtitle" style={styles.emptyTitle}>
+          <Ionicons name="chatbubbles-outline" size={56} color={textSecondary} />
+          <ThemedText type="subtitle" style={[styles.emptyTitle, { color: textColor }]}>
             Aucun canal disponible
           </ThemedText>
-          <ThemedText style={styles.emptyText}>
+          <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
             Les canaux de discussion n'ont pas encore été créés pour votre unité.
           </ThemedText>
         </View>
@@ -276,7 +288,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
           />
         }
       >
-        <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
+        <ThemedText type="title" style={[styles.title, { color: textColor }]}>
           Messages
         </ThemedText>
 
@@ -291,19 +303,29 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
 
         {selectedChannel && (
           <>
-            <View style={styles.channelHeader}>
-              <ThemedText style={styles.channelIcon}>{selectedChannel.icon}</ThemedText>
-              <View>
-                <ThemedText type="subtitle" style={styles.channelTitle}>
+            {/* En-tête du canal sélectionné */}
+            <Animated.View
+              entering={FadeIn.duration(300)}
+              style={[styles.channelHeader, { backgroundColor: cardColor, borderColor: cardBorder }]}
+            >
+              <View style={[styles.channelIconContainer, { backgroundColor: BrandColors.primary[500] }]}>
+                <Ionicons
+                  name={selectedChannel.name === 'Annonces' ? 'megaphone' : selectedChannel.name === 'Parents' ? 'people' : 'chatbubble'}
+                  size={24}
+                  color="#FFFFFF"
+                />
+              </View>
+              <View style={styles.channelInfo}>
+                <ThemedText type="subtitle" style={[styles.channelTitle, { color: textColor }]}>
                   {selectedChannel.name}
                 </ThemedText>
                 {selectedChannel.description && (
-                  <ThemedText style={styles.channelDescription}>
+                  <ThemedText style={[styles.channelDescription, { color: textSecondary }]}>
                     {selectedChannel.description}
                   </ThemedText>
                 )}
               </View>
-            </View>
+            </Animated.View>
 
             {canWriteInChannel ? (
               <Animated.View entering={FadeIn.duration(300)}>
@@ -314,8 +336,9 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                 />
               </Animated.View>
             ) : (
-              <View style={styles.readOnlyBanner}>
-                <ThemedText style={styles.readOnlyText}>
+              <View style={[styles.readOnlyBanner, { backgroundColor: `${BrandColors.accent[500]}15`, borderColor: BrandColors.accent[500] }]}>
+                <Ionicons name="eye-outline" size={16} color={BrandColors.accent[500]} />
+                <ThemedText style={[styles.readOnlyText, { color: BrandColors.accent[500] }]}>
                   Ce canal est en lecture seule
                 </ThemedText>
               </View>
@@ -326,12 +349,12 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                 <ActivityIndicator size="small" color={BrandColors.primary[500]} />
               </View>
             ) : messages.length === 0 ? (
-              <Animated.View entering={FadeIn.duration(400)} style={styles.emptyState}>
-                <ThemedText style={styles.emptyIcon}>💬</ThemedText>
-                <ThemedText type="subtitle" style={styles.emptyTitle}>
+              <Animated.View entering={FadeIn.duration(400)} style={[styles.emptyState, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                <Ionicons name="chatbubble-ellipses-outline" size={48} color={textSecondary} />
+                <ThemedText type="subtitle" style={[styles.emptyTitle, { color: textColor }]}>
                   Aucun message
                 </ThemedText>
-                <ThemedText style={styles.emptyText}>
+                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
                   {canWriteInChannel
                     ? 'Soyez le premier à écrire dans ce canal !'
                     : 'Aucun message pour le moment.'}
@@ -340,7 +363,10 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
             ) : (
               <View key={`messages-list-${listKey}`}>
                 {messages.map((message, index) => (
-                  <View key={`${message.id}-${index}`}>
+                  <Animated.View
+                    key={`${message.id}-${index}`}
+                    entering={FadeInDown.duration(300).delay(index * 50)}
+                  >
                     <PostCard
                       post={{
                         id: message.id,
@@ -353,8 +379,9 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                       author={authors[message.authorId]}
                       canDelete={canDeleteMessages}
                       onDelete={handleDeleteMessage}
+                      isCurrentUser={message.authorId === user.id}
                     />
-                  </View>
+                  </Animated.View>
                 ))}
               </View>
             )}
@@ -368,25 +395,25 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   scrollContent: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingTop: 60,
     paddingBottom: 100,
   },
   title: {
-    marginBottom: 20,
-    color: '#FFFFFF',
+    marginBottom: Spacing.lg,
+    fontSize: 28,
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   loadingText: {
-    color: '#999999',
+    fontSize: 15,
   },
   loadingMessages: {
     paddingVertical: 40,
@@ -395,46 +422,57 @@ const styles = StyleSheet.create({
   channelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    gap: Spacing.md,
   },
-  channelIcon: {
-    fontSize: 28,
+  channelIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  channelInfo: {
+    flex: 1,
   },
   channelTitle: {
-    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
   channelDescription: {
-    color: '#999999',
     fontSize: 13,
     marginTop: 2,
   },
   readOnlyBanner: {
-    backgroundColor: '#2A2A2A',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+    borderWidth: 1,
   },
   readOnlyText: {
-    color: '#999999',
     fontSize: 13,
+    fontWeight: '500',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
-    gap: 8,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+    paddingVertical: Spacing.xl * 2,
+    gap: Spacing.sm,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
   },
   emptyTitle: {
-    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
   emptyText: {
-    color: '#999999',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
   },
 });

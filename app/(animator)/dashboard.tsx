@@ -15,6 +15,7 @@ import { ChannelService } from '@/src/shared/services/channel-service';
 import { Animator, Unit } from '@/types';
 import { BrandColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/design-tokens';
+import { getDisplayName } from '@/src/shared/utils/totem-utils';
 
 // Import des widgets
 import { WeatherWidget, BirthdaysWidget } from '@/src/features/dashboard/components';
@@ -146,7 +147,7 @@ export default function AnimatorDashboardScreen() {
         {/* Header */}
         <Animated.View entering={FadeIn.duration(400)}>
           <ThemedText style={[styles.greeting, { color: textSecondary }]}>
-            Bonjour {animator?.firstName} 👋
+            Bonjour {getDisplayName(animator, { firstNameOnly: true })} 👋
           </ThemedText>
           {unit && (
             <>

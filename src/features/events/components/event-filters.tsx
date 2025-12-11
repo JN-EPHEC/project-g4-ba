@@ -1,5 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors } from '@/constants/theme';
+import { Spacing, Radius } from '@/constants/design-tokens';
 
 export type EventTypeFilter = 'all' | 'meeting' | 'camp' | 'activity' | 'training';
 
@@ -8,15 +12,22 @@ interface EventFiltersProps {
   onFilterChange: (filter: EventTypeFilter) => void;
 }
 
-const FILTERS = [
-  { id: 'all' as EventTypeFilter, label: 'Tous', icon: '📅' },
-  { id: 'meeting' as EventTypeFilter, label: 'Réunions', icon: '📋' },
-  { id: 'camp' as EventTypeFilter, label: 'Camps', icon: '⛺' },
-  { id: 'activity' as EventTypeFilter, label: 'Activités', icon: '🎯' },
-  { id: 'training' as EventTypeFilter, label: 'Formations', icon: '📚' },
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const FILTERS: { id: EventTypeFilter; label: string; icon: IoniconsName }[] = [
+  { id: 'all', label: 'Tous', icon: 'calendar' },
+  { id: 'meeting', label: 'Réunions', icon: 'people' },
+  { id: 'camp', label: 'Camps', icon: 'bonfire' },
+  { id: 'activity', label: 'Sorties', icon: 'compass' },
+  { id: 'training', label: 'Formations', icon: 'school' },
 ];
 
 export function EventFilters({ selectedFilter, onFilterChange }: EventFiltersProps) {
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -31,15 +42,21 @@ export function EventFilters({ selectedFilter, onFilterChange }: EventFiltersPro
               key={filter.id}
               style={[
                 styles.filterButton,
+                { backgroundColor: cardColor, borderColor: cardBorder },
                 isSelected && styles.filterButtonSelected,
               ]}
               onPress={() => onFilterChange(filter.id)}
               activeOpacity={0.7}
             >
-              <Text style={styles.filterIcon}>{filter.icon}</Text>
+              <Ionicons
+                name={filter.icon}
+                size={18}
+                color={isSelected ? '#FFFFFF' : textSecondary}
+              />
               <Text
                 style={[
                   styles.filterLabel,
+                  { color: textColor },
                   isSelected && styles.filterLabelSelected,
                 ]}
               >
@@ -55,34 +72,27 @@ export function EventFilters({ selectedFilter, onFilterChange }: EventFiltersPro
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
   },
   scrollContent: {
-    paddingHorizontal: 4,
-    gap: 12,
+    gap: Spacing.sm,
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#2A2A2A',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: '#3A3A3A',
-    gap: 8,
+    gap: Spacing.sm,
   },
   filterButtonSelected: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  filterIcon: {
-    fontSize: 16,
+    backgroundColor: BrandColors.primary[500],
+    borderColor: BrandColors.primary[500],
   },
   filterLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   filterLabelSelected: {

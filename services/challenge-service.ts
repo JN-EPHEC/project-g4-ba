@@ -31,12 +31,18 @@ export class ChallengeService {
       description: data.description,
       points: data.points,
       difficulty: data.difficulty as ChallengeDifficulty,
+      category: data.category,
+      emoji: data.emoji,
       unitId: data.unitId,
       imageUrl: data.imageUrl,
       startDate: data.startDate?.toDate() || new Date(),
       endDate: data.endDate?.toDate() || new Date(),
       createdBy: data.createdBy,
       createdAt: data.createdAt?.toDate() || new Date(),
+      participantsCount: data.participantsCount || 0,
+      isGlobal: data.isGlobal || false,
+      allowMultipleValidations: data.allowMultipleValidations || false,
+      notifyMembers: data.notifyMembers || true,
     };
   }
 
@@ -52,7 +58,12 @@ export class ChallengeService {
     endDate: Date,
     createdBy: string,
     unitId?: string,
-    imageUrl?: string
+    imageUrl?: string,
+    emoji?: string,
+    category?: string,
+    isGlobal?: boolean,
+    allowMultipleValidations?: boolean,
+    notifyMembers?: boolean
   ): Promise<Challenge> {
     try {
       const challengeData = {
@@ -60,12 +71,18 @@ export class ChallengeService {
         description,
         points,
         difficulty,
+        category: category || null,
+        emoji: emoji || null,
         unitId: unitId || null,
         imageUrl: imageUrl || null,
         startDate: Timestamp.fromDate(startDate),
         endDate: Timestamp.fromDate(endDate),
         createdBy,
         createdAt: Timestamp.fromDate(new Date()),
+        participantsCount: 0,
+        isGlobal: isGlobal || false,
+        allowMultipleValidations: allowMultipleValidations || false,
+        notifyMembers: notifyMembers !== false,
       };
 
       const challengeRef = doc(collection(db, this.COLLECTION_NAME));

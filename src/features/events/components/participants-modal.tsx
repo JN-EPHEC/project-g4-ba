@@ -9,11 +9,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
 
 export interface ParticipantInfo {
   id: string;
   firstName: string;
   lastName: string;
+  totemAnimal?: string;
+  totemEmoji?: string;
 }
 
 interface ParticipantsModalProps {
@@ -84,13 +87,12 @@ export function ParticipantsModal({
               >
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
-                    {participant.firstName.charAt(0).toUpperCase()}
-                    {participant.lastName.charAt(0).toUpperCase()}
+                    {getUserTotemEmoji(participant) || `${participant.firstName.charAt(0).toUpperCase()}${participant.lastName.charAt(0).toUpperCase()}`}
                   </Text>
                 </View>
                 <View style={styles.participantInfo}>
                   <Text style={styles.participantName}>
-                    {participant.firstName} {participant.lastName}
+                    {getDisplayName(participant)}
                   </Text>
                 </View>
               </View>

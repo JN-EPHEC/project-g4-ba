@@ -11,6 +11,7 @@ import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Scout } from '@/types';
 import { RankProgressBar } from '@/components/rank-progress-bar';
+import { TOTEM_ANIMALS } from '@/components/totem-selector';
 import { BrandColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/design-tokens';
 
@@ -92,10 +93,18 @@ export default function ProfileScreen() {
             </ThemedText>
 
             {/* Nom de totem */}
-            {scout?.totemName && (
+            {(scout?.totemName || scout?.totemAnimal) && (
               <View style={[styles.totemBadge, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
-                <Ionicons name="paw" size={14} color={BrandColors.accent[500]} />
-                <ThemedText style={[styles.totemName, { color: BrandColors.accent[500] }]}>{scout.totemName}</ThemedText>
+                {scout?.totemAnimal ? (
+                  <ThemedText style={styles.totemEmoji}>
+                    {TOTEM_ANIMALS.find(a => a.name === scout.totemAnimal)?.emoji || '🐾'}
+                  </ThemedText>
+                ) : (
+                  <Ionicons name="paw" size={14} color={BrandColors.accent[500]} />
+                )}
+                <ThemedText style={[styles.totemName, { color: BrandColors.accent[500] }]}>
+                  {scout?.totemName || scout?.totemAnimal}
+                </ThemedText>
               </View>
             )}
 
@@ -132,7 +141,12 @@ export default function ProfileScreen() {
             {scout?.totemAnimal && (
               <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
                 <ThemedText style={styles.infoLabel}>Animal totem</ThemedText>
-                <ThemedText style={styles.infoValue}>{scout.totemAnimal}</ThemedText>
+                <View style={styles.totemInfoValue}>
+                  <ThemedText style={styles.totemEmoji}>
+                    {TOTEM_ANIMALS.find(a => a.name === scout.totemAnimal)?.emoji || '🐾'}
+                  </ThemedText>
+                  <ThemedText style={styles.infoValue}>{scout.totemAnimal}</ThemedText>
+                </View>
               </View>
             )}
             {scout?.phone && (
@@ -142,6 +156,25 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
+        </Card>
+
+        {/* Fiche Santé */}
+        <Card style={styles.settingsCard}>
+          <TouchableOpacity
+            style={styles.settingsHeader}
+            onPress={() => router.push('/(scout)/health')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingsHeaderLeft}>
+              <Ionicons name="medkit-outline" size={24} color={BrandColors.primary[500]} />
+              <ThemedText type="defaultSemiBold">Fiche Santé</ThemedText>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={iconColor}
+            />
+          </TouchableOpacity>
         </Card>
 
         {/* Panneau Apparence */}
@@ -249,6 +282,14 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontSize: 14,
     fontWeight: '600',
+  },
+  totemEmoji: {
+    fontSize: 16,
+  },
+  totemInfoValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   email: {
     marginTop: 8,

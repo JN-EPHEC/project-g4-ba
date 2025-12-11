@@ -8,9 +8,7 @@ export function useColorScheme(): 'light' | 'dark' {
   try {
     const { colorScheme } = useTheme();
     return colorScheme;
-  } catch (error) {
-    // Fallback si le ThemeProvider n'est pas encore monté
-    console.warn('⚠️ useColorScheme.web fallback vers dark:', error);
-    return 'dark';
+  } catch {
+    return 'light';
   }
 }

@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { WidgetCard } from './widget-card';
 import { BirthdayService, BirthdayInfo } from '@/src/shared/services/birthday-service';
 import { formatShortDate } from '@/src/shared/utils/date-utils';
+import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
 import { BrandColors, NeutralColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Radius, Spacing } from '@/constants/design-tokens';
@@ -88,7 +89,7 @@ export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWi
               ) : (
                 <View style={[styles.avatarPlaceholder, { backgroundColor: BrandColors.primary[500] }]}>
                   <ThemedText style={styles.avatarInitial}>
-                    {birthday.firstName.charAt(0).toUpperCase()}{birthday.lastName.charAt(0).toUpperCase()}
+                    {getUserTotemEmoji(birthday) || `${birthday.firstName.charAt(0).toUpperCase()}${birthday.lastName.charAt(0).toUpperCase()}`}
                   </ThemedText>
                 </View>
               )}
@@ -96,7 +97,7 @@ export function BirthdaysWidget({ unitId, delay = 0, maxItems = 5 }: BirthdaysWi
               {/* Info */}
               <View style={styles.birthdayInfo}>
                 <ThemedText style={[styles.birthdayName, { color: textColor }]} numberOfLines={1}>
-                  {birthday.firstName} {birthday.lastName}
+                  {getDisplayName(birthday)}
                 </ThemedText>
                 <ThemedText style={[styles.birthdayDate, { color: textSecondary }]}>
                   {formatShortDate(birthday.dateOfBirth)} • {birthday.age} ans

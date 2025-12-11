@@ -16,9 +16,12 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { Card, PrimaryButton } from '@/components/ui';
+import { TotemSelector, TOTEM_ANIMALS } from '@/components/totem-selector';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Scout } from '@/types';
+import { BrandColors } from '@/constants/theme';
+import { Spacing } from '@/constants/design-tokens';
 
 export default function EditProfileScreen() {
   const { user, updateUser, isLoading } = useAuth();
@@ -34,6 +37,7 @@ export default function EditProfileScreen() {
     phone: scout?.phone || '',
     totemName: scout?.totemName || '',
     totemAnimal: scout?.totemAnimal || '',
+    totemEmoji: scout?.totemEmoji || '',
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -49,6 +53,7 @@ export default function EditProfileScreen() {
         phone: formData.phone.trim() || undefined,
         totemName: formData.totemName.trim() || undefined,
         totemAnimal: formData.totemAnimal.trim() || undefined,
+        totemEmoji: formData.totemEmoji.trim() || undefined,
       });
 
       Alert.alert('Succès', 'Ton profil a été mis à jour !', [
@@ -167,37 +172,39 @@ export default function EditProfileScreen() {
           {/* Totem */}
           <Card style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="paw" size={24} color="#f59e0b" />
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
+              <Ionicons name="paw" size={24} color={BrandColors.accent[500]} />
+              <ThemedText type="subtitle" style={[styles.sectionTitle, { marginBottom: 0 }]}>
                 Mon totem
               </ThemedText>
             </View>
 
+            <ThemedText style={[styles.totemHint, { marginBottom: Spacing.md }]}>
+              Choisis ton animal totem ! Il représente tes qualités et ton esprit scout.
+            </ThemedText>
+
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Nom de totem</ThemedText>
+              <ThemedText style={styles.label}>Animal totem</ThemedText>
+              <TotemSelector
+                selectedAnimal={formData.totemAnimal}
+                onSelectAnimal={(animal) => setFormData({ ...formData, totemAnimal: animal })}
+                selectedEmoji={formData.totemEmoji}
+                onSelectEmoji={(emoji) => setFormData({ ...formData, totemEmoji: emoji })}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Nom de totem (surnom)</ThemedText>
               <TextInput
                 style={[styles.input, { borderColor, color: textColor }]}
                 value={formData.totemName}
                 onChangeText={(text) => setFormData({ ...formData, totemName: text })}
-                placeholder="Ex: Aigle Rusé"
+                placeholder={formData.totemAnimal ? `Ex: ${formData.totemAnimal} Rusé` : 'Ex: Aigle Rusé'}
                 placeholderTextColor="#888"
               />
+              <ThemedText style={styles.totemHint}>
+                Combine ton animal avec un adjectif qui te caractérise
+              </ThemedText>
             </View>
-
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Animal</ThemedText>
-              <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
-                value={formData.totemAnimal}
-                onChangeText={(text) => setFormData({ ...formData, totemAnimal: text })}
-                placeholder="Ex: Aigle"
-                placeholderTextColor="#888"
-              />
-            </View>
-
-            <ThemedText style={styles.totemHint}>
-              Le totem est un nom symbolique donné lors de ton parcours scout
-            </ThemedText>
           </Card>
 
           {/* Bouton Sauvegarder */}
@@ -223,7 +230,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 100,
     paddingBottom: 40,
   },
   header: {

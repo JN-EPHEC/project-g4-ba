@@ -3,6 +3,6 @@
  * Fonctions utilitaires réutilisables
  */
 
-// Export des fonctions utilitaires ici
+export * from './totem-utils';
 // export * from './date-utils';
 // export * from './validation-utils';

@@ -12,6 +12,7 @@ import { Animator, Scout } from '@/types';
 import { db } from '@/config/firebase';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
+import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
 
 export default function ValidateScoutsScreen() {
   const { user } = useAuth();
@@ -97,13 +98,12 @@ export default function ValidateScoutsScreen() {
       <View style={styles.scoutHeader}>
         <View style={styles.scoutAvatar}>
           <ThemedText style={styles.avatarText}>
-            {scout.firstName.charAt(0)}
-            {scout.lastName.charAt(0)}
+            {getUserTotemEmoji(scout) || `${scout.firstName.charAt(0)}${scout.lastName.charAt(0)}`}
           </ThemedText>
         </View>
         <View style={styles.scoutInfo}>
           <ThemedText type="defaultSemiBold">
-            {scout.firstName} {scout.lastName}
+            {getDisplayName(scout)}
           </ThemedText>
           <ThemedText style={styles.scoutEmail}>{scout.email}</ThemedText>
           {!isPending && scout.validatedAt && (

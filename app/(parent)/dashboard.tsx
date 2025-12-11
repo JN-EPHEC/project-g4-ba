@@ -13,6 +13,7 @@ import { ParentScoutService } from '@/services/parent-scout-service';
 import { Parent, Scout } from '@/types';
 import { BrandColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/design-tokens';
+import { getDisplayName } from '@/src/shared/utils/totem-utils';
 
 export default function ParentDashboardScreen() {
   const { user } = useAuth();
@@ -109,14 +110,14 @@ export default function ParentDashboardScreen() {
                 activeOpacity={0.7}
               >
                 <Avatar
-                  name={`${scout.firstName} ${scout.lastName}`}
+                  name={getDisplayName(scout, { showTotem: false })}
                   imageUrl={scout.profilePicture}
                   size="medium"
                 />
                 <View style={styles.scoutInfo}>
                   <View style={styles.nameRow}>
                     <ThemedText style={[styles.scoutName, { color: textColor }]}>
-                      {scout.firstName} {scout.lastName}
+                      {getDisplayName(scout)}
                     </ThemedText>
                     <RankBadge xp={scout.points || 0} size="small" />
                   </View>

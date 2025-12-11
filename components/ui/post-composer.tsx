@@ -15,6 +15,10 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
 import { Card } from './card';
+import { BrandColors, NeutralColors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { Radius, Spacing } from '@/constants/design-tokens';
+import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
 
 const MAX_CHARACTERS = 200;
 
@@ -22,6 +26,8 @@ export interface MentionableUser {
   id: string;
   firstName: string;
   lastName: string;
+  totemAnimal?: string;
+  totemEmoji?: string;
 }
 
 export interface PostComposerProps {
@@ -42,6 +48,14 @@ export function PostComposer({
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const inputRef = useRef<TextInput>(null);
+
+  // Theme colors
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorder = useThemeColor({}, 'cardBorder');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const inputBg = useThemeColor({}, 'inputBackground');
+  const inputBorder = useThemeColor({}, 'inputBorder');
 
   const charactersLeft = MAX_CHARACTERS - content.length;
   const isOverLimit = charactersLeft < 0;
@@ -147,12 +161,12 @@ export function PostComposer({
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <Card style={styles.card}>
+      <Card style={[styles.card, { backgroundColor: cardColor, borderColor: cardBorder }]}>
         <TextInput
           ref={inputRef}
-          style={styles.input}
+          style={[styles.input, { color: textColor }]}
           placeholder={placeholder}
-          placeholderTextColor="#666"
+          placeholderTextColor={textSecondary}
           value={content}
           onChangeText={handleTextChange}
           multiline
@@ -161,7 +175,7 @@ export function PostComposer({
 
         {/* Liste des mentions */}
         {showMentions && filteredUsers.length > 0 && (
-          <View style={styles.mentionsList}>
+          <View style={[styles.mentionsList, { backgroundColor: inputBg, borderColor: cardBorder }]}>
             <ScrollView
               style={styles.mentionsScroll}
               keyboardShouldPersistTaps="always"
@@ -170,16 +184,16 @@ export function PostComposer({
               {filteredUsers.slice(0, 5).map((user) => (
                 <TouchableOpacity
                   key={user.id}
-                  style={styles.mentionItem}
+                  style={[styles.mentionItem, { borderBottomColor: cardBorder }]}
                   onPress={() => handleSelectMention(user)}
                 >
-                  <View style={styles.mentionAvatar}>
+                  <View style={[styles.mentionAvatar, { backgroundColor: BrandColors.primary[500] }]}>
                     <ThemedText style={styles.mentionAvatarText}>
-                      {user.firstName.charAt(0).toUpperCase()}
+                      {getUserTotemEmoji(user) || user.firstName.charAt(0).toUpperCase()}
                     </ThemedText>
                   </View>
-                  <ThemedText style={styles.mentionName}>
-                    {user.firstName} {user.lastName}
+                  <ThemedText style={[styles.mentionName, { color: textColor }]}>
+                    {getDisplayName(user)}
                   </ThemedText>
                 </TouchableOpacity>
               ))}
@@ -189,8 +203,8 @@ export function PostComposer({
 
         {/* Message si aucun utilisateur trouvé */}
         {showMentions && filteredUsers.length === 0 && mentionSearch.length > 0 && (
-          <View style={styles.noResults}>
-            <ThemedText style={styles.noResultsText}>
+          <View style={[styles.noResults, { backgroundColor: inputBg }]}>
+            <ThemedText style={[styles.noResultsText, { color: textSecondary }]}>
               Aucun membre trouvé pour "{mentionSearch}"
             </ThemedText>
           </View>
@@ -212,30 +226,22 @@ export function PostComposer({
           </View>
         )}
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: cardBorder }]}>
           <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: `${textSecondary}10` }]}
               onPress={handlePickImage}
               disabled={isSubmitting}
             >
-              <Ionicons name="image-outline" size={24} color="#3b82f6" />
+              <Ionicons name="image-outline" size={22} color={textSecondary} />
             </TouchableOpacity>
-            {mentionableUsers.length > 0 && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleMentionButtonPress}
-                disabled={isSubmitting}
-              >
-                <Ionicons name="at" size={24} color="#3b82f6" />
-              </TouchableOpacity>
-            )}
           </View>
 
           <View style={styles.rightSection}>
             <ThemedText
               style={[
                 styles.counter,
+                { color: textSecondary },
                 isOverLimit && styles.counterError,
                 charactersLeft <= 20 && !isOverLimit && styles.counterWarning,
               ]}
@@ -244,14 +250,18 @@ export function PostComposer({
             </ThemedText>
 
             <TouchableOpacity
-              style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
+              style={[
+                styles.submitButton,
+                { backgroundColor: BrandColors.accent[500] },
+                !canSubmit && styles.submitButtonDisabled
+              ]}
               onPress={handleSubmit}
               disabled={!canSubmit}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Ionicons name="send" size={18} color="#fff" />
+                <Ionicons name="paper-plane" size={18} color="#fff" />
               )}
             </TouchableOpacity>
           </View>
@@ -263,24 +273,21 @@ export function PostComposer({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#3A3A3A',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   input: {
-    color: '#FFFFFF',
     fontSize: 16,
     minHeight: 60,
     maxHeight: 120,
     textAlignVertical: 'top',
   },
   mentionsList: {
-    backgroundColor: '#3A3A3A',
-    borderRadius: 12,
-    marginTop: 8,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.sm,
     maxHeight: 200,
     overflow: 'hidden',
+    borderWidth: 1,
   },
   mentionsScroll: {
     maxHeight: 200,
@@ -288,16 +295,14 @@ const styles = StyleSheet.create({
   mentionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    gap: 12,
+    padding: Spacing.md,
+    gap: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#4A4A4A',
   },
   mentionAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#3b82f6',
+    borderRadius: Radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -307,77 +312,72 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   mentionName: {
-    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '500',
   },
   noResults: {
-    backgroundColor: '#3A3A3A',
-    borderRadius: 12,
-    marginTop: 8,
-    padding: 16,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.sm,
+    padding: Spacing.lg,
     alignItems: 'center',
   },
   noResultsText: {
-    color: '#999',
     fontSize: 14,
   },
   attachmentPreview: {
-    marginTop: 12,
+    marginTop: Spacing.md,
     position: 'relative',
   },
   previewImage: {
     width: '100%',
     height: 150,
-    borderRadius: 12,
+    borderRadius: Radius.lg,
   },
   removeButton: {
     position: 'absolute',
     top: 8,
     right: 8,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
+    borderRadius: Radius.lg,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#3A3A3A',
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.md,
   },
   actionButton: {
-    padding: 8,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
   },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   counter: {
-    color: '#666',
     fontSize: 14,
   },
   counterWarning: {
-    color: '#f59e0b',
+    color: BrandColors.accent[500],
   },
   counterError: {
     color: '#ef4444',
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: '#3A3A3A',
+    backgroundColor: NeutralColors.gray[300],
   },
 });

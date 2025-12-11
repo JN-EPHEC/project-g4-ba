@@ -10,6 +10,7 @@ import { Card, ThemeSelector } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Animator } from '@/types';
+import { TOTEM_ANIMALS } from '@/components/totem-selector';
 import { BrandColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/design-tokens';
 
@@ -89,6 +90,22 @@ export default function ProfileScreen() {
                 {animator?.isUnitLeader ? 'Chef d\'unité' : 'Animateur'}
               </ThemedText>
             </View>
+
+            {/* Nom de totem */}
+            {(animator?.totemName || animator?.totemAnimal) && (
+              <View style={[styles.totemBadge, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+                {animator?.totemAnimal ? (
+                  <ThemedText style={styles.totemEmoji}>
+                    {TOTEM_ANIMALS.find(a => a.name === animator.totemAnimal)?.emoji || '🐾'}
+                  </ThemedText>
+                ) : (
+                  <Ionicons name="paw" size={14} color={BrandColors.primary[500]} />
+                )}
+                <ThemedText style={[styles.totemName, { color: BrandColors.primary[500] }]}>
+                  {animator?.totemName || animator?.totemAnimal}
+                </ThemedText>
+              </View>
+            )}
 
             <ThemedText style={styles.email}>{animator?.email}</ThemedText>
           </View>
@@ -280,6 +297,22 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontSize: 14,
     fontWeight: '600',
+  },
+  totemBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  totemName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  totemEmoji: {
+    fontSize: 16,
   },
   bioSection: {
     width: '100%',

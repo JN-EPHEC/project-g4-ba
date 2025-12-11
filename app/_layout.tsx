@@ -13,16 +13,45 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/auth-context';
 import { NotificationProvider } from '@/context/notification-context';
 import { ThemeProvider } from '@/context/theme-context';
+import { Colors, BrandColors } from '@/constants/theme';
 
 export const unstable_settings = {
   anchor: '(auth)',
 };
 
+// Thèmes personnalisés basés sur notre palette
+const WeCampLightTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: BrandColors.primary[500],
+    background: Colors.light.background,
+    card: Colors.light.card,
+    text: Colors.light.text,
+    border: Colors.light.border,
+    notification: BrandColors.accent[500],
+  },
+};
+
+const WeCampDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: BrandColors.primary[400],
+    background: Colors.dark.background,
+    card: Colors.dark.card,
+    text: Colors.dark.text,
+    border: Colors.dark.border,
+    notification: BrandColors.accent[400],
+  },
+};
+
 function AppContent() {
   const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? WeCampDarkTheme : WeCampLightTheme;
 
   return (
-    <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <NavigationThemeProvider value={theme} key={colorScheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(scout)" />

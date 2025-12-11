@@ -15,18 +15,33 @@ export enum ChallengeDifficulty {
   HARD = 'hard',
 }
 
+export enum ChallengeCategory {
+  NATURE = 'nature',
+  SPORT = 'sport',
+  TECHNIQUE = 'technique',
+  CUISINE = 'cuisine',
+  CREATIVITY = 'creativity',
+}
+
 export interface Challenge {
   id: string;
   title: string;
   description: string;
   points: number;
   difficulty: ChallengeDifficulty;
+  category?: ChallengeCategory;
+  emoji?: string; // Custom emoji for the challenge
   unitId?: string; // Si null, le défi est disponible pour tous
   imageUrl?: string;
   startDate: Date;
   endDate: Date;
   createdBy: string; // ID de l'animateur
   createdAt: Date;
+  participantsCount?: number; // Nombre de participants
+  // Options
+  isGlobal?: boolean; // Visible par tous les groupes
+  allowMultipleValidations?: boolean; // Permettre plusieurs validations
+  notifyMembers?: boolean; // Notifier les membres
 }
 
 export interface ChallengeSubmission {

@@ -34,7 +34,8 @@ export interface Scout extends User {
   rank?: string;
   dateOfBirth: Date;
   totemName?: string; // Nom de totem scout
-  totemAnimal?: string; // Animal du totem
+  totemAnimal?: string; // Animal du totem (pour compatibilité)
+  totemEmoji?: string; // Emoji personnalisé du totem
   validated: boolean; // Validé par l'animateur
   validatedAt?: Date; // Date de validation
   validatedBy?: string; // ID de l'animateur qui a validé
@@ -57,6 +58,9 @@ export interface Animator extends User {
   unitId: string;
   isUnitLeader: boolean;
   specialties?: string[];
+  totemName?: string; // Nom de totem
+  totemAnimal?: string; // Animal du totem (pour compatibilité)
+  totemEmoji?: string; // Emoji personnalisé du totem
 }
 
 /**

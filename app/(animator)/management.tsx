@@ -247,6 +247,25 @@ export default function ManagementScreen() {
             </View>
           </Card>
         </TouchableOpacity>
+
+        <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
+          Mon compte
+        </ThemedText>
+
+        <TouchableOpacity onPress={() => router.push('/(animator)/profile')}>
+          <Card style={styles.actionCard}>
+            <View style={styles.actionIcon}>
+              <Ionicons name="person" size={28} color={BrandColors.primary[500]} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Mon profil</ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Voir et modifier mes informations
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
       </ScrollView>
     </ThemedView>
   );

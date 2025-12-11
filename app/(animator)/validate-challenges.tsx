@@ -13,6 +13,7 @@ import { UserService } from '@/services/user-service';
 import { Animator, ChallengeSubmission, Challenge, Scout } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
+import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
 
 interface SubmissionWithDetails extends ChallengeSubmission {
   challenge?: Challenge;
@@ -140,14 +141,13 @@ export default function ValidateChallengesScreen() {
           <View style={styles.scoutInfo}>
             <View style={styles.scoutAvatar}>
               <ThemedText style={styles.avatarText}>
-                {submission.scout.firstName.charAt(0)}
-                {submission.scout.lastName.charAt(0)}
+                {getUserTotemEmoji(submission.scout) || `${submission.scout.firstName.charAt(0)}${submission.scout.lastName.charAt(0)}`}
               </ThemedText>
             </View>
             <View style={styles.scoutDetails}>
               <View style={styles.scoutNameRow}>
                 <ThemedText type="defaultSemiBold">
-                  {submission.scout.firstName} {submission.scout.lastName}
+                  {getDisplayName(submission.scout)}
                 </ThemedText>
                 <RankBadge xp={submission.scout.points || 0} size="small" />
               </View>

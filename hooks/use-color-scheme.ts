@@ -7,11 +7,8 @@ import { useTheme } from '@/context/theme-context';
 export function useColorScheme(): 'light' | 'dark' {
   try {
     const { colorScheme } = useTheme();
-    console.log('🎨 useColorScheme retourne:', colorScheme);
     return colorScheme;
-  } catch (error) {
-    // Fallback si le ThemeProvider n'est pas encore monté
-    console.warn('⚠️ useColorScheme fallback vers dark:', error);
-    return 'dark';
+  } catch {
+    return 'light';
   }
 }
