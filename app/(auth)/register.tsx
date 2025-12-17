@@ -242,7 +242,7 @@ export default function RegisterScreen() {
             </ThemedText>
             <ThemedText
               type="link"
-              onPress={() => router.back()}
+              onPress={() => router.push('/(auth)/login')}
               style={{ color: BrandColors.accent[500] }}
             >
               Se connecter
