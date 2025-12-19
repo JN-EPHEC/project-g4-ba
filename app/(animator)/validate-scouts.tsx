@@ -30,15 +30,29 @@ export default function ValidateScoutsScreen() {
     try {
       setLoading(true);
 
+      console.log('🔍 Animateur unitId:', animator?.unitId);
+
       if (animator?.unitId) {
         const allScouts = await UnitService.getScoutsByUnit(animator.unitId);
+        console.log('📋 Tous les scouts récupérés:', allScouts);
+        console.log('📋 Nombre de scouts:', allScouts.length);
+
+        // Afficher le statut validated de chaque scout
+        allScouts.forEach((s: any) => {
+          console.log(`Scout ${s.firstName} ${s.lastName}: validated=${s.validated}, unitId=${s.unitId}`);
+        });
 
         // Séparer les scouts validés et non validés
         const pending = allScouts.filter((s: Scout) => !s.validated);
         const validated = allScouts.filter((s: Scout) => s.validated);
 
+        console.log('⏳ Scouts en attente:', pending.length);
+        console.log('✅ Scouts validés:', validated.length);
+
         setPendingScouts(pending);
         setValidatedScouts(validated);
+      } else {
+        console.log('⚠️ Animateur sans unitId');
       }
     } catch (error: any) {
       console.error('Erreur lors du chargement des scouts:', error);

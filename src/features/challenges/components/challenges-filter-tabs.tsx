@@ -12,24 +12,27 @@ interface FilterTabsProps {
   counts?: {
     all: number;
     in_progress: number;
-    completed: number;
+    completed?: number;
     new: number;
   };
+  showCompleted?: boolean;
 }
 
 const FILTER_LABELS: Record<ChallengeFilter, string> = {
   all: 'Tous',
   in_progress: 'En cours',
-  completed: 'Complétés',
+  completed: 'Terminés',
   new: 'Nouveaux',
 };
 
-export function ChallengesFilterTabs({ activeFilter, onFilterChange, counts }: FilterTabsProps) {
+export function ChallengesFilterTabs({ activeFilter, onFilterChange, counts, showCompleted = false }: FilterTabsProps) {
   const cardColor = useThemeColor({}, 'card');
   const cardBorderColor = useThemeColor({}, 'cardBorder');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
-  const filters: ChallengeFilter[] = ['all', 'in_progress', 'completed', 'new'];
+  const filters: ChallengeFilter[] = showCompleted
+    ? ['all', 'in_progress', 'completed', 'new']
+    : ['all', 'in_progress', 'new'];
 
   return (
     <View style={styles.container}>

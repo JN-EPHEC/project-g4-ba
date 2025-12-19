@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -11,12 +10,29 @@ export default function ParentLayout() {
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
 
-  // Rediriger vers login si l'utilisateur n'est pas connecté ou n'est pas un parent
-  useEffect(() => {
-    if (!isLoading && (!user || user.role !== UserRole.PARENT)) {
-      router.replace('/(auth)/login');
-    }
-  }, [user, isLoading]);
+  console.log('🟣 ParentLayout - isLoading:', isLoading, 'user:', user?.email, 'role:', user?.role);
+
+  // Ne pas rendre le layout si l'utilisateur n'est pas un parent
+  // La redirection sera gérée par le composant index.tsx ou welcome.tsx
+  if (isLoading) {
+    console.log('🟣 ParentLayout - En attente (isLoading)');
+    return null; // Attendre que l'auth soit chargée
+  }
+
+  if (!user) {
+    // Pas connecté - ne pas rendre, laisser le flux d'auth gérer
+    console.log('🟣 ParentLayout - Pas d\'utilisateur, return null');
+    return null;
+  }
+
+  // Vérification stricte du rôle - doit être exactement PARENT
+  if (user.role !== UserRole.PARENT && user.role !== 'parent') {
+    // Mauvais rôle - ne pas rendre ce layout
+    console.log('🟣 ParentLayout - Mauvais rôle:', user.role, '- return null');
+    return null;
+  }
+
+  console.log('🟣 ParentLayout - Rendu du layout parent pour:', user.email);
 
   return (
     <Tabs

@@ -18,7 +18,7 @@ interface AuthContextType {
   user: AnyUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AnyUser>;
   register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string, dateOfBirth?: Date) => Promise<AnyUser>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<AnyUser>) => Promise<void>;
@@ -47,59 +47,57 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AnyUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
         if (firebaseUser) {
+          // Si on est en train de s'inscrire, ne pas écraser les données
+          if (isRegistering) {
+            return;
+          }
+
           // Récupérer les données utilisateur depuis Firestore
-          console.log('🔄 onAuthStateChanged - Récupération des données utilisateur pour UID:', firebaseUser.uid);
           const userData = await UserService.getUserById(firebaseUser.uid);
-          
+
           if (userData) {
-            console.log('✅ Données utilisateur récupérées:', userData);
             setUser(userData);
-          } else {
-            console.warn('⚠️ Aucune donnée utilisateur trouvée dans Firestore pour UID:', firebaseUser.uid);
-            // Ne pas réinitialiser l'utilisateur si on est en train de créer un compte
-            // L'utilisateur sera défini par la fonction register
           }
         } else {
-          console.log('🔓 Utilisateur déconnecté');
           setUser(null);
         }
       } catch (error) {
-        console.error('❌ Erreur lors de la récupération des données utilisateur:', error);
-        // Ne pas réinitialiser l'utilisateur en cas d'erreur si on est en train de créer un compte
-        // L'utilisateur sera défini par la fonction register
+        console.error('Erreur lors de la récupération des données utilisateur:', error);
       } finally {
+        if (!authInitialized) {
+          setAuthInitialized(true);
+        }
         setIsLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authInitialized, isRegistering]);
 
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
 
-      // Connexion avec Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
-      // Récupérer les données utilisateur depuis Firestore
       const userData = await UserService.getUserById(userCredential.user.uid);
-      
+
       if (!userData) {
         throw new Error('Données utilisateur introuvables');
       }
 
       setUser(userData);
+      return userData;
     } catch (error: any) {
       console.error('Erreur lors de la connexion:', error);
-      
-      // Gérer les erreurs Firebase de manière plus conviviale
+
       let errorMessage = 'Erreur lors de la connexion';
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'Aucun compte trouvé avec cet email';
@@ -109,8 +107,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         errorMessage = 'Email invalide';
       } else if (error.code === 'auth/user-disabled') {
         errorMessage = 'Ce compte a été désactivé';
+      } else if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Email ou mot de passe incorrect';
       }
-      
+
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -128,10 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       setIsLoading(true);
-
-      console.log('🚀 Début de l\'inscription pour:', email);
-      console.log('🔑 Configuration Firebase - Project ID:', auth.app.options.projectId);
-      console.log('🔑 Configuration Firebase - Auth Domain:', auth.app.options.authDomain);
+      setIsRegistering(true);
 
       // Vérifier que Firebase est correctement configuré
       if (!auth.app.options.projectId || auth.app.options.projectId === 'demo-project') {
@@ -139,12 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Créer le compte avec Firebase Auth
-      console.log('📝 Création du compte Firebase Auth...');
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('✅ Compte Firebase Auth créé avec succès. UID:', userCredential.user.uid);
 
       // Créer le document utilisateur dans Firestore
-      console.log('📝 Création du document utilisateur dans Firestore...');
       const additionalData: Record<string, any> = {};
       if (unitId) additionalData.unitId = unitId;
       if (dateOfBirth) additionalData.dateOfBirth = dateOfBirth;
@@ -157,47 +151,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
         Object.keys(additionalData).length > 0 ? additionalData : undefined
       );
-      console.log('✅ Document utilisateur créé dans Firestore:', newUser);
 
-      // Attendre un peu pour s'assurer que Firestore a bien enregistré les données
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Vérifier que les données sont bien récupérables
-      const verifyUser = await UserService.getUserById(userCredential.user.uid);
-      if (!verifyUser) {
-        throw new Error('Impossible de récupérer les données utilisateur après création');
-      }
-      
-      setUser(verifyUser);
-      console.log('✅ Inscription terminée avec succès, utilisateur défini:', verifyUser);
-      
-      // Retourner l'utilisateur créé
-      return verifyUser;
+      setUser(newUser);
+      setIsRegistering(false);
+      return newUser;
     } catch (error: any) {
-      console.error('❌ Erreur lors de l\'inscription:', error);
-      console.error('❌ Code d\'erreur:', error?.code);
-      console.error('❌ Message d\'erreur:', error?.message);
-      
-      // Gérer les erreurs Firebase de manière plus conviviale
+      setIsRegistering(false);
+      console.error('Erreur lors de l\'inscription:', error);
+
       let errorMessage = 'Erreur lors de l\'inscription';
       if (error.code === 'auth/email-already-in-use') {
         // Si l'email existe déjà, essayer de se connecter automatiquement
-        console.log('📧 Email déjà utilisé, tentative de connexion automatique...');
         try {
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          console.log('✅ Connexion automatique réussie');
-          
-          // Récupérer les données utilisateur depuis Firestore
           const userData = await UserService.getUserById(userCredential.user.uid);
-          
+
           if (userData) {
             setUser(userData);
-            console.log('✅ Utilisateur récupéré depuis Firestore');
-            // Retourner l'utilisateur récupéré
             return userData;
           } else {
             // L'utilisateur existe dans Auth mais pas dans Firestore, créer le document
-            console.log('⚠️ Utilisateur existe dans Auth mais pas dans Firestore, création du document...');
             const newUser = await UserService.createUser(
               userCredential.user.uid,
               email,
@@ -206,13 +179,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               role
             );
             setUser(newUser);
-            console.log('✅ Document utilisateur créé dans Firestore');
-            // Retourner l'utilisateur créé
             return newUser;
           }
-        } catch (loginError: any) {
-          // Si la connexion automatique échoue (mauvais mot de passe), lancer l'erreur originale
-          console.error('❌ Connexion automatique échouée:', loginError);
+        } catch {
           errorMessage = 'Cet email est déjà utilisé. Si c\'est votre compte, veuillez vous connecter.';
         }
       } else if (error.code === 'auth/invalid-email') {
@@ -226,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -236,22 +205,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true);
-      console.log('🔓 Déconnexion en cours...');
-
-      // Déconnexion avec Firebase Auth
       await signOut(auth);
-      
-      // Attendre un peu pour s'assurer que la déconnexion est bien propagée
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // L'état sera mis à jour automatiquement par onAuthStateChanged
-      // mais on le fait aussi manuellement pour être sûr
       setUser(null);
-      
-      console.log('✅ Déconnexion réussie');
     } catch (error) {
-      console.error('❌ Erreur lors de la déconnexion:', error);
-      // Même en cas d'erreur, on réinitialise l'utilisateur localement
+      console.error('Erreur lors de la déconnexion:', error);
       setUser(null);
       throw error;
     } finally {
@@ -262,10 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUser = async (updatedData: Partial<AnyUser>) => {
     if (user) {
       try {
-        // Mettre à jour dans Firestore
         await UserService.updateUser(user.id, updatedData);
-
-        // Mettre à jour l'état local
         const updatedUser = { ...user, ...updatedData } as AnyUser;
         setUser(updatedUser);
       } catch (error) {
@@ -277,11 +232,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     try {
-      console.log('🔑 Envoi de l\'email de réinitialisation à:', email);
       await sendPasswordResetEmail(auth, email);
-      console.log('✅ Email de réinitialisation envoyé');
     } catch (error: any) {
-      console.error('❌ Erreur lors de l\'envoi de l\'email de réinitialisation:', error);
+      console.error('Erreur lors de l\'envoi de l\'email de réinitialisation:', error);
 
       let errorMessage = 'Erreur lors de l\'envoi de l\'email';
       if (error.code === 'auth/user-not-found') {

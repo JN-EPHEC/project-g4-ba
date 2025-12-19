@@ -73,6 +73,14 @@ export default function RoleSelectionScreen() {
 
     // Si c'est un animateur, rediriger vers la sélection de fédération + code d'accès
     if (selectedRole === UserRole.ANIMATOR) {
+      console.log('🎭 ANIMATEUR sélectionné - redirection vers animator-unit-selection');
+      console.log('🎭 selectedRole =', selectedRole);
+      console.log('🎭 params passés:', {
+        email: params.email,
+        firstName: params.firstName,
+        lastName: params.lastName,
+        role: selectedRole,
+      });
       router.push({
         pathname: '/(auth)/animator-unit-selection',
         params: {
@@ -150,7 +158,11 @@ export default function RoleSelectionScreen() {
           {roleOptions.map((option) => (
             <Pressable
               key={option.role}
-              onPress={() => setSelectedRole(option.role)}
+              onPress={() => {
+                console.log('🎭 Rôle sélectionné:', option.role);
+                console.log('🎭 Type:', typeof option.role);
+                setSelectedRole(option.role);
+              }}
             >
               <Card
                 style={[

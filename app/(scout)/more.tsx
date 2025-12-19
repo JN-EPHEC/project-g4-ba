@@ -61,6 +61,21 @@ export default function MoreScreen() {
           </Card>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => router.push('/(scout)/health')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: '#ef444415' }]}>
+              <Ionicons name="heart" size={24} color="#ef4444" />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Fiche Santé</ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Mes informations médicales
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
         <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
           Ressources
         </ThemedText>

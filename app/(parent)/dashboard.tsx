@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import Animated, { FadeInUp, FadeInLeft } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,16 +11,29 @@ import { RankBadge } from '@/components/rank-badge';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ParentScoutService } from '@/services/parent-scout-service';
-import { Parent, Scout } from '@/types';
+import { Parent, Scout, UserRole } from '@/types';
 import { BrandColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/design-tokens';
 import { getDisplayName } from '@/src/shared/utils/totem-utils';
 
 export default function ParentDashboardScreen() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const parent = user as Parent;
   const [scouts, setScouts] = useState<Scout[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Vérification de sécurité - rediriger si ce n'est pas un parent
+  useEffect(() => {
+    if (!isAuthLoading && user && user.role !== UserRole.PARENT && user.role !== 'parent') {
+      console.log('⚠️ ParentDashboard - Mauvais rôle détecté:', user.role, '- redirection...');
+      // Rediriger vers le bon dashboard selon le rôle
+      if (user.role === UserRole.SCOUT || user.role === 'scout') {
+        router.replace('/(scout)/dashboard');
+      } else if (user.role === UserRole.ANIMATOR || user.role === 'animator') {
+        router.replace('/(animator)/dashboard');
+      }
+    }
+  }, [user, isAuthLoading]);
 
   // Theme colors
   const backgroundColor = useThemeColor({}, 'background');

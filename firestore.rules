@@ -122,5 +122,28 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null && statusId.matches(request.auth.uid + '_.*');
     }
+
+    // Règles pour les badges
+    match /badges/{badgeId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
+
+    // Règles pour les badges attribués aux scouts
+    match /scoutBadges/{scoutBadgeId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
+
+    // Règles pour les niveaux
+    match /levels/{levelId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
   }
 }

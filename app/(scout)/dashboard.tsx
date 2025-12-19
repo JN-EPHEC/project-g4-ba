@@ -25,13 +25,27 @@ import {
 import { getCountdownLabel, getCountdownColor } from '@/src/shared/utils/date-utils';
 
 export default function ScoutDashboardScreen() {
-  const { user } = useAuth();
-  const scout = user as Scout;
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { events } = useEvents();
   const { challenges } = useChallenges();
   const { completedCount } = useAllChallengeProgress();
+
+  // Vérification de sécurité - rediriger si ce n'est pas un scout
+  React.useEffect(() => {
+    if (!isLoading && user && user.role !== UserRole.SCOUT && user.role !== 'scout') {
+      console.log('⚠️ ScoutDashboard - Mauvais rôle détecté:', user.role, '- redirection...');
+      // Rediriger vers le bon dashboard selon le rôle
+      if (user.role === UserRole.ANIMATOR || user.role === 'animator') {
+        router.replace('/(animator)/dashboard');
+      } else if (user.role === UserRole.PARENT || user.role === 'parent') {
+        router.replace('/(parent)/dashboard');
+      }
+    }
+  }, [user, isLoading, router]);
+
+  const scout = user as Scout;
 
   // Theme colors
   const backgroundColor = useThemeColor({}, 'background');

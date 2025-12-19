@@ -1,38 +1,34 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
-import { Input, PrimaryButton, Card } from '@/components/ui';
-import { useAuth } from '@/context/auth-context';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { UserRole } from '@/types';
-import { BrandColors } from '@/constants/theme';
+// DateTimePicker only for native platforms
+const DateTimePicker = Platform.OS !== 'web'
+  ? require('@react-native-community/datetimepicker').default
+  : null;
 
 export default function RegisterScreen() {
-  const { register, isLoading } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    dateOfBirth: new Date(2010, 0, 1), // Date par défaut
+    dateOfBirth: new Date(2010, 0, 1),
   });
-  const [errors, setErrors] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    dateOfBirth: '',
-  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const iconColor = useThemeColor({}, 'icon');
+  const [isLoading, setIsLoading] = useState(false);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('fr-FR', {
@@ -51,14 +47,7 @@ export default function RegisterScreen() {
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = {
-      firstName: '',
-      lastName: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      dateOfBirth: '',
-    };
+    const newErrors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'Le prénom est requis';
@@ -71,7 +60,7 @@ export default function RegisterScreen() {
     }
 
     if (!formData.email) {
-      newErrors.email = 'L\'email est requis';
+      newErrors.email = "L'email est requis";
       isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email invalide';
@@ -91,7 +80,6 @@ export default function RegisterScreen() {
       isValid = false;
     }
 
-    // Vérifier que la date de naissance est valide (entre 5 et 100 ans)
     const today = new Date();
     const age = today.getFullYear() - formData.dateOfBirth.getFullYear();
     if (age < 5 || age > 100) {
@@ -106,6 +94,7 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!validateForm()) return;
 
+    setIsLoading(true);
     // Rediriger vers la sélection du rôle
     router.push({
       pathname: '/(auth)/role-selection',
@@ -117,219 +106,330 @@ export default function RegisterScreen() {
         dateOfBirth: formData.dateOfBirth.toISOString(),
       },
     });
+    setIsLoading(false);
+  };
+
+  const handleBackToLogin = () => {
+    router.push('/(auth)/auth');
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      {/* Header vert */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackToLogin}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View style={styles.logoContainer}>
+          <Ionicons name="person-add" size={36} color="#FFFFFF" />
+        </View>
+        <Text style={styles.headerTitle}>Créer un compte</Text>
+        <Text style={styles.headerSubtitle}>Rejoignez l'aventure WeCamp</Text>
+      </View>
+
+      <ScrollView
+        style={styles.formContainer}
+        contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.header}>
-            {/* Logo avec icône nature */}
-            <View style={styles.logoContainer}>
-              <View style={[styles.logoIcon, { backgroundColor: BrandColors.accent[500] }]}>
-                <Ionicons name="people" size={32} color="#FFFFFF" />
-              </View>
+        {/* Formulaire d'inscription */}
+        <View style={styles.card}>
+          {/* Prénom */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Prénom</Text>
+            <View style={[styles.inputWrapper, errors.firstName && styles.inputError]}>
+              <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Jean"
+                placeholderTextColor="#9CA3AF"
+                value={formData.firstName}
+                onChangeText={(text) => setFormData({ ...formData, firstName: text })}
+                autoComplete="given-name"
+              />
             </View>
-            <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
-              Créer un compte
-            </ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Rejoignez WeCamp
-            </ThemedText>
+            {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
           </View>
 
-          <Card style={styles.card}>
-            <Input
-              label="Prénom"
-              placeholder="Jean"
-              value={formData.firstName}
-              onChangeText={(text) => setFormData({ ...formData, firstName: text })}
-              error={errors.firstName}
-              autoComplete="given-name"
-              icon={<Ionicons name="person-outline" size={20} color={iconColor} />}
-            />
+          {/* Nom */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nom</Text>
+            <View style={[styles.inputWrapper, errors.lastName && styles.inputError]}>
+              <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Dupont"
+                placeholderTextColor="#9CA3AF"
+                value={formData.lastName}
+                onChangeText={(text) => setFormData({ ...formData, lastName: text })}
+                autoComplete="family-name"
+              />
+            </View>
+            {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
+          </View>
 
-            <Input
-              label="Nom"
-              placeholder="Dupont"
-              value={formData.lastName}
-              onChangeText={(text) => setFormData({ ...formData, lastName: text })}
-              error={errors.lastName}
-              autoComplete="family-name"
-              icon={<Ionicons name="person-outline" size={20} color={iconColor} />}
-            />
+          {/* Email */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email</Text>
+            <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
+              <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="votre.email@exemple.com"
+                placeholderTextColor="#9CA3AF"
+                value={formData.email}
+                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+            </View>
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+          </View>
 
-            {/* Date de naissance */}
-            <View style={styles.datePickerContainer}>
-              <ThemedText style={styles.dateLabel}>Date de naissance</ThemedText>
+          {/* Date de naissance */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date de naissance</Text>
+            {Platform.OS === 'web' ? (
+              <View style={[styles.inputWrapper, errors.dateOfBirth && styles.inputError]}>
+                <Ionicons name="calendar-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <input
+                  type="date"
+                  value={formData.dateOfBirth.toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const date = new Date(e.target.value);
+                    if (!isNaN(date.getTime())) {
+                      setFormData({ ...formData, dateOfBirth: date });
+                    }
+                  }}
+                  max={new Date().toISOString().split('T')[0]}
+                  min="1920-01-01"
+                  style={{
+                    flex: 1,
+                    paddingTop: 14,
+                    paddingBottom: 14,
+                    fontSize: 16,
+                    color: '#1A1A1A',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </View>
+            ) : (
               <TouchableOpacity
-                style={[styles.dateButton, errors.dateOfBirth ? styles.dateButtonError : null]}
+                style={[styles.inputWrapper, errors.dateOfBirth && styles.inputError]}
                 onPress={() => setShowDatePicker(true)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="calendar-outline" size={20} color={iconColor} />
-                <ThemedText style={styles.dateText}>
-                  {formatDate(formData.dateOfBirth)}
-                </ThemedText>
+                <Ionicons name="calendar-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <Text style={styles.dateText}>{formatDate(formData.dateOfBirth)}</Text>
               </TouchableOpacity>
-              {errors.dateOfBirth ? (
-                <ThemedText style={styles.errorText}>{errors.dateOfBirth}</ThemedText>
-              ) : null}
-            </View>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={formData.dateOfBirth}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDateChange}
-                maximumDate={new Date()}
-                minimumDate={new Date(1920, 0, 1)}
-              />
             )}
-
-            <Input
-              label="Email"
-              placeholder="votre.email@exemple.com"
-              value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
-              error={errors.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              icon={<Ionicons name="mail-outline" size={20} color={iconColor} />}
-            />
-
-            <Input
-              label="Mot de passe"
-              placeholder="••••••••"
-              value={formData.password}
-              onChangeText={(text) => setFormData({ ...formData, password: text })}
-              error={errors.password}
-              secureTextEntry
-              autoComplete="password-new"
-              icon={<Ionicons name="lock-closed-outline" size={20} color={iconColor} />}
-            />
-
-            <Input
-              label="Confirmer le mot de passe"
-              placeholder="••••••••"
-              value={formData.confirmPassword}
-              onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-              error={errors.confirmPassword}
-              secureTextEntry
-              autoComplete="password-new"
-              icon={<Ionicons name="lock-closed-outline" size={20} color={iconColor} />}
-            />
-
-            <PrimaryButton
-              title={isLoading ? 'Inscription...' : 'Continuer'}
-              onPress={handleRegister}
-              disabled={isLoading}
-              style={styles.registerButton}
-            />
-          </Card>
-
-          <View style={styles.footer}>
-            <ThemedText style={styles.footerText}>
-              Déjà un compte ?{' '}
-            </ThemedText>
-            <ThemedText
-              type="link"
-              onPress={() => router.push('/(auth)/login')}
-              style={{ color: BrandColors.accent[500] }}
-            >
-              Se connecter
-            </ThemedText>
+            {errors.dateOfBirth ? <Text style={styles.errorText}>{errors.dateOfBirth}</Text> : null}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ThemedView>
+
+          {Platform.OS !== 'web' && showDatePicker && DateTimePicker && (
+            <DateTimePicker
+              value={formData.dateOfBirth}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+              minimumDate={new Date(1920, 0, 1)}
+            />
+          )}
+
+          {/* Mot de passe */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Mot de passe</Text>
+            <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor="#9CA3AF"
+                value={formData.password}
+                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                secureTextEntry
+                autoComplete="password-new"
+              />
+            </View>
+            {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+          </View>
+
+          {/* Confirmer mot de passe */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Confirmer le mot de passe</Text>
+            <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputError]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor="#9CA3AF"
+                value={formData.confirmPassword}
+                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                secureTextEntry
+                autoComplete="password-new"
+              />
+            </View>
+            {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Continuer</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Lien vers connexion */}
+        <View style={styles.loginContainer}>
+          <Text style={styles.loginText}>Déjà un compte ? </Text>
+          <TouchableOpacity onPress={handleBackToLogin}>
+            <Text style={styles.loginLink}>Se connecter</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
+    backgroundColor: '#F5F5F0',
   },
   header: {
+    backgroundColor: '#2D5A3D',
+    paddingTop: 60,
+    paddingBottom: 32,
     alignItems: 'center',
-    marginBottom: 32,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    padding: 8,
   },
   logoContainer: {
-    marginBottom: 16,
-  },
-  logoIcon: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
   },
-  subtitle: {
-    fontSize: 16,
-    opacity: 0.7,
+  headerSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  formContainer: {
+    flex: 1,
+  },
+  formContent: {
+    padding: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
   },
   card: {
-    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  registerButton: {
+  inputGroup: {
+    marginBottom: 18,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  inputError: {
+    borderColor: '#EF4444',
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  dateText: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  primaryButton: {
+    backgroundColor: '#2D5A3D',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
     marginTop: 8,
   },
-  footer: {
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 24,
   },
-  footerText: {
-    fontSize: 14,
+  loginText: {
+    fontSize: 15,
+    color: '#6B7280',
   },
-  datePickerContainer: {
-    marginBottom: 16,
-  },
-  dateLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
-    backgroundColor: '#2A2A2A',
-  },
-  dateButtonError: {
-    borderColor: '#ef4444',
-  },
-  dateText: {
-    fontSize: 16,
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 12,
-    marginTop: 4,
+  loginLink: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#D97B4A',
   },
 });

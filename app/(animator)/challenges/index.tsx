@@ -5,10 +5,16 @@ import { router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { ChallengeCardNew } from '@/src/features/challenges/components/challenge-card-new';
-import { ChallengesStats } from '@/src/features/challenges/components/challenges-stats';
+import { ActiveChallengeCard } from '@/src/features/challenges/components/active-challenge-card';
+import { ChallengeListCard } from '@/src/features/challenges/components/challenge-list-card';
+import { ChallengesHeroHeader, getScoutLevelInfo } from '@/src/features/challenges/components/challenges-hero-header';
+import { ChallengesMainTabs, MainTab } from '@/src/features/challenges/components/challenges-main-tabs';
 import { ChallengesFilterTabs, ChallengeFilter } from '@/src/features/challenges/components/challenges-filter-tabs';
-import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
+import { LeaderboardPodium } from '@/src/features/challenges/components/leaderboard-podium';
+import { LeaderboardList } from '@/src/features/challenges/components/leaderboard-list';
+import { BadgesGrid } from '@/src/features/challenges/components/badges-grid';
+import { LevelProgressModal } from '@/src/features/challenges/components/level-progress-modal';
+import { useChallenges, useLeaderboard, useBadges } from '@/src/features/challenges/hooks';
 import { useAuth } from '@/context/auth-context';
 import { Challenge, ChallengeDifficulty } from '@/types';
 import { Animator } from '@/types';
@@ -18,25 +24,31 @@ export default function AnimatorChallengesScreen() {
   const { user } = useAuth();
   const animator = user as Animator;
   const { challenges, loading, error } = useChallenges();
+  const {
+    podiumUsers,
+    otherUsers,
+    currentUserRank,
+    loading: leaderboardLoading
+  } = useLeaderboard();
+  // Utiliser les badges du premier scout du classement pour l'affichage
+  const firstScoutId = podiumUsers.length > 0 ? podiumUsers[0].id : undefined;
+  const {
+    badgesForGrid,
+    loading: badgesLoading
+  } = useBadges({ scoutId: firstScoutId });
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [activeFilter, setActiveFilter] = useState<ChallengeFilter>('all');
+  const [activeMainTab, setActiveMainTab] = useState<MainTab>('challenges');
+  const [showLevelModal, setShowLevelModal] = useState(false);
 
   const tintColor = useThemeColor({}, 'tint');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   // Helper to check if challenge is new (created in last 7 days)
   const isNewChallenge = (challenge: Challenge) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     return new Date(challenge.createdAt) > sevenDaysAgo;
-  };
-
-  // Helper to calculate days remaining
-  const getDaysRemaining = (endDate: Date) => {
-    const now = new Date();
-    const end = new Date(endDate);
-    const diffTime = end.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays);
   };
 
   // Helper to check if challenge is active (started and not ended)
@@ -47,16 +59,37 @@ export default function AnimatorChallengesScreen() {
     return now >= start && now <= end;
   };
 
+  // Helper to check if challenge is ended
+  const isEndedChallenge = (challenge: Challenge) => {
+    const now = new Date();
+    const end = new Date(challenge.endDate);
+    return now > end;
+  };
+
+  // Helper to get deadline string
+  const getDeadlineString = (endDate: Date) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return 'Terminé';
+    if (diffDays === 1) return '1 jour';
+    if (diffDays < 7) return `${diffDays} jours`;
+    if (diffDays < 14) return '1 semaine';
+    return `${Math.ceil(diffDays / 7)} semaines`;
+  };
+
   // Calculate stats
   const stats = useMemo(() => {
     const totalPoints = challenges.reduce((sum, c) => sum + c.points, 0);
     const activeChallenges = challenges.filter(isActiveChallenge);
-    const newChallenges = challenges.filter(isNewChallenge);
+    const endedChallenges = challenges.filter(isEndedChallenge);
 
     return {
       totalPoints,
       activeCount: activeChallenges.length,
-      newCount: newChallenges.length,
+      endedCount: endedChallenges.length,
     };
   }, [challenges]);
 
@@ -64,11 +97,7 @@ export default function AnimatorChallengesScreen() {
   const filterCounts = useMemo(() => {
     const activeChallenges = challenges.filter(isActiveChallenge);
     const newChallenges = challenges.filter(isNewChallenge);
-    const endedChallenges = challenges.filter(c => {
-      const now = new Date();
-      const end = new Date(c.endDate);
-      return now > end;
-    });
+    const endedChallenges = challenges.filter(isEndedChallenge);
 
     return {
       all: challenges.length,
@@ -84,11 +113,7 @@ export default function AnimatorChallengesScreen() {
       case 'in_progress':
         return challenges.filter(isActiveChallenge);
       case 'completed':
-        return challenges.filter(c => {
-          const now = new Date();
-          const end = new Date(c.endDate);
-          return now > end;
-        });
+        return challenges.filter(isEndedChallenge);
       case 'new':
         return challenges.filter(isNewChallenge);
       case 'all':
@@ -103,14 +128,17 @@ export default function AnimatorChallengesScreen() {
       const aActive = isActiveChallenge(a);
       const bActive = isActiveChallenge(b);
 
-      // Active challenges first
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
 
-      // Then by points (highest first)
       return b.points - a.points;
     });
   }, [filteredChallenges]);
+
+  // Get "En cours" challenges for the featured section
+  const inProgressChallenges = useMemo(() => {
+    return challenges.filter(isActiveChallenge).slice(0, 5);
+  }, [challenges]);
 
   const handleChallengeClick = (challenge: Challenge) => {
     setSelectedChallenge(challenge);
@@ -119,6 +147,12 @@ export default function AnimatorChallengesScreen() {
   const handleCloseModal = () => {
     setSelectedChallenge(null);
   };
+
+  const handleMainTabChange = (tab: MainTab) => {
+    setActiveMainTab(tab);
+  };
+
+  const levelInfo = getScoutLevelInfo(stats.totalPoints);
 
   if (loading) {
     return (
@@ -142,6 +176,161 @@ export default function AnimatorChallengesScreen() {
     );
   }
 
+  // Render content based on active tab
+  const renderTabContent = () => {
+    switch (activeMainTab) {
+      case 'leaderboard':
+        if (leaderboardLoading) {
+          return (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={tintColor} />
+              <ThemedText color="secondary" style={styles.loadingText}>Chargement du classement...</ThemedText>
+            </View>
+          );
+        }
+
+        if (podiumUsers.length === 0) {
+          return (
+            <View style={styles.emptyContainer}>
+              <ThemedText style={styles.emptyIcon}>🏆</ThemedText>
+              <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                Aucun scout dans le classement
+              </ThemedText>
+              <ThemedText color="secondary" style={styles.emptyText}>
+                Les scouts de votre unité apparaîtront ici une fois qu'ils auront des points.
+              </ThemedText>
+            </View>
+          );
+        }
+
+        return (
+          <>
+            {/* Podium */}
+            <LeaderboardPodium users={podiumUsers} />
+            {/* Full list (starting from rank 4) */}
+            {otherUsers.length > 0 && (
+              <LeaderboardList users={otherUsers} startRank={4} />
+            )}
+          </>
+        );
+
+      case 'badges':
+        if (badgesLoading) {
+          return (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={tintColor} />
+              <ThemedText color="secondary" style={styles.loadingText}>Chargement des badges...</ThemedText>
+            </View>
+          );
+        }
+
+        if (badgesForGrid.length === 0) {
+          return (
+            <View style={styles.emptyContainer}>
+              <ThemedText style={styles.emptyIcon}>🏅</ThemedText>
+              <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                Aucun badge disponible
+              </ThemedText>
+              <ThemedText color="secondary" style={styles.emptyText}>
+                Les badges seront affichés ici une fois configurés.
+              </ThemedText>
+            </View>
+          );
+        }
+
+        return <BadgesGrid badges={badgesForGrid} />;
+
+      case 'challenges':
+      default:
+        return (
+          <>
+            {/* "En cours" Section - Scroll horizontal */}
+            {inProgressChallenges.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <View style={styles.sectionIconBg}>
+                      <ThemedText style={styles.sectionIcon}>⏳</ThemedText>
+                    </View>
+                    <ThemedText type="subtitle" style={styles.sectionTitle}>En cours</ThemedText>
+                  </View>
+                  <View style={styles.countBadge}>
+                    <ThemedText style={styles.countText}>{inProgressChallenges.length}</ThemedText>
+                  </View>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalScrollContent}
+                >
+                  {inProgressChallenges.map((challenge) => (
+                    <ActiveChallengeCard
+                      key={challenge.id}
+                      title={challenge.title}
+                      emoji={challenge.emoji}
+                      category={challenge.category}
+                      points={challenge.points}
+                      deadline={getDeadlineString(challenge.endDate)}
+                      progress={Math.floor(Math.random() * 70) + 10}
+                      onPress={() => handleChallengeClick(challenge)}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Filter Tabs */}
+            <ChallengesFilterTabs
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+              counts={filterCounts}
+              showCompleted={true}
+            />
+
+            {/* Section Title for filtered results */}
+            <ThemedText type="subtitle" style={styles.allChallengesTitle}>
+              Tous les défis
+            </ThemedText>
+
+            {/* Challenges List */}
+            {sortedChallenges.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <ThemedText style={styles.emptyIcon}>🎯</ThemedText>
+                <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                  Aucun défi trouvé
+                </ThemedText>
+                <ThemedText color="secondary" style={styles.emptyText}>
+                  {activeFilter === 'completed'
+                    ? 'Aucun défi terminé pour le moment'
+                    : activeFilter === 'new'
+                    ? 'Pas de nouveaux défis cette semaine'
+                    : 'Créez un nouveau défi depuis l\'onglet Gestion !'}
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.listContainer}>
+                {sortedChallenges.map((challenge) => (
+                  <ChallengeListCard
+                    key={challenge.id}
+                    title={challenge.title}
+                    description={challenge.description}
+                    emoji={challenge.emoji}
+                    category={challenge.category}
+                    difficulty={challenge.difficulty}
+                    points={challenge.points}
+                    participants={Math.floor(Math.random() * 25) + 5}
+                    isCompleted={isEndedChallenge(challenge)}
+                    isNew={isNewChallenge(challenge) && !isEndedChallenge(challenge)}
+                    onPress={() => handleChallengeClick(challenge)}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        );
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -149,77 +338,53 @@ export default function AnimatorChallengesScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header with Stats */}
-        <ChallengesStats
+        {/* Hero Header */}
+        <ChallengesHeroHeader
           totalPoints={stats.totalPoints}
-          rank={null}
-          completedCount={filterCounts.completed}
-          streak={stats.activeCount}
+          level={levelInfo.level}
+          levelIcon={levelInfo.levelIcon}
+          levelColor={levelInfo.levelColor}
+          nextLevel={levelInfo.nextLevel}
+          nextLevelIcon={levelInfo.nextLevelIcon}
+          levelProgress={levelInfo.progress}
+          pointsToNextLevel={levelInfo.pointsToNextLevel}
+          isMaxLevel={levelInfo.isMaxLevel}
+          rank={podiumUsers.length + otherUsers.length > 0 ? podiumUsers.length + otherUsers.length : null}
+          streak={podiumUsers.length > 0 ? podiumUsers[0].streak : 0}
+          completedCount={stats.endedCount}
           inProgressCount={filterCounts.in_progress}
-          onRankPress={() => router.push('/(animator)/leaderboard')}
-          showRankAsClickable={true}
+          onRankPress={() => setActiveMainTab('leaderboard')}
+          onLevelPress={() => setShowLevelModal(true)}
         />
 
-        {/* Filter Tabs */}
-        <ChallengesFilterTabs
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-          counts={filterCounts}
+        {/* Main Tabs */}
+        <ChallengesMainTabs
+          activeTab={activeMainTab}
+          onTabChange={handleMainTabChange}
         />
 
-        {/* Challenges List */}
-        {sortedChallenges.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <ThemedText style={styles.emptyIcon}>🎯</ThemedText>
-            <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
-              Aucun défi trouvé
-            </ThemedText>
-            <ThemedText color="secondary" style={styles.emptyText}>
-              {activeFilter === 'completed'
-                ? 'Aucun défi terminé pour le moment'
-                : activeFilter === 'new'
-                ? 'Pas de nouveaux défis cette semaine'
-                : 'Créez un nouveau défi depuis l\'onglet Gestion !'}
-            </ThemedText>
-          </View>
-        ) : (
-          <View style={styles.challengesList}>
-            {sortedChallenges.map((challenge) => {
-              const isEnded = new Date() > new Date(challenge.endDate);
-
-              return (
-                <ChallengeCardNew
-                  key={challenge.id}
-                  title={challenge.title}
-                  description={challenge.description}
-                  points={challenge.points}
-                  emoji={challenge.emoji}
-                  difficulty={challenge.difficulty}
-                  category={challenge.category}
-                  daysRemaining={getDaysRemaining(challenge.endDate)}
-                  isCompleted={isEnded}
-                  isNew={isNewChallenge(challenge)}
-                  participantsCount={challenge.participantsCount || 0}
-                  onPress={() => handleChallengeClick(challenge)}
-                />
-              );
-            })}
-          </View>
-        )}
+        {/* Tab Content */}
+        {renderTabContent()}
       </ScrollView>
 
-      {/* Modal de détails du défi */}
+      {/* Modal */}
       {selectedChallenge && (
         <ChallengeModal
           challenge={selectedChallenge}
           onClose={handleCloseModal}
         />
       )}
+
+      {/* Modal de progression des niveaux */}
+      <LevelProgressModal
+        visible={showLevelModal}
+        onClose={() => setShowLevelModal(false)}
+        currentPoints={stats.totalPoints}
+      />
     </ThemedView>
   );
 }
 
-// Composant Modal pour afficher les détails d'un défi
 function ChallengeModal({
   challenge,
   onClose,
@@ -243,11 +408,11 @@ function ChallengeModal({
   const getDifficultyInfo = (difficulty: ChallengeDifficulty) => {
     switch (difficulty) {
       case ChallengeDifficulty.EASY:
-        return { label: 'Facile', color: '#10b981', emoji: '🟢' };
+        return { label: 'Facile', color: '#28A745' };
       case ChallengeDifficulty.MEDIUM:
-        return { label: 'Moyen', color: '#f59e0b', emoji: '🟡' };
+        return { label: 'Moyen', color: '#F5A623' };
       case ChallengeDifficulty.HARD:
-        return { label: 'Difficile', color: '#ef4444', emoji: '🔴' };
+        return { label: 'Difficile', color: '#DC3545' };
     }
   };
 
@@ -264,13 +429,10 @@ function ChallengeModal({
       <View style={[styles.modalOverlay, { backgroundColor: overlayColor }]}>
         <View style={[styles.modalContent, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header */}
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleContainer}>
                 <View style={[styles.modalEmojiContainer, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
-                  <ThemedText style={styles.modalEmoji}>
-                    {challenge.emoji || '🎯'}
-                  </ThemedText>
+                  <ThemedText style={styles.modalEmoji}>{challenge.emoji || '🎯'}</ThemedText>
                 </View>
                 <View style={styles.modalTitleInfo}>
                   <ThemedText type="title" style={styles.modalTitle} numberOfLines={2}>
@@ -282,8 +444,8 @@ function ChallengeModal({
                         {difficultyInfo.label}
                       </ThemedText>
                     </View>
-                    <View style={[styles.modalBadge, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
-                      <ThemedText style={[styles.modalBadgeText, { color: BrandColors.accent[500] }]}>
+                    <View style={[styles.modalBadge, { backgroundColor: '#FEF7E6' }]}>
+                      <ThemedText style={[styles.modalBadgeText, { color: '#F5A623' }]}>
                         +{challenge.points} pts
                       </ThemedText>
                     </View>
@@ -293,27 +455,23 @@ function ChallengeModal({
               <TouchableOpacity
                 style={[styles.closeButton, { backgroundColor: cardBorderColor }]}
                 onPress={onClose}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons name="close" size={20} color={textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {/* Status Badge */}
             {isEnded && (
-              <View style={[styles.statusBadge, { backgroundColor: '#f3f4f6' }]}>
-                <Ionicons name="checkmark-circle" size={18} color="#6b7280" />
-                <ThemedText style={[styles.statusBadgeText, { color: '#6b7280' }]}>Défi terminé</ThemedText>
+              <View style={[styles.statusBadge, { backgroundColor: '#E8F5E9' }]}>
+                <Ionicons name="checkmark-circle" size={18} color="#28A745" />
+                <ThemedText style={[styles.statusBadgeText, { color: '#28A745' }]}>Défi terminé</ThemedText>
               </View>
             )}
 
-            {/* Description */}
             <View style={styles.modalSection}>
               <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Description</ThemedText>
               <ThemedText style={styles.modalDescription}>{challenge.description}</ThemedText>
             </View>
 
-            {/* Dates */}
             <View style={styles.modalSection}>
               <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Période</ThemedText>
               <View style={styles.dateRow}>
@@ -324,20 +482,6 @@ function ChallengeModal({
               </View>
             </View>
 
-            {/* Participants */}
-            {challenge.participantsCount !== undefined && challenge.participantsCount > 0 && (
-              <View style={styles.modalSection}>
-                <ThemedText color="secondary" type="label" style={styles.modalSectionTitle}>Participants</ThemedText>
-                <View style={styles.participantsRow}>
-                  <Ionicons name="people" size={16} color={textSecondary} />
-                  <ThemedText style={styles.participantsText}>
-                    {challenge.participantsCount} participant{challenge.participantsCount > 1 ? 's' : ''}
-                  </ThemedText>
-                </View>
-              </View>
-            )}
-
-            {/* Edit Button */}
             <TouchableOpacity
               style={[styles.editButton, { backgroundColor: BrandColors.primary[500] }]}
               onPress={() => {
@@ -346,9 +490,7 @@ function ChallengeModal({
               }}
             >
               <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-              <ThemedText style={styles.editButtonText}>
-                Modifier le défi
-              </ThemedText>
+              <ThemedText style={styles.editButtonText}>Modifier le défi</ThemedText>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -392,8 +534,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-  challengesList: {
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#FEF3EE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionIcon: {
+    fontSize: 14,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  countBadge: {
+    backgroundColor: BrandColors.accent[500],
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  countText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  horizontalScrollContent: {
+    flexDirection: 'row',
     gap: 12,
+    paddingRight: 20,
+  },
+  allChallengesTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  listContainer: {
+    flex: 1,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -415,8 +607,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-
-  // Modal styles
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -516,14 +706,6 @@ const styles = StyleSheet.create({
   modalDate: {
     fontSize: 15,
   },
-  participantsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  participantsText: {
-    fontSize: 15,
-  },
   editButton: {
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -533,11 +715,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 8,
-    shadowColor: BrandColors.primary[500],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   editButtonText: {
     fontSize: 17,

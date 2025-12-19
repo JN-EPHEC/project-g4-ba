@@ -78,16 +78,16 @@ export default function PendingApprovalScreen() {
 
         <PrimaryButton
           title="Retour à la connexion"
-          onPress={() => router.push('/(auth)/login')}
+          onPress={() => router.replace('/(auth)/auth')}
           style={styles.button}
         />
 
         <ThemedText
           type="link"
-          onPress={() => router.push('/(auth)/register')}
+          onPress={() => router.replace('/(auth)/welcome')}
           style={[styles.link, { color: BrandColors.accent[500] }]}
         >
-          Créer un autre compte
+          Retour à l'accueil
         </ThemedText>
       </View>
     </View>

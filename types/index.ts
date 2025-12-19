@@ -9,3 +9,5 @@ export * from './document';
 export * from './payment';
 export * from './unit';
 export * from './health';
+export * from './badge';
+export * from './level';

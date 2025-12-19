@@ -9,6 +9,9 @@ export function useChallenges() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Get unitId from user (only Scout and Animator have unitId)
+  const userUnitId = user && 'unitId' in user ? user.unitId : undefined;
+
   useEffect(() => {
     loadChallenges();
   }, [user]);
@@ -19,8 +22,7 @@ export function useChallenges() {
       setError(null);
 
       // Récupérer tous les défis (pas seulement les actifs)
-      const unitId = user?.unitId;
-      const allChallenges = await ChallengeService.getChallenges(unitId);
+      const allChallenges = await ChallengeService.getChallenges(userUnitId);
 
       setChallenges(allChallenges);
     } catch (err) {

@@ -70,7 +70,10 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
   const backgroundColor = useThemeColor({}, 'background');
 
   const loadFolders = useCallback(async () => {
-    if (!unitId) return;
+    if (!unitId) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       // S'assurer que les dossiers par défaut existent
@@ -224,6 +227,22 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
           <ActivityIndicator size="large" color={BrandColors.primary[500]} />
           <ThemedText style={[styles.loadingText, { color: textSecondary }]}>
             Chargement des documents...
+          </ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  if (!unitId) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="alert-circle-outline" size={56} color={BrandColors.accent[500]} />
+          <ThemedText type="subtitle" style={[styles.emptyTitle, { color: textColor }]}>
+            Aucune unité associée
+          </ThemedText>
+          <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
+            Votre compte n'est pas encore rattaché à une unité scoute. Contactez votre animateur.
           </ThemedText>
         </View>
       </ThemedView>

@@ -1,16 +1,16 @@
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
   collection,
   query,
   where,
   getDocs,
   Timestamp,
-  type DocumentData 
+  type DocumentData
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, auth } from '@/config/firebase';
 import { AnyUser, UserRole, Scout, Parent, Animator } from '@/types';
 
 /**
@@ -83,7 +83,7 @@ export class UserService {
   static async getUserById(userId: string): Promise<AnyUser | null> {
     try {
       const userDoc = await getDoc(doc(db, this.COLLECTION_NAME, userId));
-      
+
       if (!userDoc.exists()) {
         return null;
       }
@@ -104,9 +104,9 @@ export class UserService {
         collection(db, this.COLLECTION_NAME),
         where('email', '==', email)
       );
-      
+
       const querySnapshot = await getDocs(q);
-      
+
       if (querySnapshot.empty) {
         return null;
       }
@@ -131,15 +131,32 @@ export class UserService {
     additionalData?: Partial<AnyUser>
   ): Promise<AnyUser> {
     try {
+      // Rafraîchir le token Firebase Auth pour les règles Firestore
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          await currentUser.getIdToken(true);
+        } catch {
+          // Ignorer silencieusement
+        }
+      }
+
       const now = new Date();
+
+      // Supprimer le champ 'role' de additionalData s'il existe pour éviter l'écrasement
+      const safeAdditionalData = additionalData ? { ...additionalData } : {};
+      if ('role' in safeAdditionalData) {
+        delete (safeAdditionalData as any).role;
+      }
+
       const baseUserData = {
         email,
         firstName,
         lastName,
-        role,
+        ...safeAdditionalData,
+        role, // role APRÈS le spread pour garantir qu'il n'est pas écrasé
         createdAt: Timestamp.fromDate(now),
         updatedAt: Timestamp.fromDate(now),
-        ...additionalData,
       };
 
       // Ajouter les champs spécifiques selon le rôle
@@ -149,14 +166,14 @@ export class UserService {
         case UserRole.SCOUT:
           userData = {
             ...baseUserData,
-            parentIds: additionalData?.parentIds || [],
-            unitId: additionalData?.unitId || '',
-            points: additionalData?.points || 0,
-            validated: false, // Par défaut, les scouts doivent être validés par un animateur
-            dateOfBirth: additionalData?.dateOfBirth
-              ? (additionalData.dateOfBirth instanceof Date
-                  ? Timestamp.fromDate(additionalData.dateOfBirth)
-                  : additionalData.dateOfBirth)
+            parentIds: (additionalData as any)?.parentIds || [],
+            unitId: (additionalData as any)?.unitId || '',
+            points: (additionalData as any)?.points || 0,
+            validated: false,
+            dateOfBirth: (additionalData as any)?.dateOfBirth
+              ? ((additionalData as any).dateOfBirth instanceof Date
+                  ? Timestamp.fromDate((additionalData as any).dateOfBirth)
+                  : (additionalData as any).dateOfBirth)
               : Timestamp.fromDate(new Date()),
           };
           break;
@@ -164,20 +181,21 @@ export class UserService {
         case UserRole.PARENT:
           userData = {
             ...baseUserData,
-            scoutIds: additionalData?.scoutIds || [],
+            scoutIds: (additionalData as any)?.scoutIds || [],
           };
           break;
 
         case UserRole.ANIMATOR:
           userData = {
             ...baseUserData,
-            unitId: additionalData?.unitId || '',
-            isUnitLeader: additionalData?.isUnitLeader || false,
+            unitId: (additionalData as any)?.unitId || '',
+            isUnitLeader: (additionalData as any)?.isUnitLeader || false,
           };
           break;
       }
 
-      await setDoc(doc(db, this.COLLECTION_NAME, userId), userData);
+      const docRef = doc(db, this.COLLECTION_NAME, userId);
+      await setDoc(docRef, userData);
 
       return this.convertFirestoreUser({ id: userId, ...userData });
     } catch (error) {
@@ -215,4 +233,3 @@ export class UserService {
     }
   }
 }
-

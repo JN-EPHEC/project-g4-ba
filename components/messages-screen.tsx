@@ -257,6 +257,22 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
     );
   }
 
+  if (!unitId) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="alert-circle-outline" size={56} color={BrandColors.accent[500]} />
+          <ThemedText type="subtitle" style={[styles.emptyTitle, { color: textColor }]}>
+            Aucune unité associée
+          </ThemedText>
+          <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
+            Votre compte n'est pas encore rattaché à une unité scoute. Contactez votre animateur.
+          </ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
+
   if (channels.length === 0) {
     return (
       <ThemedView style={styles.container}>

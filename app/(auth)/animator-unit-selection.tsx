@@ -128,6 +128,8 @@ export default function AnimatorUnitSelectionScreen() {
 
     try {
       console.log('🚀 Inscription animateur avec la fédération:', selectedUnit.name, 'ID:', selectedUnit.id);
+      console.log('🎯 AVANT register() - UserRole.ANIMATOR =', UserRole.ANIMATOR);
+      console.log('🎯 AVANT register() - typeof UserRole.ANIMATOR =', typeof UserRole.ANIMATOR);
 
       // Créer le compte animateur avec unitId
       const registeredUser = await register(
@@ -138,11 +140,14 @@ export default function AnimatorUnitSelectionScreen() {
         UserRole.ANIMATOR,
         selectedUnit.id // Passer l'unitId (pas la catégorie)
       );
+      console.log('🎯 APRÈS register() - registeredUser.role =', registeredUser?.role);
 
       console.log('✅ Inscription animateur réussie, redirection vers le dashboard');
 
-      // Rediriger vers le dashboard animateur
-      router.push('/(animator)/dashboard');
+      // Attendre un peu pour que l'état auth soit mis à jour, puis rediriger
+      setTimeout(() => {
+        router.replace('/(animator)/dashboard');
+      }, 500);
     } catch (error: any) {
       console.error('❌ Erreur d\'inscription:', error);
       const errorMessage = error?.message || 'Impossible de créer ton compte';

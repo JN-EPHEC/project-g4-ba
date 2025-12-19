@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -14,12 +13,19 @@ export default function AnimatorLayout() {
   const backgroundColor = useThemeColor({}, 'background');
   const totalNotifications = pendingChallengesCount + pendingScoutsCount;
 
-  // Rediriger vers login si l'utilisateur n'est pas connecté ou n'est pas un animateur
-  useEffect(() => {
-    if (!isLoading && (!user || user.role !== UserRole.ANIMATOR)) {
-      router.replace('/(auth)/login');
-    }
-  }, [user, isLoading]);
+  // Ne pas rendre le layout si l'utilisateur n'est pas un animateur
+  if (isLoading) {
+    return null;
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  // Vérification stricte du rôle - doit être exactement ANIMATOR
+  if (user.role !== UserRole.ANIMATOR && user.role !== 'animator') {
+    return null;
+  }
 
   return (
     <Tabs

@@ -4,35 +4,33 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 /**
- * Crée automatiquement un document user dans Firestore
- * quand un nouvel utilisateur s'inscrit via Authentication
+ * DÉSACTIVÉ : Cette fonction créait automatiquement un document user
+ * mais elle écrasait les données envoyées par le client (notamment le rôle).
+ * La création du document est maintenant gérée côté client dans UserService.createUser()
+ *
+ * Si vous avez besoin de réactiver cette fonction, utilisez setDoc avec { merge: true }
+ * ou vérifiez d'abord si le document existe.
  */
 export const createUserDocument = functions.auth.user().onCreate(async (user) => {
-  const { uid, email, displayName } = user;
-
-  // Extraire prénom et nom du displayName si disponible
-  const nameParts = displayName?.split(' ') || [];
-  const firstName = nameParts[0] || 'Prénom';
-  const lastName = nameParts.slice(1).join(' ') || 'Nom';
-
-  // Créer le document dans Firestore
-  const userDoc = {
-    email: email || '',
-    role: 'scout', // Rôle par défaut
-    firstName,
-    lastName,
-    unitId: null,
-    points: 0,
-    profilePicture: user.photoURL || null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
+  const { uid, email } = user;
 
   try {
-    await admin.firestore().collection('users').doc(uid).set(userDoc);
-    console.log(`✅ Document user créé pour ${email}`);
+    // Vérifier si le document existe déjà (créé par le client)
+    const existingDoc = await admin.firestore().collection('users').doc(uid).get();
+
+    if (existingDoc.exists) {
+      console.log(`ℹ️ Document user existe déjà pour ${email} (UID: ${uid}), skip de la création automatique`);
+      return;
+    }
+
+    // Le document n'existe pas encore - cela ne devrait pas arriver si le client fonctionne correctement
+    // On ne crée PAS de document par défaut pour éviter d'écraser les données du client
+    console.warn(`⚠️ Document user non trouvé pour ${email} (UID: ${uid}) - le client devrait le créer`);
+
+    // NE PAS créer de document ici - laisser le client le faire avec les bonnes données
+
   } catch (error) {
-    console.error('❌ Erreur lors de la création du document user:', error);
+    console.error('❌ Erreur dans createUserDocument:', error);
   }
 });
 

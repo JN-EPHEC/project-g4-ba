@@ -3,6 +3,7 @@ import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import { Platform } from 'react-native';
 
 /**
  * Configuration Firebase
@@ -67,6 +68,13 @@ if (getApps().length === 0) {
 export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
+
+// Sur le web, Firebase utilise automatiquement indexedDB pour la persistance
+// La persistance locale est le comportement par défaut sur le web
+// Pas besoin de configurer setPersistence explicitement car c'est déjà le défaut
+if (Platform.OS === 'web') {
+  console.log('🌐 Firebase Auth sur le web - persistance locale activée par défaut');
+}
 
 export default app;
 
