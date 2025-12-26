@@ -145,5 +145,37 @@ service cloud.firestore {
       allow create, update, delete: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
     }
+
+    // Règles pour les fiches santé
+    match /healthRecords/{recordId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == recordId;
+      allow update: if request.auth != null && (
+        request.auth.uid == recordId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['animator', 'parent']
+      );
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
+
+    // Règles pour les documents (autorisations, etc.)
+    match /documents/{documentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
+
+    // Règles pour les signatures de documents
+    match /documentSignatures/{signatureId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && (
+        request.auth.uid == request.resource.data.parentId ||
+        request.auth.uid == request.resource.data.scoutId
+      );
+      allow update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
   }
 }

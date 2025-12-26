@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Constants from 'expo-constants';
 import { ThemedText } from '@/components/themed-text';
 import { LevelService } from '@/services/level-service';
-import { ScoutLevelInfo } from '@/types';
+import { BrandColors } from '@/constants/theme';
 
-// Couleurs Gold de la mockup (fallback)
-const GOLD_COLORS = {
-  primary: '#F5A623',
-  dark: '#D4920A',
-  light: '#FFB84D',
-};
+// Hauteur de la status bar selon la plateforme
+const STATUS_BAR_HEIGHT = Platform.select({
+  ios: Constants.statusBarHeight || 44,
+  android: Constants.statusBarHeight || 24,
+  web: 0,
+  default: 0,
+});
 
 interface ChallengesHeroHeaderProps {
   totalPoints: number;
@@ -47,10 +49,10 @@ export function ChallengesHeroHeader({
   onRankPress,
   onLevelPress,
 }: ChallengesHeroHeaderProps) {
-  // Utiliser la couleur du niveau ou fallback sur gold
+  // Utiliser la couleur du niveau ou fallback sur brand primary
   const gradientColors: [string, string] = levelColor
     ? [levelColor, adjustColorBrightness(levelColor, -30)]
-    : [GOLD_COLORS.primary, GOLD_COLORS.dark];
+    : [BrandColors.primary[500], BrandColors.primary[700]];
 
   return (
     <LinearGradient
@@ -182,10 +184,12 @@ export function getScoutLevel(points: number): string {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 32,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     padding: 24,
-    paddingTop: 32,
-    marginBottom: 24,
+    paddingTop: STATUS_BAR_HEIGHT + 16,
+    paddingBottom: 24,
+    marginBottom: 16,
     position: 'relative',
     overflow: 'hidden',
   },

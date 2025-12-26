@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -88,6 +88,15 @@ export function TotemSelector({ selectedAnimal, onSelectAnimal, selectedEmoji, o
   const backgroundColor = useThemeColor({}, 'background');
 
   const selectedTotem = TOTEM_ANIMALS.find((a) => a.name === selectedAnimal);
+
+  // Synchroniser l'emoji personnalisé quand l'animal sélectionné change
+  useEffect(() => {
+    // Recalculer le totem directement dans le useEffect pour éviter les problèmes de closure
+    const totem = TOTEM_ANIMALS.find((a) => a.name === selectedAnimal);
+    if (totem) {
+      setCustomEmoji(totem.emoji);
+    }
+  }, [selectedAnimal]);
 
   const filteredAnimals = searchQuery
     ? TOTEM_ANIMALS.filter(

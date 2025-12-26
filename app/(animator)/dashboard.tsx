@@ -43,7 +43,11 @@ interface ActiveChallenge {
 
 export default function AnimatorDashboardScreen() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { totalNotificationsCount } = useNotifications();
+  const {
+    totalNotificationsCount,
+    missingHealthRecordsCount,
+    pendingAuthorizationsCount
+  } = useNotifications();
   const animator = user as Animator;
   const [unit, setUnit] = useState<Unit | null>(null);
   const [scoutsCount, setScoutsCount] = useState(0);
@@ -53,8 +57,6 @@ export default function AnimatorDashboardScreen() {
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [topScouts, setTopScouts] = useState<LeaderboardUser[]>([]);
   const [activeChallenges, setActiveChallenges] = useState<ActiveChallenge[]>([]);
-  const [missingHealthRecords, setMissingHealthRecords] = useState(0);
-  const [pendingAuthorizations, setPendingAuthorizations] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
@@ -91,10 +93,6 @@ export default function AnimatorDashboardScreen() {
         if (unitData) {
           const scouts = await UnitService.getScoutsByUnit(unitData.id);
           setScoutsCount(scouts.length);
-
-          // Fiches santé manquantes (valeur de démo pour l'instant)
-          // TODO: Implémenter HealthRecordService.getUnitHealthStats
-          setMissingHealthRecords(3);
 
           // Charger le classement
           try {
@@ -155,8 +153,6 @@ export default function AnimatorDashboardScreen() {
       } catch (error) {
         setChallengesCount(0);
       }
-
-      setPendingAuthorizations(2);
 
     } catch (error) {
       console.error('Erreur chargement dashboard:', error);
@@ -251,7 +247,7 @@ export default function AnimatorDashboardScreen() {
 
         {/* Alerts Section */}
         <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-          {missingHealthRecords > 0 && (
+          {missingHealthRecordsCount > 0 && (
             <TouchableOpacity
               style={[styles.alertCard, { backgroundColor: '#FEF2F2' }]}
               onPress={() => router.push('/(animator)/scouts')}
@@ -260,7 +256,7 @@ export default function AnimatorDashboardScreen() {
                 <ThemedText style={styles.alertEmoji}>🏥</ThemedText>
               </View>
               <ThemedText style={[styles.alertText, { color: '#DC2626' }]}>
-                {missingHealthRecords} fiches santé manquantes
+                {missingHealthRecordsCount} {missingHealthRecordsCount === 1 ? 'fiche santé manquante' : 'fiches santé manquantes'}
               </ThemedText>
               <TouchableOpacity style={[styles.alertButton, { backgroundColor: '#FECACA' }]}>
                 <ThemedText style={[styles.alertButtonText, { color: '#DC2626' }]}>Voir</ThemedText>
@@ -268,7 +264,7 @@ export default function AnimatorDashboardScreen() {
             </TouchableOpacity>
           )}
 
-          {pendingAuthorizations > 0 && (
+          {pendingAuthorizationsCount > 0 && (
             <TouchableOpacity
               style={[styles.alertCard, { backgroundColor: '#FFFBEB' }]}
               onPress={() => router.push('/(animator)/documents')}
@@ -277,7 +273,7 @@ export default function AnimatorDashboardScreen() {
                 <ThemedText style={styles.alertEmoji}>📋</ThemedText>
               </View>
               <ThemedText style={[styles.alertText, { color: '#D97706' }]}>
-                {pendingAuthorizations} autorisations à signer
+                {pendingAuthorizationsCount} {pendingAuthorizationsCount === 1 ? 'autorisation à signer' : 'autorisations à signer'}
               </ThemedText>
               <TouchableOpacity style={[styles.alertButton, { backgroundColor: '#FDE68A' }]}>
                 <ThemedText style={[styles.alertButtonText, { color: '#D97706' }]}>Voir</ThemedText>

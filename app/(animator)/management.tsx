@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, View, TouchableOpacity, Alert, Platform, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,9 +11,86 @@ import { useNotifications } from '@/context/notification-context';
 import { UnitService } from '@/services/unit-service';
 import { EventService } from '@/services/event-service';
 import { ChallengeService } from '@/services/challenge-service';
-import { Animator, Unit } from '@/types';
+import { ChannelService } from '@/src/shared/services/channel-service';
+import { Animator, Unit, EventType, ChallengeDifficulty } from '@/types';
+import { ChannelType } from '@/src/shared/types/channel';
 import { BrandColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+
+// Données de simulation
+const SIMULATION_EVENTS = [
+  {
+    title: "Camp d'hiver aux Vosges",
+    description: "Un super camp de 3 jours dans les Vosges ! Au programme : randonnée, construction d'igloos, veillée autour du feu.",
+    type: EventType.CAMP,
+    location: 'Refuge du Tanet, Vosges',
+    daysFromNow: 14,
+    duration: 3,
+    requiresParentConfirmation: true,
+    maxParticipants: 20,
+  },
+  {
+    title: 'Réunion du samedi',
+    description: 'Réunion hebdomadaire de la troupe. Activités : progression personnelle, jeux, préparation du prochain camp.',
+    type: EventType.MEETING,
+    location: 'Local scout',
+    daysFromNow: 2,
+    duration: 0.125, // 3 heures
+    requiresParentConfirmation: false,
+  },
+  {
+    title: 'Grand Jeu "La Quête du Graal"',
+    description: 'Grand jeu d\'aventure ! Par équipes, partez à la recherche du Graal légendaire à travers la forêt.',
+    type: EventType.ACTIVITY,
+    location: 'Forêt de Fontainebleau',
+    daysFromNow: 9,
+    duration: 0.25,
+    requiresParentConfirmation: true,
+  },
+  {
+    title: 'Formation Premiers Secours',
+    description: 'Formation PSC1 pour les scouts de plus de 12 ans. Apprenez les gestes qui sauvent !',
+    type: EventType.TRAINING,
+    location: 'Salle communale',
+    daysFromNow: 21,
+    duration: 0.33,
+    requiresParentConfirmation: true,
+    maxParticipants: 15,
+  },
+  {
+    title: 'Sortie Kayak',
+    description: 'Descente en kayak sur la Marne ! Niveau débutant accepté.',
+    type: EventType.ACTIVITY,
+    location: 'Base nautique de Lagny-sur-Marne',
+    daysFromNow: 30,
+    duration: 0.2,
+    requiresParentConfirmation: true,
+    maxParticipants: 12,
+  },
+];
+
+const SIMULATION_CHALLENGES = [
+  { title: 'Premier Feu de Camp', description: 'Allume un feu de camp en utilisant uniquement des allumettes et du bois trouvé.', points: 20, difficulty: ChallengeDifficulty.EASY, emoji: '🔥', category: 'nature' },
+  { title: 'Nœuds Experts', description: 'Maîtrise 5 nœuds différents : chaise, cabestan, huit, plat et pêcheur.', points: 40, difficulty: ChallengeDifficulty.MEDIUM, emoji: '🪢', category: 'technique' },
+  { title: 'Orientation Nocturne', description: 'Participe à une randonnée nocturne avec carte et boussole.', points: 80, difficulty: ChallengeDifficulty.HARD, emoji: '🌙', category: 'nature' },
+  { title: 'Cuisine Nature', description: 'Prépare un repas complet pour ta patrouille sur un feu de camp.', points: 50, difficulty: ChallengeDifficulty.MEDIUM, emoji: '🍳', category: 'cuisine' },
+  { title: "Construction d'Abri", description: 'Construis un abri naturel qui protège 2 personnes de la pluie.', points: 100, difficulty: ChallengeDifficulty.HARD, emoji: '🏕️', category: 'technique' },
+];
+
+const SIMULATION_MESSAGES = {
+  announcements: [
+    "📢 Rappel : le camp d'hiver approche ! N'oubliez pas de rendre les fiches d'inscription avant vendredi.",
+    "🎉 Bravo à tous pour le dernier grand jeu ! Vous avez été incroyables !",
+    "📸 Les photos du dernier événement sont disponibles sur le Drive.",
+    "⚠️ Changement d'horaire pour samedi : rendez-vous à 14h au lieu de 14h30.",
+  ],
+  general: [
+    "Salut tout le monde ! Qui a des bouts de corde pour les nœuds samedi ?",
+    "Super journée hier ! Le grand jeu était trop bien 🎮",
+    "Qui vient au camp d'hiver ? On sera combien ?",
+    "Moi je viens ! Trop hâte ! 🏔️",
+  ],
+};
 
 export default function ManagementScreen() {
   const { user } = useAuth();
@@ -24,6 +101,7 @@ export default function ManagementScreen() {
   const [eventsCount, setEventsCount] = useState(0);
   const [challengesCount, setChallengesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSimulating, setIsSimulating] = useState(false);
   const iconColor = useThemeColor({}, 'icon');
 
   useEffect(() => {
@@ -72,6 +150,143 @@ export default function ManagementScreen() {
     }
   };
 
+  // Fonction d'alerte compatible web/mobile
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
+  // Fonction de confirmation compatible web/mobile
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        onConfirm();
+      }
+    } else {
+      Alert.alert(title, message, [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Confirmer', onPress: onConfirm },
+      ]);
+    }
+  };
+
+  // Fonction de simulation
+  const runSimulation = async () => {
+    if (!user?.id || !animator?.unitId) {
+      showAlert('Erreur', 'Vous devez être connecté et avoir une unité assignée.');
+      return;
+    }
+
+    showConfirm(
+      'Simulation de vie scout',
+      'Cette action va créer :\n• 5 événements\n• 5 défis\n• 8 messages dans les canaux\n\nVoulez-vous continuer ?',
+      async () => {
+        try {
+          setIsSimulating(true);
+          let createdEvents = 0;
+          let createdChallenges = 0;
+          let createdMessages = 0;
+
+          // 1. Créer les événements
+          for (const event of SIMULATION_EVENTS) {
+            try {
+              const startDate = new Date();
+              startDate.setDate(startDate.getDate() + event.daysFromNow);
+              startDate.setHours(9, 0, 0, 0);
+
+              const endDate = new Date(startDate);
+              endDate.setDate(endDate.getDate() + Math.floor(event.duration));
+              endDate.setHours(17 + (event.duration % 1) * 24, 0, 0, 0);
+
+              await EventService.createEvent(
+                event.title,
+                event.description,
+                event.type,
+                startDate,
+                endDate,
+                event.location,
+                user.id,
+                animator.unitId,
+                event.requiresParentConfirmation,
+                event.maxParticipants
+              );
+              createdEvents++;
+            } catch (error) {
+              console.error(`Erreur création événement ${event.title}:`, error);
+            }
+          }
+
+          // 2. Créer les défis
+          const now = new Date();
+          const endDate = new Date(now);
+          endDate.setMonth(endDate.getMonth() + 3);
+
+          for (const challenge of SIMULATION_CHALLENGES) {
+            try {
+              await ChallengeService.createChallenge(
+                challenge.title,
+                challenge.description,
+                challenge.points,
+                challenge.difficulty,
+                now,
+                endDate,
+                user.id,
+                animator.unitId,
+                undefined,
+                challenge.emoji,
+                challenge.category
+              );
+              createdChallenges++;
+            } catch (error) {
+              console.error(`Erreur création défi ${challenge.title}:`, error);
+            }
+          }
+
+          // 3. Créer les messages dans les canaux
+          try {
+            const channels = await ChannelService.getChannelsByUnit(animator.unitId);
+
+            // Messages dans le canal Annonces
+            const announcementsChannel = channels.find(c => c.type === ChannelType.ANNOUNCEMENTS);
+            if (announcementsChannel) {
+              for (const content of SIMULATION_MESSAGES.announcements) {
+                await ChannelService.sendMessage(announcementsChannel.id, user.id, content);
+                createdMessages++;
+              }
+            }
+
+            // Messages dans le canal Général
+            const generalChannel = channels.find(c => c.type === ChannelType.GENERAL);
+            if (generalChannel) {
+              for (const content of SIMULATION_MESSAGES.general) {
+                await ChannelService.sendMessage(generalChannel.id, user.id, content);
+                createdMessages++;
+              }
+            }
+          } catch (error) {
+            console.error('Erreur création messages:', error);
+          }
+
+          // Recharger les données
+          await loadManagementData();
+
+          showAlert(
+            'Simulation terminée !',
+            `Données créées :\n• ${createdEvents} événements\n• ${createdChallenges} défis\n• ${createdMessages} messages`
+          );
+        } catch (error) {
+          console.error('Erreur simulation:', error);
+          showAlert('Erreur', 'Une erreur est survenue pendant la simulation.');
+        } finally {
+          setIsSimulating(false);
+        }
+      }
+    );
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
@@ -95,31 +310,39 @@ export default function ManagementScreen() {
           </Card>
         )}
 
-        <Card style={styles.statsCard}>
-          <ThemedText type="defaultSemiBold" style={styles.statsTitle}>
-            Statistiques
-          </ThemedText>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>
-                {isLoading ? '...' : scoutsCount}
+        <TouchableOpacity onPress={() => router.push('/(animator)/unit-overview')} activeOpacity={0.7}>
+          <Card style={styles.statsCard}>
+            <View style={styles.statsHeader}>
+              <ThemedText type="defaultSemiBold" style={styles.statsTitle}>
+                Statistiques
               </ThemedText>
-              <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+              <View style={styles.statsHint}>
+                <ThemedText style={styles.statsHintText}>Voir détails</ThemedText>
+                <Ionicons name="chevron-forward" size={16} color={iconColor} />
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>
-                {isLoading ? '...' : eventsCount}
-              </ThemedText>
-              <ThemedText style={styles.statLabel}>Événements</ThemedText>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>
+                  {isLoading ? '...' : scoutsCount}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+              </View>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>
+                  {isLoading ? '...' : eventsCount}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Événements</ThemedText>
+              </View>
+              <View style={styles.statItem}>
+                <ThemedText type="title" style={styles.statValue}>
+                  {isLoading ? '...' : challengesCount}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Défis actifs</ThemedText>
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <ThemedText type="title" style={styles.statValue}>
-                {isLoading ? '...' : challengesCount}
-              </ThemedText>
-              <ThemedText style={styles.statLabel}>Défis actifs</ThemedText>
-            </View>
-          </View>
-        </Card>
+          </Card>
+        </TouchableOpacity>
 
         <ThemedText type="subtitle" style={styles.sectionTitle}>
           Créer
@@ -266,6 +489,46 @@ export default function ManagementScreen() {
             <Ionicons name="chevron-forward" size={20} color={iconColor} />
           </Card>
         </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/(animator)/change-password')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+              <Ionicons name="lock-closed" size={28} color={BrandColors.primary[500]} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Changer le mot de passe</ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Modifier mon mot de passe
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
+        <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
+          Outils
+        </ThemedText>
+
+        <TouchableOpacity onPress={runSimulation} disabled={isSimulating}>
+          <Card style={[styles.actionCard, isSimulating && styles.actionCardDisabled]}>
+            <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+              {isSimulating ? (
+                <ActivityIndicator size="small" color={BrandColors.accent[500]} />
+              ) : (
+                <Ionicons name="flask" size={28} color={BrandColors.accent[500]} />
+              )}
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">
+                {isSimulating ? 'Simulation en cours...' : 'Simuler vie scout'}
+              </ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Créer des événements, défis et messages de test
+              </ThemedText>
+            </View>
+            {!isSimulating && <Ionicons name="chevron-forward" size={20} color={iconColor} />}
+          </Card>
+        </TouchableOpacity>
       </ScrollView>
     </ThemedView>
   );
@@ -304,8 +567,23 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 24,
   },
-  statsTitle: {
+  statsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  statsTitle: {
+    marginBottom: 0,
+  },
+  statsHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statsHintText: {
+    fontSize: 13,
+    opacity: 0.6,
   },
   statsRow: {
     flexDirection: 'row',
@@ -368,5 +646,8 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  actionCardDisabled: {
+    opacity: 0.6,
   },
 });

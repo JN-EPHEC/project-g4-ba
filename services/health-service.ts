@@ -6,6 +6,10 @@ import {
   Timestamp,
   arrayUnion,
   arrayRemove,
+  collection,
+  query,
+  where,
+  getDocs,
   type DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -309,5 +313,74 @@ export class HealthService {
       console.error('Erreur lors de l\'upsert de la fiche santé:', error);
       throw error;
     }
+  }
+
+  /**
+   * Récupère les statistiques de santé d'une unité
+   * Retourne le nombre de fiches manquantes, non signées, et complètes
+   */
+  static async getUnitHealthStats(scoutIds: string[]): Promise<{
+    total: number;
+    missing: number;
+    unsigned: number;
+    complete: number;
+    scoutsWithoutRecord: string[];
+    scoutsWithUnsignedRecord: string[];
+  }> {
+    try {
+      if (scoutIds.length === 0) {
+        return {
+          total: 0,
+          missing: 0,
+          unsigned: 0,
+          complete: 0,
+          scoutsWithoutRecord: [],
+          scoutsWithUnsignedRecord: [],
+        };
+      }
+
+      const scoutsWithoutRecord: string[] = [];
+      const scoutsWithUnsignedRecord: string[] = [];
+      let complete = 0;
+
+      // Vérifier chaque scout
+      for (const scoutId of scoutIds) {
+        const healthRecord = await this.getHealthRecord(scoutId);
+
+        if (!healthRecord) {
+          // Pas de fiche santé
+          scoutsWithoutRecord.push(scoutId);
+        } else if (!healthRecord.signedByParentId) {
+          // Fiche non signée par un parent
+          scoutsWithUnsignedRecord.push(scoutId);
+        } else {
+          // Fiche complète et signée
+          complete++;
+        }
+      }
+
+      return {
+        total: scoutIds.length,
+        missing: scoutsWithoutRecord.length,
+        unsigned: scoutsWithUnsignedRecord.length,
+        complete,
+        scoutsWithoutRecord,
+        scoutsWithUnsignedRecord,
+      };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des stats de santé:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifie si une fiche santé est complète (a les informations essentielles)
+   */
+  static isHealthRecordComplete(record: HealthRecord): boolean {
+    return (
+      record.emergencyContacts.length > 0 &&
+      record.signedByParentId !== null &&
+      record.signedByParentId !== undefined
+    );
   }
 }

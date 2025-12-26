@@ -36,6 +36,18 @@ service firebase.storage {
                    && isImage();
     }
 
+    // Règles pour les images de totem générées par IA
+    match /totems/{userId}/{allPaths=**} {
+      // Lecture: Tout le monde peut lire les totems
+      allow read: if true;
+
+      // Écriture: Le propriétaire ou le service (Cloud Function)
+      allow write: if isAuthenticated()
+                   && isOwner(userId)
+                   && isValidSize()
+                   && isImage();
+    }
+
     // Règles pour les photos de défis
     match /challenges/{challengeId}/submissions/{submissionId}/{allPaths=**} {
       // Lecture: Tout le monde authentifié peut lire

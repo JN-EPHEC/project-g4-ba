@@ -202,6 +202,25 @@ export default function ProfileScreen() {
           )}
         </Card>
 
+        {/* Sécurité */}
+        <Card style={styles.settingsCard}>
+          <TouchableOpacity
+            style={styles.settingsHeader}
+            onPress={() => router.push('/(scout)/change-password')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingsHeaderLeft}>
+              <Ionicons name="lock-closed-outline" size={24} color={iconColor} />
+              <ThemedText type="defaultSemiBold">Changer le mot de passe</ThemedText>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={iconColor}
+            />
+          </TouchableOpacity>
+        </Card>
+
         <TouchableOpacity
           onPress={handleLogout}
           style={styles.logoutButton}

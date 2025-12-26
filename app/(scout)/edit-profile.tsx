@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { Card, PrimaryButton } from '@/components/ui';
 import { TotemSelector, TOTEM_ANIMALS } from '@/components/totem-selector';
+import { TotemImageGenerator } from '@/components/totem-image-generator';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Scout } from '@/types';
@@ -186,9 +187,9 @@ export default function EditProfileScreen() {
               <ThemedText style={styles.label}>Animal totem</ThemedText>
               <TotemSelector
                 selectedAnimal={formData.totemAnimal}
-                onSelectAnimal={(animal) => setFormData({ ...formData, totemAnimal: animal })}
+                onSelectAnimal={(animal) => setFormData(prev => ({ ...prev, totemAnimal: animal }))}
                 selectedEmoji={formData.totemEmoji}
-                onSelectEmoji={(emoji) => setFormData({ ...formData, totemEmoji: emoji })}
+                onSelectEmoji={(emoji) => setFormData(prev => ({ ...prev, totemEmoji: emoji }))}
               />
             </View>
 
@@ -205,6 +206,33 @@ export default function EditProfileScreen() {
                 Combine ton animal avec un adjectif qui te caractérise
               </ThemedText>
             </View>
+
+            {/* Génération d'image par IA */}
+            {scout?.id && (formData.totemAnimal || formData.totemEmoji) && (() => {
+              // Trouver le nom de l'animal soit directement, soit via l'emoji
+              let animalName = formData.totemAnimal;
+              if (!animalName && formData.totemEmoji) {
+                const foundAnimal = TOTEM_ANIMALS.find(a => a.emoji === formData.totemEmoji);
+                if (foundAnimal) {
+                  animalName = foundAnimal.name;
+                }
+              }
+
+              if (!animalName) return null;
+
+              return (
+                <TotemImageGenerator
+                  key={animalName}
+                  animalName={animalName}
+                  userId={scout.id}
+                  currentTotemImage={scout?.profilePicture}
+                  onImageGenerated={async (imageUrl) => {
+                    // Mettre à jour la photo de profil avec l'image générée
+                    await updateUser({ profilePicture: imageUrl });
+                  }}
+                />
+              );
+            })()}
           </Card>
 
           {/* Bouton Sauvegarder */}

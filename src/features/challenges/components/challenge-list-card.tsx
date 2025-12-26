@@ -5,23 +5,23 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { ChallengeCategory, ChallengeDifficulty } from '@/types';
 import { BrandColors } from '@/constants/theme';
 
-// Couleurs par catégorie (de la mockup)
+// Couleurs par catégorie - Utilise la palette brand
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  nature: { bg: '#E8F5E9', text: '#28A745' },
-  sport: { bg: '#EBF4FF', text: '#4A90D9' },
-  technique: { bg: '#FEF7E6', text: '#F5A623' },
-  cuisine: { bg: '#FEF3EE', text: '#E07B4C' },
-  aventure: { bg: '#F3E5F5', text: '#7B1FA2' },
-  survie: { bg: '#FDEAEA', text: '#DC3545' },
-  securite: { bg: '#FDEAEA', text: '#DC3545' },
-  default: { bg: '#E8EDE9', text: '#8B7E74' },
+  nature: { bg: BrandColors.primary[50], text: BrandColors.primary[500] },
+  sport: { bg: BrandColors.primary[100], text: BrandColors.primary[600] },
+  technique: { bg: BrandColors.accent[50], text: BrandColors.accent[500] },
+  cuisine: { bg: BrandColors.accent[100], text: BrandColors.accent[600] },
+  aventure: { bg: BrandColors.primary[100], text: BrandColors.primary[700] },
+  survie: { bg: BrandColors.accent[100], text: BrandColors.accent[700] },
+  securite: { bg: BrandColors.accent[50], text: BrandColors.accent[600] },
+  default: { bg: BrandColors.secondary[100], text: BrandColors.secondary[500] },
 };
 
-// Couleurs de difficulté (de la mockup)
+// Couleurs de difficulté - Palette brand uniquement
 const DIFFICULTY_COLORS = {
-  easy: '#28A745',
-  medium: '#F5A623',
-  hard: '#DC3545',
+  easy: BrandColors.primary[400],    // Vert clair
+  medium: BrandColors.accent[500],   // Orange
+  hard: BrandColors.primary[700],    // Vert foncé
 };
 
 interface ChallengeListCardProps {
@@ -73,9 +73,9 @@ export function ChallengeListCard({
         styles.container,
         {
           backgroundColor: cardColor,
-          borderColor: isCompleted ? '#28A745' : cardBorderColor,
+          borderColor: isCompleted ? BrandColors.primary[500] : cardBorderColor,
           borderWidth: isCompleted ? 2 : 1,
-          opacity: isCompleted ? 0.8 : 1,
+          opacity: isCompleted ? 0.85 : 1,
         },
       ]}
       onPress={onPress}
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#E07B4C',
+    backgroundColor: BrandColors.accent[500],
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#28A745',
+    backgroundColor: BrandColors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     color: '#C4BBB3',
   },
   pointsBadge: {
-    backgroundColor: '#FEF7E6',
+    backgroundColor: BrandColors.accent[50],
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -268,6 +268,6 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F5A623',
+    color: BrandColors.accent[500],
   },
 });

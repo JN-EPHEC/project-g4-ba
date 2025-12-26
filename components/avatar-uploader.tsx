@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -37,8 +37,11 @@ export function AvatarUploader({
 }: AvatarUploaderProps) {
   const { user, updateUser } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(currentAvatarUrl);
   const [showMenu, setShowMenu] = useState(false);
+
+  // Utiliser directement la photo de profil du user du contexte,
+  // ou la prop currentAvatarUrl en fallback
+  const avatarUrl = user?.profilePicture || currentAvatarUrl;
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
   const textColor = useThemeColor({}, 'text');
@@ -153,7 +156,6 @@ export function AvatarUploader({
       // Mettre à jour le profil utilisateur
       await updateUser({ profilePicture: downloadURL });
 
-      setAvatarUrl(downloadURL);
       onUploadComplete?.(downloadURL);
 
       showAlert('Succès', 'Votre photo de profil a été mise à jour');

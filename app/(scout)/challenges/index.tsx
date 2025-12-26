@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
@@ -286,46 +286,50 @@ export default function ChallengesScreen() {
     );
   }
 
+  // Calculer les infos de niveau une fois
+  const levelInfo = getScoutLevelInfo(scout?.points || 0);
+
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero Header with gradient */}
-        {(() => {
-          const levelInfo = getScoutLevelInfo(scout?.points || 0);
-          return (
-            <ChallengesHeroHeader
-              totalPoints={scout?.points || 0}
-              level={levelInfo.level}
-              levelIcon={levelInfo.levelIcon}
-              levelColor={levelInfo.levelColor}
-              nextLevel={levelInfo.nextLevel}
-              nextLevelIcon={levelInfo.nextLevelIcon}
-              levelProgress={levelInfo.progress}
-              pointsToNextLevel={levelInfo.pointsToNextLevel}
-              isMaxLevel={levelInfo.isMaxLevel}
-              rank={userRank}
-              streak={0}
-              completedCount={completedCount}
-              inProgressCount={filterCounts.in_progress}
-              onRankPress={() => setActiveMainTab('leaderboard')}
-              onLevelPress={() => setShowLevelModal(true)}
+    <View style={[styles.container, { backgroundColor: levelInfo.levelColor }]}>
+      <StatusBar barStyle="light-content" backgroundColor={levelInfo.levelColor} translucent />
+      {/* Hero Header fixé en haut - en dehors du ScrollView */}
+      <ChallengesHeroHeader
+        totalPoints={scout?.points || 0}
+        level={levelInfo.level}
+        levelIcon={levelInfo.levelIcon}
+        levelColor={levelInfo.levelColor}
+        nextLevel={levelInfo.nextLevel}
+        nextLevelIcon={levelInfo.nextLevelIcon}
+        levelProgress={levelInfo.progress}
+        pointsToNextLevel={levelInfo.pointsToNextLevel}
+        isMaxLevel={levelInfo.isMaxLevel}
+        rank={userRank}
+        streak={0}
+        completedCount={completedCount}
+        inProgressCount={filterCounts.in_progress}
+        onRankPress={() => setActiveMainTab('leaderboard')}
+        onLevelPress={() => setShowLevelModal(true)}
+      />
+
+      <ThemedView style={styles.scrollContainer}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Content Section with padding */}
+          <View style={styles.contentSection}>
+            {/* Main Tabs */}
+            <ChallengesMainTabs
+              activeTab={activeMainTab}
+              onTabChange={handleMainTabChange}
             />
-          );
-        })()}
 
-        {/* Main Tabs */}
-        <ChallengesMainTabs
-          activeTab={activeMainTab}
-          onTabChange={handleMainTabChange}
-        />
-
-        {/* Tab Content */}
-        {renderTabContent()}
-      </ScrollView>
+            {/* Tab Content */}
+            {renderTabContent()}
+          </View>
+        </ScrollView>
+      </ThemedView>
 
       {/* Modal de détails du défi */}
       {selectedChallenge && (
@@ -342,7 +346,7 @@ export default function ChallengesScreen() {
         onClose={() => setShowLevelModal(false)}
         currentPoints={scout?.points || 0}
       />
-    </ThemedView>
+    </View>
   );
 }
 
@@ -524,14 +528,22 @@ function ChallengeModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#D97B4A', // Couleur du header pour éviter le flash blanc
+    // S'assurer que le container ne déborde pas de la zone des Tabs
+    overflow: 'hidden',
+  },
+  scrollContainer: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingBottom: 120,
+  },
+  contentSection: {
     padding: 20,
-    paddingTop: 60,
-    paddingBottom: 100,
+    paddingTop: 24,
   },
   loadingContainer: {
     flex: 1,

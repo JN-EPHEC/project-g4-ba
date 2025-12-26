@@ -31,6 +31,7 @@ export interface ScoutLevelInfo {
 
 /**
  * Niveaux par défaut pour initialisation
+ * Palette: Vert forêt (#2D5A45), Orange terracotta (#D97B4A), Taupe (#8B7E74)
  */
 export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
   {
@@ -38,7 +39,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 0,
     maxPoints: 99,
     icon: '🐺',
-    color: '#8B5CF6', // Violet
+    color: '#8bbaaa', // Vert clair (primary[300])
     order: 1,
   },
   {
@@ -46,7 +47,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 100,
     maxPoints: 249,
     icon: '🔦',
-    color: '#3B82F6', // Bleu
+    color: '#5d9a86', // Vert moyen (primary[400])
     order: 2,
   },
   {
@@ -54,7 +55,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 250,
     maxPoints: 499,
     icon: '🧭',
-    color: '#10B981', // Vert
+    color: '#2D5A45', // Vert forêt (primary[500])
     order: 3,
   },
   {
@@ -62,7 +63,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 500,
     maxPoints: 999,
     icon: '⛺',
-    color: '#F59E0B', // Orange
+    color: '#e99265', // Orange clair (accent[400])
     order: 4,
   },
   {
@@ -70,7 +71,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 1000,
     maxPoints: 1999,
     icon: '🏕️',
-    color: '#EF4444', // Rouge
+    color: '#D97B4A', // Orange terracotta (accent[500])
     order: 5,
   },
   {
@@ -78,7 +79,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 2000,
     maxPoints: 3499,
     icon: '🗺️',
-    color: '#EC4899', // Rose
+    color: '#c46839', // Orange foncé (accent[600])
     order: 6,
   },
   {
@@ -86,7 +87,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 3500,
     maxPoints: 4999,
     icon: '🎖️',
-    color: '#6366F1', // Indigo
+    color: '#1f4031', // Vert très foncé (primary[700])
     order: 7,
   },
   {
@@ -94,7 +95,7 @@ export const DEFAULT_LEVELS: Omit<LevelDefinition, 'id' | 'createdAt'>[] = [
     minPoints: 5000,
     maxPoints: -1, // Infini
     icon: '👑',
-    color: '#FFD700', // Or
+    color: '#a3552e', // Bronze doré (accent[700])
     order: 8,
   },
 ];

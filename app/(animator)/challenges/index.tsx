@@ -408,11 +408,11 @@ function ChallengeModal({
   const getDifficultyInfo = (difficulty: ChallengeDifficulty) => {
     switch (difficulty) {
       case ChallengeDifficulty.EASY:
-        return { label: 'Facile', color: '#28A745' };
+        return { label: 'Facile', color: BrandColors.primary[400] };
       case ChallengeDifficulty.MEDIUM:
-        return { label: 'Moyen', color: '#F5A623' };
+        return { label: 'Moyen', color: BrandColors.accent[500] };
       case ChallengeDifficulty.HARD:
-        return { label: 'Difficile', color: '#DC3545' };
+        return { label: 'Difficile', color: BrandColors.primary[700] };
     }
   };
 
@@ -444,8 +444,8 @@ function ChallengeModal({
                         {difficultyInfo.label}
                       </ThemedText>
                     </View>
-                    <View style={[styles.modalBadge, { backgroundColor: '#FEF7E6' }]}>
-                      <ThemedText style={[styles.modalBadgeText, { color: '#F5A623' }]}>
+                    <View style={[styles.modalBadge, { backgroundColor: BrandColors.accent[50] }]}>
+                      <ThemedText style={[styles.modalBadgeText, { color: BrandColors.accent[500] }]}>
                         +{challenge.points} pts
                       </ThemedText>
                     </View>
@@ -461,9 +461,9 @@ function ChallengeModal({
             </View>
 
             {isEnded && (
-              <View style={[styles.statusBadge, { backgroundColor: '#E8F5E9' }]}>
-                <Ionicons name="checkmark-circle" size={18} color="#28A745" />
-                <ThemedText style={[styles.statusBadgeText, { color: '#28A745' }]}>Défi terminé</ThemedText>
+              <View style={[styles.statusBadge, { backgroundColor: BrandColors.primary[50] }]}>
+                <Ionicons name="checkmark-circle" size={18} color={BrandColors.primary[500]} />
+                <ThemedText style={[styles.statusBadgeText, { color: BrandColors.primary[500] }]}>Défi terminé</ThemedText>
               </View>
             )}
 
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: '#FEF3EE',
+    backgroundColor: BrandColors.accent[50],
     alignItems: 'center',
     justifyContent: 'center',
   },

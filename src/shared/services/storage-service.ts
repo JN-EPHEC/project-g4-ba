@@ -154,6 +154,29 @@ export class StorageService {
   }
 
   /**
+   * Upload une image de totem générée par IA (depuis un Blob)
+   */
+  static async uploadTotemImage(
+    userId: string,
+    imageBlob: Blob
+  ): Promise<string> {
+    try {
+      const path = `totems/${userId}/${Date.now()}.png`;
+      const storageRef = ref(storage, path);
+
+      const uploadResult: UploadResult = await uploadBytes(storageRef, imageBlob, {
+        contentType: 'image/png',
+      });
+
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+      return downloadURL;
+    } catch (error) {
+      console.error('Erreur lors de l\'upload de l\'image totem:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Supprime un fichier de Storage
    */
   static async deleteFile(path: string): Promise<void> {

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { ChallengeSubmissionService } from '@/services/challenge-submission-service';
 import { UnitService } from '@/services/unit-service';
+import { HealthService } from '@/services/health-service';
+import { DocumentService } from '@/services/document-service';
 import { useAuth } from '@/context/auth-context';
 import { Animator } from '@/types';
 
@@ -10,6 +12,9 @@ import { Animator } from '@/types';
 interface NotificationContextType {
   pendingChallengesCount: number;
   pendingScoutsCount: number;
+  missingHealthRecordsCount: number;
+  pendingAuthorizationsCount: number;
+  totalNotificationsCount: number;
   isLoading: boolean;
   refreshNotifications: () => Promise<void>;
 }
@@ -37,6 +42,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [pendingChallengesCount, setPendingChallengesCount] = useState(0);
   const [pendingScoutsCount, setPendingScoutsCount] = useState(0);
+  const [missingHealthRecordsCount, setMissingHealthRecordsCount] = useState(0);
+  const [pendingAuthorizationsCount, setPendingAuthorizationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshNotifications = async () => {
@@ -44,6 +51,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (!isAuthenticated || !user || user.role !== 'animator') {
       setPendingChallengesCount(0);
       setPendingScoutsCount(0);
+      setMissingHealthRecordsCount(0);
+      setPendingAuthorizationsCount(0);
       return;
     }
 
@@ -63,6 +72,29 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const scouts = await UnitService.getScoutsByUnit(animator.unitId);
       const unvalidatedScouts = scouts.filter((s: any) => !s.validated);
       setPendingScoutsCount(unvalidatedScouts.length);
+
+      // Récupérer les IDs des scouts validés uniquement
+      const validatedScouts = scouts.filter((s: any) => s.validated);
+      const scoutIds = validatedScouts.map((s: any) => s.id);
+
+      // Récupérer les statistiques de fiches santé
+      try {
+        const healthStats = await HealthService.getUnitHealthStats(scoutIds);
+        // Comptabiliser les fiches manquantes + non signées
+        setMissingHealthRecordsCount(healthStats.missing + healthStats.unsigned);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des stats de santé:', error);
+        setMissingHealthRecordsCount(0);
+      }
+
+      // Récupérer les statistiques d'autorisations
+      try {
+        const authStats = await DocumentService.getUnitAuthorizationStats(animator.unitId, scoutIds);
+        setPendingAuthorizationsCount(authStats.scoutsWithPendingDocs.length);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des stats d\'autorisations:', error);
+        setPendingAuthorizationsCount(0);
+      }
     } catch (error) {
       console.error('Erreur lors de la récupération des notifications:', error);
     } finally {
@@ -77,6 +109,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     } else {
       setPendingChallengesCount(0);
       setPendingScoutsCount(0);
+      setMissingHealthRecordsCount(0);
+      setPendingAuthorizationsCount(0);
     }
   }, [isAuthenticated, user?.id]);
 
@@ -93,9 +127,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isAuthenticated, user?.id]);
 
+  // Calculer le total des notifications
+  const totalNotificationsCount = pendingChallengesCount + pendingScoutsCount + missingHealthRecordsCount + pendingAuthorizationsCount;
+
   const value: NotificationContextType = {
     pendingChallengesCount,
     pendingScoutsCount,
+    missingHealthRecordsCount,
+    pendingAuthorizationsCount,
+    totalNotificationsCount,
     isLoading,
     refreshNotifications,
   };

@@ -6,10 +6,10 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
 
 const COLORS = {
-  gold: '#F5A623',
-  goldLight: '#FEF7E6',
-  silver: '#94A3B8',
-  bronze: '#CD7F32',
+  gold: BrandColors.accent[500],
+  goldLight: BrandColors.accent[50],
+  silver: BrandColors.secondary[400],
+  bronze: BrandColors.accent[600],
   primary: BrandColors.primary[500],
   primaryLight: BrandColors.primary[400],
 };
@@ -57,7 +57,7 @@ export function LeaderboardPodium({ users }: LeaderboardPodiumProps) {
         <ThemedText style={[styles.name, styles.nameFirst]}>{first.name}</ThemedText>
         <ThemedText style={[styles.points, styles.pointsFirst, { color: COLORS.gold }]}>{first.points} pts</ThemedText>
         <LinearGradient
-          colors={[COLORS.gold, '#D4920A']}
+          colors={[BrandColors.accent[500], BrandColors.accent[700]]}
           style={[styles.podiumBase, styles.podiumFirst]}
         >
           <ThemedText style={styles.medalFirst}>🥇</ThemedText>
@@ -121,10 +121,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   avatarSecond: {
-    backgroundColor: '#E8EDE9',
+    backgroundColor: BrandColors.secondary[100],
   },
   avatarThird: {
-    backgroundColor: '#E8EDE9',
+    backgroundColor: BrandColors.secondary[100],
   },
   avatarEmoji: {
     fontSize: 28,

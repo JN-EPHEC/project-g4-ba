@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
@@ -12,10 +11,10 @@ interface ChallengesMainTabsProps {
   onTabChange: (tab: MainTab) => void;
 }
 
-const TABS: { key: MainTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'challenges', label: 'Défis', icon: 'trophy' },
-  { key: 'leaderboard', label: 'Classement', icon: 'podium' },
-  { key: 'badges', label: 'Badges', icon: 'ribbon' },
+const TABS: { key: MainTab; label: string; emoji: string }[] = [
+  { key: 'challenges', label: 'Défis', emoji: '⭐' },
+  { key: 'leaderboard', label: 'Classement', emoji: '🏆' },
+  { key: 'badges', label: 'Badges', emoji: '🏅' },
 ];
 
 export function ChallengesMainTabs({ activeTab, onTabChange }: ChallengesMainTabsProps) {
@@ -24,7 +23,7 @@ export function ChallengesMainTabs({ activeTab, onTabChange }: ChallengesMainTab
   const textSecondary = useThemeColor({}, 'textSecondary');
 
   return (
-    <View style={[styles.container, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
+    <View style={[styles.container, { backgroundColor: cardBorderColor, borderColor: cardBorderColor }]}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
@@ -33,20 +32,17 @@ export function ChallengesMainTabs({ activeTab, onTabChange }: ChallengesMainTab
             style={[
               styles.tab,
               isActive && styles.activeTab,
-              isActive && { backgroundColor: BrandColors.primary[500] },
+              isActive && { backgroundColor: cardColor },
             ]}
             onPress={() => onTabChange(tab.key)}
             activeOpacity={0.7}
           >
-            <Ionicons
-              name={tab.icon}
-              size={18}
-              color={isActive ? '#FFFFFF' : textSecondary}
-            />
+            <ThemedText style={styles.emoji}>{tab.emoji}</ThemedText>
             <ThemedText
               style={[
                 styles.tabLabel,
-                { color: isActive ? '#FFFFFF' : textSecondary },
+                { color: isActive ? BrandColors.primary[700] : textSecondary },
+                isActive && { fontWeight: '700' },
               ]}
             >
               {tab.label}
@@ -82,6 +78,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  emoji: {
+    fontSize: 16,
   },
   tabLabel: {
     fontSize: 14,

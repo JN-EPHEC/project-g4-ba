@@ -135,6 +135,18 @@ export default function AnimatorLayout() {
           href: null, // Cache l'onglet de la barre de navigation
         }}
       />
+      <Tabs.Screen
+        name="change-password"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="unit-overview"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

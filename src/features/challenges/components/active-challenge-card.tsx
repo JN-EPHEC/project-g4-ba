@@ -5,16 +5,16 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { ChallengeCategory } from '@/types';
 import { BrandColors } from '@/constants/theme';
 
-// Couleurs par catégorie (de la mockup)
+// Couleurs par catégorie - Palette brand
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  nature: { bg: '#E8F5E9', text: '#28A745' },
-  sport: { bg: '#EBF4FF', text: '#4A90D9' },
-  technique: { bg: '#FEF7E6', text: '#F5A623' },
-  cuisine: { bg: '#FEF3EE', text: '#E07B4C' },
-  aventure: { bg: '#F3E5F5', text: '#7B1FA2' },
-  survie: { bg: '#FDEAEA', text: '#DC3545' },
-  securite: { bg: '#FDEAEA', text: '#DC3545' },
-  default: { bg: '#E8EDE9', text: '#8B7E74' },
+  nature: { bg: BrandColors.primary[50], text: BrandColors.primary[500] },
+  sport: { bg: BrandColors.primary[100], text: BrandColors.primary[600] },
+  technique: { bg: BrandColors.accent[50], text: BrandColors.accent[500] },
+  cuisine: { bg: BrandColors.accent[100], text: BrandColors.accent[600] },
+  aventure: { bg: BrandColors.primary[100], text: BrandColors.primary[700] },
+  survie: { bg: BrandColors.accent[100], text: BrandColors.accent[700] },
+  securite: { bg: BrandColors.accent[50], text: BrandColors.accent[600] },
+  default: { bg: BrandColors.secondary[100], text: BrandColors.secondary[500] },
 };
 
 interface ActiveChallengeCardProps {
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   deadline: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#E07B4C',
+    color: BrandColors.accent[500],
   },
   progressSection: {
     marginBottom: 12,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: '#8B7E74',
+    color: BrandColors.secondary[500],
   },
   progressPercent: {
     fontSize: 12,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#E8EDE9',
+    backgroundColor: BrandColors.secondary[100],
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -182,6 +182,6 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F5A623',
+    color: BrandColors.accent[500],
   },
 });

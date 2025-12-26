@@ -81,6 +81,7 @@ export function Avatar({ imageUrl, name, size = 'medium', style }: AvatarProps) 
     >
       {imageUrl ? (
         <Image
+          key={imageUrl}
           source={{ uri: imageUrl }}
           style={[
             styles.image,

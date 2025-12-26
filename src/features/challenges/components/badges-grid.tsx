@@ -5,12 +5,12 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
 
 const COLORS = {
-  gold: '#F5A623',
-  goldLight: '#FEF7E6',
-  success: '#28A745',
+  gold: BrandColors.accent[500],
+  goldLight: BrandColors.accent[50],
+  success: BrandColors.primary[500],
   primary: BrandColors.primary[500],
-  neutral: '#8B7E74',
-  mist: '#E8EDE9',
+  neutral: BrandColors.secondary[500],
+  mist: BrandColors.secondary[100],
 };
 
 export interface Badge {

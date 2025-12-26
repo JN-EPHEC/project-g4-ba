@@ -5,6 +5,7 @@ export default function ChallengesLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        contentStyle: { flex: 1 },
       }}
     />
   );

@@ -96,6 +96,25 @@ export default function MoreScreen() {
         </TouchableOpacity>
 
         <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
+          Sécurité
+        </ThemedText>
+
+        <TouchableOpacity onPress={() => router.push('/(scout)/change-password')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+              <Ionicons name="lock-closed" size={24} color={BrandColors.primary[500]} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Changer le mot de passe</ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Modifier mon mot de passe
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
+        <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
           Compte
         </ThemedText>
 

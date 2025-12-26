@@ -7,6 +7,9 @@ import {
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   type User as FirebaseUser
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
@@ -23,6 +26,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (user: Partial<AnyUser>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 /**
@@ -249,6 +253,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const firebaseUser = auth.currentUser;
+
+    if (!firebaseUser || !firebaseUser.email) {
+      throw new Error('Vous devez être connecté pour changer votre mot de passe');
+    }
+
+    try {
+      // Ré-authentifier l'utilisateur avec son mot de passe actuel
+      const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+
+      // Mettre à jour le mot de passe
+      await updatePassword(firebaseUser, newPassword);
+    } catch (error: any) {
+      console.error('Erreur lors du changement de mot de passe:', error);
+
+      let errorMessage = 'Erreur lors du changement de mot de passe';
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMessage = 'Mot de passe actuel incorrect';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Le nouveau mot de passe est trop faible (minimum 6 caractères)';
+      } else if (error.code === 'auth/requires-recent-login') {
+        errorMessage = 'Veuillez vous reconnecter avant de changer votre mot de passe';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Trop de tentatives. Veuillez réessayer plus tard.';
+      }
+
+      throw new Error(errorMessage);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -258,6 +294,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     updateUser,
     resetPassword,
+    changePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

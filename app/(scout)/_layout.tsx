@@ -126,6 +126,12 @@ export default function ScoutLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="change-password"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
