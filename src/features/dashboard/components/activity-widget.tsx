@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { WidgetCard } from './widget-card';
-import { ActivityService, Activity, ActivityType } from '@/src/shared/services/activity-service';
+import { ActivityService, Activity } from '@/src/shared/services/activity-service';
 import { getRelativeTime } from '@/src/shared/utils/date-utils';
+import { BrandColors } from '@/constants/theme';
 
 interface ActivityWidgetProps {
   unitId: string;
@@ -13,7 +14,18 @@ interface ActivityWidgetProps {
   maxItems?: number;
 }
 
-export function ActivityWidget({ unitId, delay = 0, maxItems = 5 }: ActivityWidgetProps) {
+// Emojis pour chaque type d'activité
+const ACTIVITY_EMOJIS: Record<string, string> = {
+  event_created: '📅',
+  challenge_created: '🎯',
+  challenge_validated: '🏆',
+  challenge_submitted: '📷',
+  message_posted: '💬',
+  file_uploaded: '📄',
+  folder_created: '📁',
+};
+
+export function ActivityWidget({ unitId, delay = 0, maxItems = 4 }: ActivityWidgetProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,16 +44,38 @@ export function ActivityWidget({ unitId, delay = 0, maxItems = 5 }: ActivityWidg
     loadActivities();
   }, [loadActivities]);
 
+  // Fonction pour formater le texte d'activité
+  const getActivityText = (activity: Activity): string => {
+    switch (activity.type) {
+      case 'event_created':
+        return `Nouvel événement : ${activity.title}`;
+      case 'challenge_created':
+        return `Nouveau défi : ${activity.title}`;
+      case 'challenge_validated':
+        return `${activity.authorName || 'Un scout'} a complété "${activity.title}"`;
+      case 'challenge_submitted':
+        // Pour les nouveaux scouts
+        if (activity.title === 'Nouveau scout') {
+          return activity.description || `${activity.authorName} a rejoint l'unité`;
+        }
+        return `${activity.authorName || 'Un scout'} a soumis un défi`;
+      case 'message_posted':
+        return activity.description || `Nouveau message dans ${activity.title}`;
+      default:
+        return activity.title;
+    }
+  };
+
   if (isLoading) {
     return (
       <WidgetCard
         title="Activité récente"
         icon="pulse"
-        iconColor="#22c55e"
+        iconColor={BrandColors.primary[500]}
         delay={delay}
       >
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#22c55e" />
+          <ActivityIndicator size="small" color={BrandColors.primary[500]} />
         </View>
       </WidgetCard>
     );
@@ -51,51 +85,33 @@ export function ActivityWidget({ unitId, delay = 0, maxItems = 5 }: ActivityWidg
     <WidgetCard
       title="Activité récente"
       icon="pulse"
-      iconColor="#22c55e"
+      iconColor={BrandColors.primary[500]}
       delay={delay}
     >
       {activities.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="time-outline" size={32} color="#666" />
+          <Ionicons name="time-outline" size={32} color="#999" />
           <ThemedText style={styles.emptyText}>Aucune activité récente</ThemedText>
         </View>
       ) : (
-        <View style={styles.timeline}>
-          {activities.map((activity, index) => (
-            <View key={activity.id} style={styles.timelineItem}>
-              {/* Ligne de connexion */}
-              {index < activities.length - 1 && <View style={styles.timelineLine} />}
-
-              {/* Point avec icône */}
-              <View
-                style={[
-                  styles.timelinePoint,
-                  { backgroundColor: `${ActivityService.getActivityColor(activity.type)}20` },
-                ]}
-              >
-                <Ionicons
-                  name={ActivityService.getActivityIcon(activity.type) as keyof typeof Ionicons.glyphMap}
-                  size={14}
-                  color={ActivityService.getActivityColor(activity.type)}
-                />
-              </View>
-
-              {/* Contenu */}
-              <View style={styles.timelineContent}>
-                <View style={styles.timelineHeader}>
-                  <ThemedText style={styles.activityTitle} numberOfLines={1}>
-                    {activity.title}
-                  </ThemedText>
-                  <ThemedText style={styles.timestamp}>
-                    {getRelativeTime(activity.createdAt)}
-                  </ThemedText>
-                </View>
-                {activity.description && (
-                  <ThemedText style={styles.activityDescription} numberOfLines={1}>
-                    {activity.description}
-                  </ThemedText>
-                )}
-              </View>
+        <View style={styles.activityList}>
+          {activities.slice(0, 4).map((activity, index) => (
+            <View
+              key={activity.id}
+              style={[
+                styles.activityItem,
+                index < Math.min(activities.length, 4) - 1 && styles.activityItemBorder,
+              ]}
+            >
+              <ThemedText style={styles.activityEmoji}>
+                {ACTIVITY_EMOJIS[activity.type] || '📌'}
+              </ThemedText>
+              <ThemedText style={styles.activityText} numberOfLines={1}>
+                {getActivityText(activity)}
+              </ThemedText>
+              <ThemedText style={styles.activityTime}>
+                {getRelativeTime(activity.createdAt)}
+              </ThemedText>
             </View>
           ))}
         </View>
@@ -106,66 +122,45 @@ export function ActivityWidget({ unitId, delay = 0, maxItems = 5 }: ActivityWidg
 
 const styles = StyleSheet.create({
   loadingContainer: {
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
   },
   emptyState: {
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
     gap: 8,
   },
   emptyText: {
-    color: '#666',
+    color: '#999',
     fontSize: 14,
   },
-  timeline: {
+  activityList: {
     gap: 0,
   },
-  timelineItem: {
+  activityItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    position: 'relative',
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: 14,
-    top: 36,
-    bottom: -8,
-    width: 2,
-    backgroundColor: '#3A3A3A',
-  },
-  timelinePoint: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    zIndex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    gap: 10,
   },
-  timelineContent: {
+  activityItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+  },
+  activityEmoji: {
+    fontSize: 18,
+    width: 24,
+    textAlign: 'center',
+  },
+  activityText: {
     flex: 1,
-    gap: 2,
-  },
-  timelineHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  activityTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-    marginRight: 8,
-  },
-  timestamp: {
-    color: '#888',
-    fontSize: 12,
-  },
-  activityDescription: {
-    color: '#999',
     fontSize: 13,
+    color: '#333',
+  },
+  activityTime: {
+    fontSize: 11,
+    color: '#999',
+    marginLeft: 8,
   },
 });

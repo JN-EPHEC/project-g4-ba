@@ -22,7 +22,7 @@ interface NotificationsModalProps {
 
 interface NotificationItem {
   id: string;
-  type: 'challenge' | 'scout' | 'event' | 'message';
+  type: 'challenge' | 'scout' | 'event' | 'message' | 'health' | 'authorization';
   title: string;
   description: string;
   icon: string;
@@ -32,7 +32,12 @@ interface NotificationItem {
 }
 
 export function NotificationsModal({ visible, onClose }: NotificationsModalProps) {
-  const { pendingChallengesCount, pendingScoutsCount } = useNotifications();
+  const {
+    pendingChallengesCount,
+    pendingScoutsCount,
+    missingHealthRecordsCount,
+    pendingAuthorizationsCount
+  } = useNotifications();
 
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
@@ -69,7 +74,33 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
     });
   }
 
-  const totalCount = pendingChallengesCount + pendingScoutsCount;
+  if (missingHealthRecordsCount > 0) {
+    notifications.push({
+      id: 'health',
+      type: 'health',
+      title: 'Fiches santé manquantes',
+      description: `${missingHealthRecordsCount} fiche${missingHealthRecordsCount > 1 ? 's' : ''} santé à compléter`,
+      icon: '🏥',
+      color: '#ef4444',
+      route: '/(animator)/scouts',
+      count: missingHealthRecordsCount,
+    });
+  }
+
+  if (pendingAuthorizationsCount > 0) {
+    notifications.push({
+      id: 'authorizations',
+      type: 'authorization',
+      title: 'Autorisations à signer',
+      description: `${pendingAuthorizationsCount} autorisation${pendingAuthorizationsCount > 1 ? 's' : ''} en attente`,
+      icon: '📋',
+      color: '#f59e0b',
+      route: '/(animator)/documents/authorizations',
+      count: pendingAuthorizationsCount,
+    });
+  }
+
+  const totalCount = pendingChallengesCount + pendingScoutsCount + missingHealthRecordsCount + pendingAuthorizationsCount;
 
   const handleNotificationPress = (notification: NotificationItem) => {
     onClose();

@@ -7,11 +7,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 import { BrandColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function MoreScreen() {
   const { user, logout } = useAuth();
+  const { parentPendingDocumentsCount } = useNotifications();
   const iconColor = useThemeColor({}, 'icon');
 
   const handleLogout = async () => {
@@ -57,10 +59,19 @@ export default function MoreScreen() {
             <View style={styles.actionContent}>
               <ThemedText type="defaultSemiBold">Documents</ThemedText>
               <ThemedText style={styles.actionDescription}>
-                Accéder aux documents partagés
+                {parentPendingDocumentsCount > 0
+                  ? `${parentPendingDocumentsCount} document${parentPendingDocumentsCount > 1 ? 's' : ''} à signer`
+                  : 'Accéder aux documents partagés'}
               </ThemedText>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+            <View style={styles.actionRight}>
+              {parentPendingDocumentsCount > 0 && (
+                <View style={styles.badge}>
+                  <ThemedText style={styles.badgeText}>{parentPendingDocumentsCount}</ThemedText>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={20} color={iconColor} />
+            </View>
           </Card>
         </TouchableOpacity>
 
@@ -125,5 +136,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
     marginTop: 2,
+  },
+  actionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

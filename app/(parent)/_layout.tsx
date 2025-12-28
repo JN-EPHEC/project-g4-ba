@@ -108,6 +108,18 @@ export default function ParentLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="scouts/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="scouts/[id]/health"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

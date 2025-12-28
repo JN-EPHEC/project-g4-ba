@@ -48,9 +48,11 @@ export class UserService {
           dateOfBirth: data.dateOfBirth?.toDate() || new Date(),
           totemName: data.totemName,
           totemAnimal: data.totemAnimal,
+          totemEmoji: data.totemEmoji,
           validated: data.validated || false,
           validatedAt: data.validatedAt?.toDate(),
           validatedBy: data.validatedBy,
+          lastNewsViewedAt: data.lastNewsViewedAt?.toDate(),
         } as Scout;
 
       case UserRole.PARENT:

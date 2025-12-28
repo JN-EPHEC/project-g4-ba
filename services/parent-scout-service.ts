@@ -258,5 +258,70 @@ export class ParentScoutService {
       throw error;
     }
   }
+
+  /**
+   * Recherche des scouts par nom/prénom (pour la liaison parent)
+   * Exclut les scouts déjà liés au parent
+   */
+  static async searchScouts(
+    searchQuery: string,
+    parentId: string
+  ): Promise<Scout[]> {
+    try {
+      if (!searchQuery || searchQuery.trim().length < 2) {
+        return [];
+      }
+
+      const normalizedQuery = searchQuery.toLowerCase().trim();
+
+      // Récupérer tous les scouts
+      const usersRef = collection(db, 'users');
+      const scoutsQuery = query(usersRef, where('role', '==', 'scout'));
+      const querySnapshot = await getDocs(scoutsQuery);
+
+      // Récupérer les scouts déjà liés à ce parent
+      const linkedScouts = await this.getScoutsByParent(parentId);
+      const linkedScoutIds = new Set(linkedScouts.map(s => s.id));
+
+      // Filtrer par nom/prénom et exclure les déjà liés
+      const results: Scout[] = [];
+      querySnapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const scout = {
+          id: docSnap.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          dateOfBirth: data.dateOfBirth?.toDate() || new Date(),
+        } as Scout;
+
+        // Vérifier si déjà lié
+        if (linkedScoutIds.has(scout.id)) {
+          return;
+        }
+
+        // Recherche par nom, prénom ou totem
+        const firstName = (scout.firstName || '').toLowerCase();
+        const lastName = (scout.lastName || '').toLowerCase();
+        const totemName = (scout.totemName || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`;
+
+        if (
+          firstName.includes(normalizedQuery) ||
+          lastName.includes(normalizedQuery) ||
+          fullName.includes(normalizedQuery) ||
+          totemName.includes(normalizedQuery)
+        ) {
+          results.push(scout);
+        }
+      });
+
+      // Limiter à 10 résultats
+      return results.slice(0, 10);
+    } catch (error) {
+      console.error('Erreur lors de la recherche de scouts:', error);
+      throw error;
+    }
+  }
 }
 

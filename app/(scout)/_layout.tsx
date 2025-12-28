@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { router } from 'expo-router';
+
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/context/auth-context';
-import { UserRole } from '@/types';
+import { UserRole, Scout } from '@/types';
 
 export default function ScoutLayout() {
   const { user, isLoading } = useAuth();
@@ -29,6 +31,14 @@ export default function ScoutLayout() {
   if (user.role !== UserRole.SCOUT && user.role !== 'scout') {
     // Mauvais rôle - ne pas rendre ce layout
     console.log('🔵 ScoutLayout - Mauvais rôle:', user.role, '- return null');
+    return null;
+  }
+
+  // Vérifier si le scout est validé par un animateur
+  const scout = user as Scout;
+  if (!scout.validated) {
+    console.log('🔵 ScoutLayout - Scout non validé, redirection vers pending-approval');
+    router.replace('/(auth)/pending-approval');
     return null;
   }
 

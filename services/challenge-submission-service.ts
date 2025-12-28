@@ -35,16 +35,18 @@ export class ChallengeSubmissionService {
       validatedBy: data.validatedBy,
       validatedAt: data.validatedAt?.toDate(),
       comment: data.comment,
+      scoutComment: data.scoutComment,
     };
   }
 
   /**
-   * Soumet un défi avec une preuve photo
+   * Soumet un défi avec une preuve photo et un commentaire optionnel
    */
   static async submitChallenge(
     challengeId: string,
     scoutId: string,
-    proofImageUrl: string
+    proofImageUrl: string,
+    scoutComment?: string
   ): Promise<ChallengeSubmission> {
     try {
       // Vérifier que le scout existe
@@ -62,13 +64,18 @@ export class ChallengeSubmissionService {
         throw new Error('Vous avez déjà soumis ce défi et il est en attente de validation');
       }
 
-      const submissionData = {
+      const submissionData: Record<string, unknown> = {
         challengeId,
         scoutId,
         proofImageUrl,
         submittedAt: Timestamp.fromDate(new Date()),
         status: ChallengeStatus.PENDING_VALIDATION,
       };
+
+      // Ajouter le commentaire du scout s'il est fourni
+      if (scoutComment && scoutComment.trim()) {
+        submissionData.scoutComment = scoutComment.trim();
+      }
 
       const submissionRef = doc(collection(db, this.COLLECTION_NAME));
       await setDoc(submissionRef, submissionData);
@@ -100,12 +107,15 @@ export class ChallengeSubmissionService {
 
       // Mettre à jour le statut
       const submissionRef = doc(db, this.COLLECTION_NAME, submissionId);
-      await updateDoc(submissionRef, {
+      const updateData: Record<string, unknown> = {
         status: ChallengeStatus.COMPLETED,
         validatedBy,
         validatedAt: Timestamp.fromDate(new Date()),
-        comment,
-      });
+      };
+      if (comment !== undefined) {
+        updateData.comment = comment;
+      }
+      await updateDoc(submissionRef, updateData);
 
       // Attribuer les points au scout
       const challenge = await import('./challenge-service').then(
@@ -143,12 +153,15 @@ export class ChallengeSubmissionService {
       }
 
       const submissionRef = doc(db, this.COLLECTION_NAME, submissionId);
-      await updateDoc(submissionRef, {
+      const updateData: Record<string, unknown> = {
         status: ChallengeStatus.EXPIRED,
         validatedBy,
         validatedAt: Timestamp.fromDate(new Date()),
-        comment,
-      });
+      };
+      if (comment !== undefined) {
+        updateData.comment = comment;
+      }
+      await updateDoc(submissionRef, updateData);
     } catch (error) {
       console.error('Erreur lors du rejet de la soumission:', error);
       throw error;
@@ -283,6 +296,45 @@ export class ChallengeSubmissionService {
       return submissions;
     } catch (error) {
       console.error('Erreur lors de la récupération des soumissions en attente:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère toutes les soumissions traitées (validées ou rejetées) d'une unité
+   */
+  static async getProcessedSubmissions(
+    unitId: string
+  ): Promise<ChallengeSubmission[]> {
+    try {
+      // Récupérer toutes les soumissions
+      const querySnapshot = await getDocs(collection(db, this.COLLECTION_NAME));
+      const allSubmissions = querySnapshot.docs.map((doc) =>
+        this.convertSubmission({ id: doc.id, ...doc.data() })
+      );
+
+      // Filtrer par unité et par statut traité (completed ou expired)
+      const filteredSubmissions = [];
+      for (const submission of allSubmissions) {
+        if (submission.status === ChallengeStatus.PENDING_VALIDATION) {
+          continue; // Ignorer les soumissions en attente
+        }
+        const scout = await UserService.getUserById(submission.scoutId) as Scout;
+        if (scout && scout.unitId === unitId) {
+          filteredSubmissions.push(submission);
+        }
+      }
+
+      // Trier par date de validation (plus récent en premier)
+      filteredSubmissions.sort((a, b) => {
+        const dateA = a.validatedAt ? a.validatedAt.getTime() : 0;
+        const dateB = b.validatedAt ? b.validatedAt.getTime() : 0;
+        return dateB - dateA;
+      });
+
+      return filteredSubmissions;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des soumissions traitées:', error);
       throw error;
     }
   }

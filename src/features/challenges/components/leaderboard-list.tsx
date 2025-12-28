@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
@@ -16,6 +16,7 @@ export interface LeaderboardUser {
   name: string;
   points: number;
   avatar: string;
+  profilePicture?: string;
   streak: number;
   isMe?: boolean;
 }
@@ -49,7 +50,11 @@ export function LeaderboardList({ users, startRank = 4 }: LeaderboardListProps) 
               styles.avatar,
               user.isMe && { backgroundColor: `${COLORS.primary}20`, borderWidth: 2, borderColor: COLORS.primary }
             ]}>
-              <ThemedText style={styles.avatarEmoji}>{user.avatar}</ThemedText>
+              {user.profilePicture ? (
+                <Image source={{ uri: user.profilePicture }} style={styles.avatarImage} />
+              ) : (
+                <ThemedText style={styles.avatarEmoji}>{user.avatar}</ThemedText>
+              )}
             </View>
             <View style={styles.info}>
               <ThemedText style={[styles.name, user.isMe && { color: COLORS.primary, fontWeight: '700' }]}>
@@ -94,6 +99,11 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: {
     fontSize: 22,
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   info: {
     flex: 1,

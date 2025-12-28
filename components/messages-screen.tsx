@@ -389,13 +389,20 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                         content: message.content,
                         authorId: message.authorId,
                         unitId: selectedChannel.unitId,
+                        channelId: selectedChannel.id,
                         attachment: message.attachment,
+                        likes: message.likes,
+                        likesCount: message.likesCount,
+                        commentsCount: message.commentsCount,
                         createdAt: message.createdAt,
                       }}
                       author={authors[message.authorId]}
                       canDelete={canDeleteMessages}
                       onDelete={handleDeleteMessage}
                       isCurrentUser={message.authorId === user.id}
+                      currentUserId={user.id}
+                      isAnimator={userRole === UserRole.ANIMATOR}
+                      authors={authors}
                     />
                   </Animated.View>
                 ))}

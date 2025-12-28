@@ -362,3 +362,196 @@ export const deleteUserDocument = functions.auth.user().onDelete(async (user) =>
     console.error('❌ Erreur lors de la suppression du document user:', error);
   }
 });
+
+/**
+ * Cloud Function pour créer les canaux manquants basés sur les messages existants
+ * Récupère les channelId uniques de channelMessages et crée les documents channels correspondants
+ */
+export const createMissingChannels = functions
+  .region('europe-west1')
+  .https.onCall(async (data, context) => {
+    // Vérifier l'authentification
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Vous devez être connecté');
+    }
+
+    // Vérifier que l'utilisateur est un animateur
+    const userDoc = await admin.firestore().collection('users').doc(context.auth.uid).get();
+    if (!userDoc.exists || userDoc.data()?.role !== 'animator') {
+      throw new functions.https.HttpsError('permission-denied', 'Seuls les animateurs peuvent effectuer cette action');
+    }
+
+    const { unitId } = data;
+    if (!unitId) {
+      throw new functions.https.HttpsError('invalid-argument', 'unitId est requis');
+    }
+
+    try {
+      // Récupérer tous les channelId uniques des messages
+      const messagesSnapshot = await admin.firestore().collection('channelMessages').get();
+      const channelIds = new Set<string>();
+
+      messagesSnapshot.docs.forEach(doc => {
+        const channelId = doc.data().channelId;
+        if (channelId) {
+          channelIds.add(channelId);
+        }
+      });
+
+      console.log(`Trouvé ${channelIds.size} channelId(s) uniques`);
+
+      // Vérifier quels canaux existent déjà
+      const existingChannels = await admin.firestore().collection('channels').get();
+      const existingIds = new Set(existingChannels.docs.map(d => d.id));
+
+      let createdCount = 0;
+      const now = admin.firestore.Timestamp.now();
+
+      // Créer les canaux manquants
+      for (const channelId of channelIds) {
+        if (!existingIds.has(channelId)) {
+          // Créer un canal "Général" pour ce channelId
+          await admin.firestore().collection('channels').doc(channelId).set({
+            id: channelId,
+            name: 'Général',
+            description: 'Discussions générales',
+            type: 'general',
+            unitId: unitId,
+            icon: '💬',
+            permissions: {
+              canRead: ['scout', 'animator'],
+              canWrite: ['scout', 'animator'],
+            },
+            isDefault: true,
+            createdBy: context.auth.uid,
+            createdAt: now,
+            updatedAt: now,
+          });
+          createdCount++;
+          console.log(`Canal créé: ${channelId}`);
+        }
+      }
+
+      // Créer aussi les canaux par défaut s'ils n'existent pas
+      const defaultChannels = [
+        {
+          name: 'Annonces',
+          description: 'Annonces importantes de l\'unité',
+          type: 'announcements',
+          icon: '📢',
+          permissions: { canRead: ['scout', 'animator'], canWrite: ['animator'] },
+        },
+        {
+          name: 'Annonces Parents',
+          description: 'Annonces et informations pour les parents',
+          type: 'parents',
+          icon: '👨‍👩‍👧',
+          permissions: { canRead: ['parent', 'animator'], canWrite: ['animator'] },
+        },
+      ];
+
+      for (const defaultChannel of defaultChannels) {
+        // Vérifier si un canal de ce type existe déjà
+        const existingOfType = await admin.firestore()
+          .collection('channels')
+          .where('unitId', '==', unitId)
+          .where('type', '==', defaultChannel.type)
+          .get();
+
+        if (existingOfType.empty) {
+          const newChannelRef = admin.firestore().collection('channels').doc();
+          await newChannelRef.set({
+            id: newChannelRef.id,
+            ...defaultChannel,
+            unitId: unitId,
+            isDefault: true,
+            createdBy: context.auth.uid,
+            createdAt: now,
+            updatedAt: now,
+          });
+          createdCount++;
+          console.log(`Canal par défaut créé: ${defaultChannel.name}`);
+        }
+      }
+
+      console.log(`✅ ${createdCount} canal(aux) créé(s)`);
+      return { success: true, createdCount, channelIdsFound: Array.from(channelIds) };
+
+    } catch (error: any) {
+      console.error('Erreur lors de la création des canaux:', error);
+      throw new functions.https.HttpsError('internal', error.message || 'Erreur lors de la création');
+    }
+  });
+
+/**
+ * Cloud Function pour synchroniser les permissions des canaux
+ * avec les permissions par défaut (accessible aux animateurs uniquement)
+ */
+export const syncChannelPermissions = functions
+  .region('europe-west1')
+  .https.onCall(async (data, context) => {
+    // Vérifier l'authentification
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Vous devez être connecté');
+    }
+
+    // Vérifier que l'utilisateur est un animateur
+    const userDoc = await admin.firestore().collection('users').doc(context.auth.uid).get();
+    if (!userDoc.exists || userDoc.data()?.role !== 'animator') {
+      throw new functions.https.HttpsError('permission-denied', 'Seuls les animateurs peuvent effectuer cette action');
+    }
+
+    // Permissions par défaut
+    const DEFAULT_CHANNEL_PERMISSIONS: Record<string, { canRead: string[]; canWrite: string[] }> = {
+      announcements: {
+        canRead: ['scout', 'animator'],
+        canWrite: ['animator'],
+      },
+      general: {
+        canRead: ['scout', 'animator'],
+        canWrite: ['scout', 'animator'],
+      },
+      parents: {
+        canRead: ['parent', 'animator'],
+        canWrite: ['animator'],
+      },
+      custom: {
+        canRead: ['scout', 'animator'],
+        canWrite: ['animator'],
+      },
+    };
+
+    try {
+      const channelsSnapshot = await admin.firestore().collection('channels').get();
+      let updatedCount = 0;
+
+      for (const docSnap of channelsSnapshot.docs) {
+        const channel = docSnap.data();
+        const channelType = channel.type;
+        const defaultPerms = DEFAULT_CHANNEL_PERMISSIONS[channelType];
+
+        if (defaultPerms) {
+          const currentCanRead = JSON.stringify([...(channel.permissions?.canRead || [])].sort());
+          const defaultCanRead = JSON.stringify([...defaultPerms.canRead].sort());
+          const currentCanWrite = JSON.stringify([...(channel.permissions?.canWrite || [])].sort());
+          const defaultCanWrite = JSON.stringify([...defaultPerms.canWrite].sort());
+
+          if (currentCanRead !== defaultCanRead || currentCanWrite !== defaultCanWrite) {
+            await docSnap.ref.update({
+              permissions: defaultPerms,
+              updatedAt: admin.firestore.Timestamp.now(),
+            });
+            updatedCount++;
+            console.log(`Canal "${channel.name}" mis à jour`);
+          }
+        }
+      }
+
+      console.log(`✅ ${updatedCount} canal(aux) mis à jour`);
+      return { success: true, updatedCount };
+
+    } catch (error: any) {
+      console.error('Erreur lors de la synchronisation:', error);
+      throw new functions.https.HttpsError('internal', error.message || 'Erreur lors de la synchronisation');
+    }
+  });

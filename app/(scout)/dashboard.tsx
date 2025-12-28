@@ -1,42 +1,113 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInUp, FadeInLeft, ZoomIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/auth-context';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { Scout, UserRole } from '@/types';
 import { useEvents } from '@/src/features/events/hooks/use-events';
 import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
 import { useAllChallengeProgress } from '@/src/features/challenges/hooks/use-all-challenge-progress';
+import { useScoutLevel } from '@/src/features/challenges/hooks/use-scout-level';
+import { LeaderboardService, LeaderboardEntry } from '@/services/leaderboard-service';
+import { ChannelService } from '@/src/shared/services/channel-service';
+import { UserService } from '@/services/user-service';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { BrandColors, NeutralColors } from '@/constants/theme';
-import { Radius, Spacing } from '@/constants/design-tokens';
+import { getCountdownLabel, getCountdownColor } from '@/src/shared/utils/date-utils';
+import { getUserTotemEmoji, getDisplayName } from '@/src/shared/utils/totem-utils';
 
-// Import des nouveaux widgets
+// Import des widgets existants
 import {
-  UnreadMessagesWidget,
   ActivityWidget,
-  ChallengeProgressWidget,
   WeatherWidget,
 } from '@/src/features/dashboard/components';
-import { getCountdownLabel, getCountdownColor } from '@/src/shared/utils/date-utils';
+
+// Types
+interface RecentChannel {
+  id: string;
+  name: string;
+  lastMessage: string;
+  lastMessageAt: Date;
+  unread: boolean;
+}
 
 export default function ScoutDashboardScreen() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const { events } = useEvents();
   const { challenges } = useChallenges();
   const { completedCount } = useAllChallengeProgress();
 
+  const scout = user as Scout;
+  const { currentLevel } = useScoutLevel({ points: scout?.points || 0 });
+
+  // State pour le classement et messages
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [scoutRank, setScoutRank] = useState<number>(1);
+  const [recentChannels, setRecentChannels] = useState<RecentChannel[]>([]);
+  const [showNewsModal, setShowNewsModal] = useState(false);
+  const [newMembers, setNewMembers] = useState<{ id: string; firstName: string; lastName: string; validatedAt: Date }[]>([]);
+
+  // Filtrer les nouveautés non vues
+  const lastNewsViewedAt = scout?.lastNewsViewedAt || new Date(0);
+
+  const newChallenges = challenges.filter(c => {
+    const createdAt = c.createdAt instanceof Date ? c.createdAt : new Date(c.createdAt);
+    return createdAt > lastNewsViewedAt;
+  });
+
+  const newEvents = events.filter(e => {
+    const createdAt = e.createdAt instanceof Date ? e.createdAt : new Date(e.createdAt);
+    return createdAt > lastNewsViewedAt;
+  });
+
+  const totalNewItems = newChallenges.length + newEvents.length + newMembers.length;
+
+  // Fonction pour marquer les nouveautés comme vues
+  const markNewsAsViewed = async () => {
+    if (!scout?.id) return;
+    try {
+      await UserService.updateUser(scout.id, {
+        lastNewsViewedAt: new Date(),
+      });
+    } catch (error) {
+      console.error('Erreur mise à jour lastNewsViewedAt:', error);
+    }
+  };
+
+  // Fermer le modal et marquer comme vu
+  const closeNewsModal = () => {
+    setShowNewsModal(false);
+    if (totalNewItems > 0) {
+      markNewsAsViewed();
+    }
+  };
+
+  // Ouvrir automatiquement le modal si nouvelles non vues à la connexion
+  const [hasAutoOpenedNews, setHasAutoOpenedNews] = useState(false);
+
+  useEffect(() => {
+    // Ouvrir le modal automatiquement une seule fois par session
+    // quand les données sont chargées et qu'il y a des nouveautés
+    if (!hasAutoOpenedNews && !isLoading && scout?.id && totalNewItems > 0) {
+      // Petit délai pour laisser le dashboard se charger
+      const timer = setTimeout(() => {
+        setShowNewsModal(true);
+        setHasAutoOpenedNews(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [hasAutoOpenedNews, isLoading, scout?.id, totalNewItems]);
+
   // Vérification de sécurité - rediriger si ce n'est pas un scout
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isLoading && user && user.role !== UserRole.SCOUT && user.role !== 'scout') {
-      console.log('⚠️ ScoutDashboard - Mauvais rôle détecté:', user.role, '- redirection...');
-      // Rediriger vers le bon dashboard selon le rôle
       if (user.role === UserRole.ANIMATOR || user.role === 'animator') {
         router.replace('/(animator)/dashboard');
       } else if (user.role === UserRole.PARENT || user.role === 'parent') {
@@ -45,355 +116,614 @@ export default function ScoutDashboardScreen() {
     }
   }, [user, isLoading, router]);
 
-  const scout = user as Scout;
+  // Charger le classement et les nouveaux membres
+  useEffect(() => {
+    if (scout?.unitId) {
+      loadLeaderboard();
+      loadScoutRank();
+      loadRecentChannels();
+      loadNewMembers();
+    }
+  }, [scout?.unitId, scout?.id]);
 
-  // Theme colors
-  const backgroundColor = useThemeColor({}, 'background');
-  const cardColor = useThemeColor({}, 'card');
-  const cardBorder = useThemeColor({}, 'cardBorder');
-  const textColor = useThemeColor({}, 'text');
-  const textSecondary = useThemeColor({}, 'textSecondary');
-  const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
+  const loadLeaderboard = async () => {
+    if (!scout?.unitId) return;
+    const entries = await LeaderboardService.getLeaderboardByUnit(scout.unitId, 3);
+    setLeaderboard(entries);
+  };
 
-  const isTablet = width >= 768;
-  const isDesktop = width >= 1024;
+  const loadScoutRank = async () => {
+    if (!scout?.id || !scout?.unitId) return;
+    const rank = await LeaderboardService.getScoutRank(scout.id, scout.unitId);
+    setScoutRank(rank);
+  };
 
-  // Prendre les 2 prochains événements
+  const loadRecentChannels = async () => {
+    if (!scout?.unitId) return;
+    try {
+      const channels = await ChannelService.getChannelsByUnit(scout.unitId);
+      const recent: RecentChannel[] = channels.slice(0, 2).map(ch => ({
+        id: ch.id,
+        name: ch.name,
+        lastMessage: ch.lastMessage || 'Aucun message',
+        lastMessageAt: ch.lastMessageAt || new Date(),
+        unread: false, // TODO: implémenter la logique de non-lu
+      }));
+      setRecentChannels(recent);
+    } catch (error) {
+      console.error('Erreur chargement channels:', error);
+    }
+  };
+
+  // Charger les nouveaux membres de l'unité (validés récemment)
+  const loadNewMembers = async () => {
+    if (!scout?.unitId || !scout?.id) return;
+    try {
+      // Requête simplifiée avec une seule condition pour éviter les problèmes d'index
+      const scoutsQuery = query(
+        collection(db, 'users'),
+        where('unitId', '==', scout.unitId)
+      );
+      const snapshot = await getDocs(scoutsQuery);
+      const members: { id: string; firstName: string; lastName: string; validatedAt: Date }[] = [];
+
+      snapshot.docs.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        // Filtrage côté client: scouts validés uniquement
+        if (
+          docSnapshot.id !== scout.id &&
+          data.role === 'scout' &&
+          data.validated === true &&
+          data.validatedAt
+        ) {
+          const validatedAt = data.validatedAt.toDate();
+          if (validatedAt > lastNewsViewedAt) {
+            members.push({
+              id: docSnapshot.id,
+              firstName: data.firstName,
+              lastName: data.lastName,
+              validatedAt,
+            });
+          }
+        }
+      });
+
+      // Trier par date (plus récent en premier)
+      members.sort((a, b) => b.validatedAt.getTime() - a.validatedAt.getTime());
+      setNewMembers(members.slice(0, 5));
+    } catch (error) {
+      console.error('Erreur chargement nouveaux membres:', error);
+    }
+  };
+
+  // Données
   const upcomingEvents = events.slice(0, 2);
-  // Prendre les 2 premiers défis actifs
-  const activeChallenges = challenges.slice(0, 2);
+  const activeChallenges = challenges.slice(0, 3);
 
-  const stats = {
-    points: scout?.points || 0,
-    rank: 5,
-    completedChallenges: completedCount,
-    upcomingEvents: events.length,
+  const stats = [
+    { value: scout?.points || 0, label: 'Points', isAccent: true },
+    { value: `#${scoutRank}`, label: 'Rang', isAccent: false },
+    { value: completedCount.toString(), label: 'Défis', isAccent: false },
+    { value: events.length.toString(), label: 'Événements', isAccent: false },
+  ];
+
+  // Helper pour obtenir l'avatar ou l'emoji
+  const getAvatarContent = () => {
+    if (scout?.profilePicture) {
+      return (
+        <Image
+          source={{ uri: scout.profilePicture }}
+          style={styles.avatarImage}
+        />
+      );
+    }
+    return (
+      <ThemedText style={styles.avatarEmoji}>
+        {getUserTotemEmoji(scout) || '🦊'}
+      </ThemedText>
+    );
+  };
+
+  // Helper pour le temps relatif
+  const getRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `Il y a ${days}j`;
+    if (hours > 0) return `Il y a ${hours}h`;
+    return 'À l\'instant';
   };
 
   return (
     <ThemedView style={styles.container}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[
-          styles.scrollContent,
-          isTablet && styles.scrollContentTablet,
-          isDesktop && styles.scrollContentDesktop
-        ]}
-        showsVerticalScrollIndicator={true}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
+        {/* ==================== HEADER IMMERSIF ==================== */}
+        <LinearGradient
+          colors={[BrandColors.primary[500], BrandColors.primary[400]]}
+          style={styles.header}
+        >
+          {/* Cercles décoratifs */}
+          <View style={[styles.decorativeCircle, styles.decorativeCircle1]} />
+          <View style={[styles.decorativeCircle, styles.decorativeCircle2]} />
 
-        {/* Stats Cards - Nature Theme with Orange Accents */}
-        <View style={[
-          styles.statsSection,
-          isTablet && styles.statsSectionTablet,
-          isDesktop && styles.statsSectionDesktop
-        ]}>
-          {/* Points - Orange accent */}
-          <Animated.View
-            entering={FadeInUp.duration(400).delay(0)}
-            style={[
-              styles.statCard,
-              isTablet && styles.statCardTablet,
-              { backgroundColor: BrandColors.accent[500] }
-            ]}
-          >
+          {/* Top Row - Profile & Notifications */}
+          <View style={styles.headerTopRow}>
             <TouchableOpacity
-              onPress={() => router.push('/(scout)/leaderboard')}
-              activeOpacity={0.7}
-              style={styles.statCardContent}
+              style={styles.avatarContainer}
+              onPress={() => router.push('/(scout)/profile')}
+              activeOpacity={0.8}
             >
-              <View style={styles.statIconContainer}>
-                <View style={[styles.statIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                  <Ionicons name="trophy" size={isTablet ? 28 : 24} color="#FFFFFF" />
+              {getAvatarContent()}
+            </TouchableOpacity>
+
+            <View style={styles.headerInfo}>
+              <ThemedText style={styles.headerGreeting}>
+                Salut, {scout?.firstName} ! 👋
+              </ThemedText>
+              <ThemedText style={styles.headerTotem}>
+                {scout?.totemAnimal ? `${getUserTotemEmoji(scout) || ''} ${scout.totemAnimal}`.trim() : getDisplayName(scout)}
+              </ThemedText>
+              <View style={styles.headerBadges}>
+                <View style={styles.levelBadge}>
+                  <ThemedText style={styles.levelBadgeText}>
+                    {currentLevel?.name || 'Explorateur'}
+                  </ThemedText>
                 </View>
               </View>
-              <View style={styles.statInfo}>
-                <ThemedText style={[styles.statValue, isTablet && styles.statValueTablet, { color: '#FFFFFF' }]}>
-                  {stats.points}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: 'rgba(255,255,255,0.8)' }]}>Points</ThemedText>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
+            </View>
 
-          {/* Classement - Green primary */}
-          <Animated.View
-            entering={FadeInUp.duration(400).delay(100)}
-            style={[
-              styles.statCard,
-              isTablet && styles.statCardTablet,
-              { backgroundColor: BrandColors.primary[500] }
-            ]}
-          >
             <TouchableOpacity
-              onPress={() => router.push('/(scout)/leaderboard')}
+              style={styles.notificationButton}
+              onPress={() => setShowNewsModal(true)}
               activeOpacity={0.7}
-              style={styles.statCardContent}
             >
-              <View style={styles.statIconContainer}>
-                <View style={[styles.statIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                  <Ionicons name="ribbon" size={isTablet ? 28 : 24} color="#FFFFFF" />
-                </View>
-              </View>
-              <View style={styles.statInfo}>
-                <ThemedText style={[styles.statValue, isTablet && styles.statValueTablet, { color: '#FFFFFF' }]}>
-                  #{stats.rank}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: 'rgba(255,255,255,0.8)' }]}>Classement</ThemedText>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Défis - Card style with orange icon */}
-          <Animated.View
-            entering={FadeInUp.duration(400).delay(200)}
-            style={[
-              styles.statCard,
-              isTablet && styles.statCardTablet,
-              { backgroundColor: cardColor, borderColor: cardBorder, borderWidth: 1 }
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => router.push('/(scout)/challenges')}
-              activeOpacity={0.7}
-              style={styles.statCardContent}
-            >
-              <View style={styles.statIconContainer}>
-                <View style={[styles.statIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
-                  <Ionicons name="checkmark-circle" size={isTablet ? 28 : 24} color={BrandColors.accent[500]} />
-                </View>
-              </View>
-              <View style={styles.statInfo}>
-                <ThemedText style={[styles.statValue, isTablet && styles.statValueTablet, { color: textColor }]}>
-                  {stats.completedChallenges}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: textSecondary }]}>Défis</ThemedText>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Événements - Card style with green icon */}
-          <Animated.View
-            entering={FadeInUp.duration(400).delay(300)}
-            style={[
-              styles.statCard,
-              isTablet && styles.statCardTablet,
-              { backgroundColor: cardColor, borderColor: cardBorder, borderWidth: 1 }
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => router.push('/(scout)/events')}
-              activeOpacity={0.7}
-              style={styles.statCardContent}
-            >
-              <View style={styles.statIconContainer}>
-                <View style={[styles.statIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
-                  <Ionicons name="calendar" size={isTablet ? 28 : 24} color={BrandColors.primary[500]} />
-                </View>
-              </View>
-              <View style={styles.statInfo}>
-                <ThemedText style={[styles.statValue, isTablet && styles.statValueTablet, { color: textColor }]}>
-                  {stats.upcomingEvents}
-                </ThemedText>
-                <ThemedText style={[styles.statLabel, { color: textSecondary }]}>Événements</ThemedText>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-
-        {/* Défis Section - Nature Theme */}
-        <View style={styles.section}>
-          <View style={[styles.sectionHeader, { borderBottomColor: cardBorder }]}>
-            <ThemedText style={[styles.sectionTitle, isTablet && styles.sectionTitleTablet, { color: textColor }]}>
-              Défis en cours
-            </ThemedText>
-            <TouchableOpacity
-              onPress={() => router.push('/(scout)/challenges')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View style={[styles.seeAllButton, { backgroundColor: BrandColors.accent[500] }]}>
-                <ThemedText style={[styles.seeAllText, { color: '#FFFFFF' }]}>Tout voir</ThemedText>
-                <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
-              </View>
+              <Ionicons name="sparkles" size={22} color="#FFFFFF" />
+              {totalNewItems > 0 && (
+                <View style={styles.notificationDot} />
+              )}
             </TouchableOpacity>
           </View>
 
-          {activeChallenges.length === 0 ? (
-            <View style={[styles.emptyChallengesContainer, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-              <ThemedText style={[styles.emptyChallengesText, { color: textSecondary }]}>
-                Aucun défi actif pour le moment
-              </ThemedText>
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            {stats.map((stat, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.statCard,
+                  stat.isAccent ? styles.statCardAccent : styles.statCardTransparent
+                ]}
+                onPress={() => {
+                  if (stat.label === 'Points' || stat.label === 'Rang') {
+                    router.push('/(scout)/leaderboard');
+                  } else if (stat.label === 'Défis') {
+                    router.push('/(scout)/challenges');
+                  } else if (stat.label === 'Événements') {
+                    router.push('/(scout)/events');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={styles.statValue}>{stat.value}</ThemedText>
+                <ThemedText style={styles.statLabel}>{stat.label}</ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </LinearGradient>
+
+        {/* Contenu principal */}
+        <View style={styles.content}>
+          {/* ==================== PROCHAINS ÉVÉNEMENTS ==================== */}
+          <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>Prochains événements</ThemedText>
+              <TouchableOpacity
+                style={styles.seeAllButtonGreen}
+                onPress={() => router.push('/(scout)/events')}
+              >
+                <ThemedText style={styles.seeAllText}>Tout voir</ThemedText>
+                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-          ) : (
-            <View style={[styles.challengesGrid, isTablet && styles.challengesGridTablet]}>
-              {activeChallenges.map((challenge, index) => {
-                const daysRemaining = Math.ceil(
-                  (new Date(challenge.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-                );
 
-                // Icône et couleur par difficulté - Nature theme
-                const difficultyConfig = {
-                  easy: { emoji: '🌱', bgColor: `${BrandColors.primary[500]}15` },
-                  medium: { emoji: '⭐', bgColor: `${BrandColors.accent[500]}15` },
-                  hard: { emoji: '🏆', bgColor: `${BrandColors.accent[600]}15` },
-                };
-                const config = difficultyConfig[challenge.difficulty];
+            {upcomingEvents.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <ThemedText style={styles.emptyText}>
+                  Aucun événement à venir
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.eventsList}>
+                {upcomingEvents.map((event) => {
+                  const eventDate = new Date(event.startDate);
+                  const day = eventDate.getDate().toString().padStart(2, '0');
+                  const month = eventDate.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase();
+                  const startTime = eventDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                  const endTime = new Date(event.endDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                  const countdownLabel = getCountdownLabel(eventDate);
+                  const countdownColor = getCountdownColor(eventDate);
 
-                return (
-                  <Animated.View
-                    key={challenge.id}
-                    entering={ZoomIn.duration(400).delay(400 + index * 100)}
-                  >
+                  return (
                     <TouchableOpacity
-                      style={[
-                        styles.challengeCard,
-                        isTablet && styles.challengeCardTablet,
-                        { backgroundColor: cardColor, borderColor: cardBorder }
-                      ]}
-                      onPress={() => router.push('/(scout)/challenges')}
+                      key={event.id}
+                      style={styles.eventCard}
+                      onPress={() => router.push('/(scout)/events')}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.eventDateBadge}>
+                        <ThemedText style={styles.eventDay}>{day}</ThemedText>
+                        <ThemedText style={styles.eventMonth}>{month}</ThemedText>
+                      </View>
+                      <View style={styles.eventContent}>
+                        <View style={styles.eventTitleRow}>
+                          <ThemedText style={styles.eventTitle} numberOfLines={1}>
+                            {event.title}
+                          </ThemedText>
+                          <View style={[styles.countdownBadge, { backgroundColor: `${countdownColor}15` }]}>
+                            <ThemedText style={[styles.countdownText, { color: countdownColor }]}>
+                              {countdownLabel}
+                            </ThemedText>
+                          </View>
+                        </View>
+                        <View style={styles.eventDetail}>
+                          <Ionicons name="time-outline" size={12} color={NeutralColors.gray[500]} />
+                          <ThemedText style={styles.eventDetailText}>
+                            {startTime} - {endTime}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.eventDetail}>
+                          <Ionicons name="location-outline" size={12} color={NeutralColors.gray[500]} />
+                          <ThemedText style={styles.eventDetailText} numberOfLines={1}>
+                            {event.location}
+                          </ThemedText>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={NeutralColors.gray[400]} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </Animated.View>
+
+          {/* ==================== DÉFIS EN COURS ==================== */}
+          <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>Défis en cours</ThemedText>
+              <TouchableOpacity
+                style={styles.seeAllButtonOrange}
+                onPress={() => router.push('/(scout)/challenges')}
+              >
+                <ThemedText style={styles.seeAllText}>Tout voir</ThemedText>
+                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {activeChallenges.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <ThemedText style={styles.emptyText}>
+                  Aucun défi en cours
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.challengesList}>
+                {activeChallenges.map((challenge) => {
+                  const daysRemaining = challenge.endDate
+                    ? Math.max(0, Math.ceil((new Date(challenge.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : null;
+
+                  return (
+                    <TouchableOpacity
+                      key={challenge.id}
+                      style={styles.challengeCard}
+                      onPress={() => router.push(`/(scout)/challenges/${challenge.id}`)}
                       activeOpacity={0.7}
                     >
                       <View style={styles.challengeIconContainer}>
-                        <View style={[styles.challengeIcon, { backgroundColor: config.bgColor }]}>
-                          <ThemedText style={styles.challengeEmoji}>{config.emoji}</ThemedText>
-                        </View>
+                        <ThemedText style={styles.challengeEmoji}>
+                          {challenge.emoji || '🎯'}
+                        </ThemedText>
                       </View>
                       <View style={styles.challengeContent}>
-                        <ThemedText style={[styles.challengeTitle, { color: textColor }]}>{challenge.title}</ThemedText>
-                        <ThemedText style={[styles.challengeDescription, { color: textSecondary }]} numberOfLines={2}>
+                        <View style={styles.challengeHeader}>
+                          <ThemedText style={styles.challengeTitle} numberOfLines={1}>
+                            {challenge.title}
+                          </ThemedText>
+                          {daysRemaining !== null && (
+                            <ThemedText style={styles.challengeDays}>
+                              {daysRemaining}j restant{daysRemaining > 1 ? 's' : ''}
+                            </ThemedText>
+                          )}
+                        </View>
+                        <ThemedText style={styles.challengeDescription} numberOfLines={2}>
                           {challenge.description}
                         </ThemedText>
-                        <View style={[styles.challengeFooter, { borderTopColor: cardBorder }]}>
-                          <View style={[styles.challengePoints, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
-                            <Ionicons name="star" size={14} color={BrandColors.accent[500]} />
-                            <ThemedText style={[styles.challengePointsText, { color: BrandColors.accent[500] }]}>{challenge.points} pts</ThemedText>
+                        <View style={styles.progressContainer}>
+                          <View style={styles.progressBar}>
+                            <View style={[styles.progressFill, { width: '0%' }]} />
                           </View>
-                          <ThemedText style={[styles.challengeDays, { color: textSecondary }]}>
-                            {daysRemaining > 0 ? `${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}` : 'Dernier jour'}
-                          </ThemedText>
+                          <ThemedText style={styles.progressText}>0%</ThemedText>
                         </View>
+                        <ThemedText style={styles.challengePoints}>
+                          ⭐ {challenge.points} pts
+                        </ThemedText>
                       </View>
                     </TouchableOpacity>
-                  </Animated.View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        {/* Events Section - Nature Theme */}
-        <View style={styles.section}>
-          <View style={[styles.sectionHeader, { borderBottomColor: cardBorder }]}>
-            <ThemedText style={[styles.sectionTitle, isTablet && styles.sectionTitleTablet, { color: textColor }]}>
-              Prochains événements
-            </ThemedText>
-            <TouchableOpacity
-              onPress={() => router.push('/(scout)/events')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View style={[styles.seeAllButton, { backgroundColor: BrandColors.primary[500] }]}>
-                <ThemedText style={[styles.seeAllText, { color: '#FFFFFF' }]}>Tout voir</ThemedText>
-                <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                  );
+                })}
               </View>
-            </TouchableOpacity>
-          </View>
+            )}
+          </Animated.View>
 
-          {upcomingEvents.length === 0 ? (
-            <View style={[styles.emptyEventsContainer, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-              <ThemedText style={[styles.emptyEventsText, { color: textSecondary }]}>
-                Aucun événement à venir
-              </ThemedText>
+          {/* ==================== MINI CLASSEMENT ==================== */}
+          <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>🏆 Classement</ThemedText>
+              <TouchableOpacity
+                onPress={() => router.push('/(scout)/leaderboard')}
+              >
+                <View style={styles.linkButton}>
+                  <ThemedText style={styles.linkText}>Voir tout</ThemedText>
+                  <Ionicons name="chevron-forward" size={14} color={BrandColors.primary[500]} />
+                </View>
+              </TouchableOpacity>
             </View>
-          ) : (
-            upcomingEvents.map((event, index) => {
-              const eventDate = new Date(event.startDate);
-              const day = eventDate.getDate();
-              const month = eventDate.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase();
-              const startTime = eventDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-              const endTime = new Date(event.endDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-              const countdownLabel = getCountdownLabel(eventDate);
-              const countdownColor = getCountdownColor(eventDate);
 
-              // Couleur selon le type d'événement - Nature theme
-              const eventColors: Record<string, string> = {
-                meeting: BrandColors.primary[500],
-                camp: BrandColors.primary[600],
-                activity: BrandColors.accent[500],
-                training: BrandColors.secondary[500],
-                other: NeutralColors.gray[500],
-              };
-              const eventBgColor = eventColors[event.type] || eventColors.other;
+            <View style={styles.leaderboardCard}>
+              {leaderboard.length === 0 ? (
+                <ThemedText style={styles.emptyText}>Chargement...</ThemedText>
+              ) : (
+                leaderboard.map((entry, index) => {
+                  const medals = ['🥇', '🥈', '🥉'];
+                  const isCurrentUser = entry.scout.id === scout?.id;
 
-              return (
-                <Animated.View
-                  key={event.id}
-                  entering={FadeInLeft.duration(400).delay(600 + index * 100)}
-                >
+                  return (
+                    <View
+                      key={entry.scout.id}
+                      style={[
+                        styles.leaderboardEntry,
+                        isCurrentUser && styles.leaderboardEntryHighlight,
+                        index < leaderboard.length - 1 && styles.leaderboardEntryBorder
+                      ]}
+                    >
+                      <ThemedText style={styles.leaderboardMedal}>
+                        {medals[index]}
+                      </ThemedText>
+                      <View style={[
+                        styles.leaderboardAvatar,
+                        isCurrentUser && styles.leaderboardAvatarHighlight
+                      ]}>
+                        <ThemedText style={styles.leaderboardAvatarText}>
+                          {getUserTotemEmoji(entry.scout) || entry.scout.firstName?.charAt(0) || '?'}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.leaderboardInfo}>
+                        <ThemedText style={[
+                          styles.leaderboardName,
+                          isCurrentUser && styles.leaderboardNameHighlight
+                        ]}>
+                          {entry.scout.firstName || 'Scout'} {isCurrentUser && '(toi)'}
+                        </ThemedText>
+                      </View>
+                      <ThemedText style={styles.leaderboardPoints}>
+                        {entry.points} pts
+                      </ThemedText>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </Animated.View>
+
+          {/* ==================== MESSAGES RÉCENTS ==================== */}
+          <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>💬 Messages récents</ThemedText>
+              <TouchableOpacity
+                onPress={() => router.push('/(scout)/messages')}
+              >
+                <View style={styles.linkButton}>
+                  <ThemedText style={styles.linkText}>Messagerie</ThemedText>
+                  <Ionicons name="chevron-forward" size={14} color={BrandColors.primary[500]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.messagesCard}>
+              {recentChannels.length === 0 ? (
+                <ThemedText style={[styles.emptyText, { padding: 16 }]}>Aucun message récent</ThemedText>
+              ) : (
+                recentChannels.map((channel, index) => (
                   <TouchableOpacity
-                    style={[styles.eventCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
-                    onPress={() => router.push('/(scout)/events')}
+                    key={channel.id}
+                    style={[
+                      styles.messageEntry,
+                      index < recentChannels.length - 1 && styles.messageEntryBorder
+                    ]}
+                    onPress={() => router.push('/(scout)/messages')}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.eventDate, { backgroundColor: eventBgColor }]}>
-                      <ThemedText style={styles.eventDay}>{day}</ThemedText>
-                      <ThemedText style={styles.eventMonth}>{month}</ThemedText>
+                    <View style={styles.messageIcon}>
+                      <Ionicons name="chatbubble" size={20} color="#FFFFFF" />
                     </View>
-                    <View style={styles.eventContent}>
-                      <View style={styles.eventTitleRow}>
-                        <ThemedText style={[styles.eventTitle, { color: textColor }]}>{event.title}</ThemedText>
-                        <View style={[styles.countdownBadge, { backgroundColor: `${countdownColor}20` }]}>
-                          <ThemedText style={[styles.countdownText, { color: countdownColor }]}>
-                            {countdownLabel}
-                          </ThemedText>
-                        </View>
+                    <View style={styles.messageContent}>
+                      <View style={styles.messageHeader}>
+                        <ThemedText style={styles.channelName}>{channel.name}</ThemedText>
+                        {channel.unread && <View style={styles.unreadDot} />}
                       </View>
-                      <View style={styles.eventDetail}>
-                        <Ionicons name="time-outline" size={14} color={textSecondary} />
-                        <ThemedText style={[styles.eventDetailText, { color: textSecondary }]}>
-                          {startTime} - {endTime}
-                        </ThemedText>
-                      </View>
-                      <View style={styles.eventDetail}>
-                        <Ionicons name="location-outline" size={14} color={textSecondary} />
-                        <ThemedText style={[styles.eventDetailText, { color: textSecondary }]} numberOfLines={1}>
-                          {event.location}
-                        </ThemedText>
-                      </View>
+                      <ThemedText style={styles.lastMessage} numberOfLines={1}>
+                        {channel.lastMessage}
+                      </ThemedText>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color={textSecondary} />
+                    <ThemedText style={styles.messageTime}>
+                      {getRelativeTime(channel.lastMessageAt)}
+                    </ThemedText>
                   </TouchableOpacity>
-                </Animated.View>
-              );
-            })
+                ))
+              )}
+            </View>
+          </Animated.View>
+
+          {/* ==================== WIDGETS EXISTANTS ==================== */}
+          {scout?.unitId && (
+            <>
+              <WeatherWidget location="Belgique" delay={500} />
+              <ActivityWidget unitId={scout.unitId} delay={600} />
+            </>
           )}
         </View>
-
-        {/* Widgets supplémentaires */}
-        {scout?.id && scout?.unitId && (
-          <>
-            {/* Widget Progression défis */}
-            <ChallengeProgressWidget
-              scoutId={scout.id}
-              unitId={scout.unitId}
-              delay={700}
-            />
-
-            {/* Widget Messages non lus */}
-            <UnreadMessagesWidget
-              userId={scout.id}
-              unitId={scout.unitId}
-              userRole={UserRole.SCOUT}
-              delay={750}
-            />
-
-            {/* Widget Activité récente */}
-            <ActivityWidget unitId={scout.unitId} delay={800} />
-
-            {/* Widget Météo */}
-            <WeatherWidget location="Belgique" delay={850} />
-          </>
-        )}
       </ScrollView>
+
+      {/* ==================== MODAL NOUVEAUTÉS ==================== */}
+      <Modal
+        visible={showNewsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={closeNewsModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleRow}>
+                <ThemedText style={styles.modalTitle}>✨ Nouveautés</ThemedText>
+                <TouchableOpacity
+                  onPress={closeNewsModal}
+                  style={styles.modalCloseButton}
+                >
+                  <Ionicons name="close" size={24} color={NeutralColors.gray[500]} />
+                </TouchableOpacity>
+              </View>
+              <ThemedText style={styles.modalSubtitle}>
+                {totalNewItems > 0
+                  ? `${totalNewItems} nouvelle${totalNewItems > 1 ? 's' : ''} depuis ta dernière visite`
+                  : 'Aucune nouvelle depuis ta dernière visite'}
+              </ThemedText>
+            </View>
+
+            <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+              {/* Nouveaux défis */}
+              {newChallenges.length > 0 && (
+                <View style={styles.newsSection}>
+                  <ThemedText style={styles.newsSectionTitle}>🎯 Nouveaux défis</ThemedText>
+                  {newChallenges.slice(0, 3).map((challenge) => (
+                    <TouchableOpacity
+                      key={challenge.id}
+                      style={styles.newsItem}
+                      onPress={() => {
+                        closeNewsModal();
+                        router.push(`/(scout)/challenges/${challenge.id}`);
+                      }}
+                    >
+                      <View style={[styles.newsIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+                        <ThemedText style={styles.newsEmoji}>🎯</ThemedText>
+                      </View>
+                      <View style={styles.newsContent}>
+                        <ThemedText style={styles.newsTitle} numberOfLines={1}>
+                          {challenge.title}
+                        </ThemedText>
+                        <ThemedText style={styles.newsDescription} numberOfLines={1}>
+                          {challenge.points} pts • {challenge.difficulty === 'easy' ? 'Facile' : challenge.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
+                        </ThemedText>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={NeutralColors.gray[400]} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Nouveaux événements */}
+              {newEvents.length > 0 && (
+                <View style={styles.newsSection}>
+                  <ThemedText style={styles.newsSectionTitle}>📅 Nouveaux événements</ThemedText>
+                  {newEvents.slice(0, 3).map((event) => {
+                    const eventDate = new Date(event.startDate);
+                    const formattedDate = eventDate.toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short'
+                    });
+                    return (
+                      <TouchableOpacity
+                        key={event.id}
+                        style={styles.newsItem}
+                        onPress={() => {
+                          closeNewsModal();
+                          router.push('/(scout)/events');
+                        }}
+                      >
+                        <View style={[styles.newsIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+                          <ThemedText style={styles.newsEmoji}>📅</ThemedText>
+                        </View>
+                        <View style={styles.newsContent}>
+                          <ThemedText style={styles.newsTitle} numberOfLines={1}>
+                            {event.title}
+                          </ThemedText>
+                          <ThemedText style={styles.newsDescription} numberOfLines={1}>
+                            {formattedDate} • {event.location}
+                          </ThemedText>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={NeutralColors.gray[400]} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Nouveaux membres */}
+              {newMembers.length > 0 && (
+                <View style={styles.newsSection}>
+                  <ThemedText style={styles.newsSectionTitle}>👋 Nouveaux membres</ThemedText>
+                  {newMembers.slice(0, 3).map((member) => (
+                    <View
+                      key={member.id}
+                      style={styles.newsItem}
+                    >
+                      <View style={[styles.newsIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+                        <ThemedText style={styles.newsEmoji}>🎉</ThemedText>
+                      </View>
+                      <View style={styles.newsContent}>
+                        <ThemedText style={styles.newsTitle} numberOfLines={1}>
+                          {member.firstName} {member.lastName}
+                        </ThemedText>
+                        <ThemedText style={styles.newsDescription} numberOfLines={1}>
+                          A rejoint WeCamp !
+                        </ThemedText>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Message si pas de nouveautés */}
+              {newChallenges.length === 0 && newEvents.length === 0 && newMembers.length === 0 && (
+                <View style={styles.emptyNewsState}>
+                  <ThemedText style={styles.emptyNewsEmoji}>🌲</ThemedText>
+                  <ThemedText style={styles.emptyNewsText}>
+                    Pas de nouveautés pour le moment
+                  </ThemedText>
+                  <ThemedText style={styles.emptyNewsSubtext}>
+                    Reviens bientôt pour découvrir les prochaines activités !
+                  </ThemedText>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Footer */}
+            <TouchableOpacity
+              style={styles.modalFooterButton}
+              onPress={closeNewsModal}
+            >
+              <ThemedText style={styles.modalFooterButtonText}>Fermer</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -402,193 +732,300 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
   scrollContent: {
-    padding: Spacing.lg,
-    paddingTop: 60,
     paddingBottom: 100,
   },
-  scrollContentTablet: {
-    padding: 32,
-    paddingTop: 32,
+
+  // ==================== HEADER ====================
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  scrollContentDesktop: {
-    padding: 40,
-    maxWidth: 720,
-    alignSelf: 'center',
+  decorativeCircle: {
+    position: 'absolute',
+    borderRadius: 9999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  decorativeCircle1: {
+    width: 120,
+    height: 120,
+    top: -30,
+    right: -30,
+  },
+  decorativeCircle2: {
+    width: 100,
+    height: 100,
+    bottom: 20,
+    left: -40,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 16,
+    marginBottom: 24,
+  },
+  avatarContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+    overflow: 'hidden',
+  },
+  avatarImage: {
     width: '100%',
+    height: '100%',
+    borderRadius: 17,
+  },
+  avatarEmoji: {
+    fontSize: 32,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerGreeting: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  headerTotem: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 4,
+  },
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  levelBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  levelBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: BrandColors.accent[500],
+    borderWidth: 2,
+    borderColor: BrandColors.primary[500],
   },
 
-  // Stats Section
-  statsSection: {
+  // Stats Row
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-    marginBottom: 40,
-  },
-  statsSectionTablet: {
-    gap: Spacing.lg,
-  },
-  statsSectionDesktop: {
-    gap: Spacing.xl,
+    gap: 12,
   },
   statCard: {
     flex: 1,
-    minWidth: '47%',
-    borderRadius: Radius.xl,
-  },
-  statCardTablet: {
-    minWidth: 200,
-    maxWidth: 240,
-  },
-  statCardContent: {
-    padding: Spacing.xl,
-  },
-  statIconContainer: {
-    marginBottom: Spacing.md,
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.md,
+    borderRadius: 14,
+    padding: 12,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  statInfo: {
-    gap: 6,
+  statCardAccent: {
+    backgroundColor: BrandColors.accent[500],
+    shadowColor: BrandColors.accent[500],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statCardTransparent: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.8,
-  },
-  statValueTablet: {
-    fontSize: 32,
+    color: '#FFFFFF',
   },
   statLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
   },
 
-  // Section Headers
+  // ==================== CONTENT ====================
+  content: {
+    padding: 24,
+  },
   section: {
-    marginBottom: 40,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.6,
+    color: NeutralColors.gray[900],
   },
-  sectionTitleTablet: {
-    fontSize: 24,
-  },
-  seeAllButton: {
+  seeAllButtonOrange: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.md,
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: BrandColors.accent[500],
+  },
+  seeAllButtonGreen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: BrandColors.primary[500],
   },
   seeAllText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  linkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: BrandColors.primary[500],
   },
 
-  // Challenges Grid
-  challengesGrid: {
-    gap: Spacing.md,
-  },
-  challengesGridTablet: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.lg,
+  // ==================== CHALLENGES ====================
+  challengesList: {
+    gap: 12,
   },
   challengeCard: {
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: 16,
     borderWidth: 1,
-  },
-  challengeCardTablet: {
-    flex: 1,
-    minWidth: 340,
+    borderColor: NeutralColors.gray[200],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   challengeIconContainer: {
-    justifyContent: 'center',
-  },
-  challengeIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.md,
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: `${BrandColors.accent[500]}15`,
     alignItems: 'center',
     justifyContent: 'center',
   },
   challengeEmoji: {
-    fontSize: 28,
+    fontSize: 26,
   },
   challengeContent: {
     flex: 1,
-    gap: 8,
+  },
+  challengeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
   },
   challengeTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 2,
-    letterSpacing: -0.3,
-  },
-  challengeDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  challengeFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-  },
-  challengePoints: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.sm,
-  },
-  challengePointsText: {
-    fontSize: 14,
-    fontWeight: '700',
+    color: NeutralColors.gray[900],
+    flex: 1,
   },
   challengeDays: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    color: NeutralColors.gray[500],
   },
-
-  // Events
-  eventCard: {
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
+  challengeDescription: {
+    fontSize: 12,
+    color: NeutralColors.gray[500],
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
+    gap: 12,
+    marginBottom: 10,
   },
-  eventDate: {
-    width: 64,
+  progressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: NeutralColors.gray[200],
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: BrandColors.primary[500],
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: BrandColors.primary[500],
+    minWidth: 32,
+  },
+  challengePoints: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: BrandColors.accent[500],
+  },
+
+  // ==================== EVENTS ====================
+  eventsList: {
+    gap: 12,
+  },
+  eventCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    borderWidth: 1,
+    borderColor: NeutralColors.gray[200],
+  },
+  eventDateBadge: {
+    width: 56,
     height: 64,
-    borderRadius: Radius.md,
+    borderRadius: 14,
+    backgroundColor: BrandColors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -596,71 +1033,301 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: -0.5,
+    lineHeight: 24,
   },
   eventMonth: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 1,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase',
   },
   eventContent: {
     flex: 1,
-    gap: 8,
   },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
-    letterSpacing: -0.3,
-  },
-  eventDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  eventDetailText: {
-    fontSize: 14,
-  },
-
-  // Empty States
-  emptyEventsContainer: {
-    borderRadius: Radius.xl,
-    padding: 40,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  emptyEventsText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-
-  // Empty Challenges
-  emptyChallengesContainer: {
-    borderRadius: Radius.xl,
-    padding: 40,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  emptyChallengesText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-
-  // Countdown badge
   eventTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 8,
+    marginBottom: 4,
+  },
+  eventTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: NeutralColors.gray[900],
+    flex: 1,
   },
   countdownBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: Radius.sm,
+    borderRadius: 6,
   },
   countdownText: {
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  eventDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  eventDetailText: {
+    fontSize: 12,
+    color: NeutralColors.gray[500],
+  },
+
+  // ==================== LEADERBOARD ====================
+  leaderboardCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: NeutralColors.gray[200],
+  },
+  leaderboardEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  leaderboardEntryHighlight: {
+    backgroundColor: `${BrandColors.primary[500]}08`,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  leaderboardEntryBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: NeutralColors.gray[100],
+  },
+  leaderboardMedal: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+  leaderboardAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: NeutralColors.gray[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leaderboardAvatarHighlight: {
+    backgroundColor: `${BrandColors.primary[500]}20`,
+    borderWidth: 2,
+    borderColor: BrandColors.primary[500],
+  },
+  leaderboardAvatarText: {
+    fontSize: 20,
+  },
+  leaderboardInfo: {
+    flex: 1,
+  },
+  leaderboardName: {
+    fontSize: 14,
     fontWeight: '600',
+    color: NeutralColors.gray[900],
+  },
+  leaderboardNameHighlight: {
+    fontWeight: '700',
+    color: BrandColors.primary[500],
+  },
+  leaderboardPoints: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: BrandColors.accent[500],
+  },
+
+  // ==================== MESSAGES ====================
+  messagesCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: NeutralColors.gray[200],
+    overflow: 'hidden',
+  },
+  messageEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+  },
+  messageEntryBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: NeutralColors.gray[100],
+  },
+  messageIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: BrandColors.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageContent: {
+    flex: 1,
+  },
+  messageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  channelName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: NeutralColors.gray[900],
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: BrandColors.accent[500],
+  },
+  lastMessage: {
+    fontSize: 13,
+    color: NeutralColors.gray[500],
+    marginTop: 2,
+  },
+  messageTime: {
+    fontSize: 11,
+    color: NeutralColors.gray[400],
+  },
+
+  // ==================== EMPTY STATES ====================
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 40,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: NeutralColors.gray[200],
+  },
+  emptyText: {
+    fontSize: 14,
+    color: NeutralColors.gray[500],
+    textAlign: 'center',
+  },
+
+  // ==================== MODAL NOUVEAUTÉS ====================
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '80%',
+    paddingBottom: 32,
+  },
+  modalHeader: {
+    padding: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: NeutralColors.gray[100],
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: NeutralColors.gray[900],
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: NeutralColors.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: NeutralColors.gray[500],
+    marginTop: 4,
+  },
+  modalScrollView: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+  },
+  newsSection: {
+    marginBottom: 24,
+  },
+  newsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: NeutralColors.gray[800],
+    marginBottom: 12,
+  },
+  newsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: NeutralColors.gray[50],
+    borderRadius: 14,
+    marginBottom: 8,
+  },
+  newsIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newsEmoji: {
+    fontSize: 22,
+  },
+  newsContent: {
+    flex: 1,
+  },
+  newsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: NeutralColors.gray[900],
+  },
+  newsDescription: {
+    fontSize: 13,
+    color: NeutralColors.gray[500],
+    marginTop: 2,
+  },
+  emptyNewsState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyNewsEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyNewsText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: NeutralColors.gray[700],
+    marginBottom: 4,
+  },
+  emptyNewsSubtext: {
+    fontSize: 14,
+    color: NeutralColors.gray[500],
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  modalFooterButton: {
+    marginHorizontal: 24,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: BrandColors.primary[500],
+    alignItems: 'center',
+  },
+  modalFooterButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

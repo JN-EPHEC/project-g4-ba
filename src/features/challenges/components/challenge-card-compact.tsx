@@ -8,6 +8,7 @@ import { ChallengeDifficulty, ChallengeCategory } from '@/types';
 
 interface ChallengeCardCompactProps {
   title: string;
+  description?: string;
   emoji?: string;
   category?: ChallengeCategory;
   difficulty: ChallengeDifficulty;
@@ -20,9 +21,26 @@ interface ChallengeCardCompactProps {
 }
 
 const DIFFICULTY_COLORS: Record<ChallengeDifficulty, string> = {
-  [ChallengeDifficulty.EASY]: '#10b981',
-  [ChallengeDifficulty.MEDIUM]: '#f59e0b',
-  [ChallengeDifficulty.HARD]: '#ef4444',
+  [ChallengeDifficulty.EASY]: BrandColors.primary[400],
+  [ChallengeDifficulty.MEDIUM]: BrandColors.accent[500],
+  [ChallengeDifficulty.HARD]: BrandColors.primary[700],
+};
+
+const CATEGORY_LABELS: Record<ChallengeCategory, string> = {
+  [ChallengeCategory.NATURE]: 'Nature',
+  [ChallengeCategory.SPORT]: 'Sport',
+  [ChallengeCategory.TECHNIQUE]: 'Technique',
+  [ChallengeCategory.CUISINE]: 'Cuisine',
+  [ChallengeCategory.CREATIVITY]: 'Créativité',
+};
+
+const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
+  nature: { bg: BrandColors.primary[50], text: BrandColors.primary[500] },
+  sport: { bg: BrandColors.primary[100], text: BrandColors.primary[600] },
+  technique: { bg: BrandColors.accent[50], text: BrandColors.accent[500] },
+  cuisine: { bg: BrandColors.accent[100], text: BrandColors.accent[600] },
+  creativity: { bg: BrandColors.primary[100], text: BrandColors.primary[700] },
+  default: { bg: NeutralColors.gray[100], text: NeutralColors.gray[600] },
 };
 
 const CATEGORY_EMOJIS: Record<ChallengeCategory, string> = {
@@ -35,6 +53,7 @@ const CATEGORY_EMOJIS: Record<ChallengeCategory, string> = {
 
 export function ChallengeCardCompact({
   title,
+  description,
   emoji,
   category,
   difficulty,
@@ -53,6 +72,19 @@ export function ChallengeCardCompact({
   const displayEmoji = emoji || (category ? CATEGORY_EMOJIS[category] : '🎯');
   const difficultyColor = DIFFICULTY_COLORS[difficulty];
 
+  // Catégorie
+  const categoryKey = category?.toLowerCase() || 'default';
+  const catColors = CATEGORY_COLORS[categoryKey] || CATEGORY_COLORS.default;
+  const categoryLabel = category ? CATEGORY_LABELS[category] : 'Autre';
+
+  // Difficulté en dots
+  const getDifficultyDots = () => {
+    const dots = difficulty === ChallengeDifficulty.EASY ? 1
+      : difficulty === ChallengeDifficulty.MEDIUM ? 2 : 3;
+    return dots;
+  };
+  const difficultyDots = getDifficultyDots();
+
   // Determine border color based on status
   const getBorderStyle = () => {
     if (isCompleted) return { borderColor: successColor, borderWidth: 2 };
@@ -66,71 +98,82 @@ export function ChallengeCardCompact({
       onPress={onPress}
       activeOpacity={0.7}
     >
-      {/* Left: Emoji */}
-      <View style={[styles.emojiContainer, { backgroundColor: `${difficultyColor}15` }]}>
-        <ThemedText style={styles.emoji}>{displayEmoji}</ThemedText>
-      </View>
+      {/* New Badge */}
+      {isNew && !isCompleted && (
+        <View style={styles.newBadge}>
+          <ThemedText style={styles.newBadgeText}>NOUVEAU</ThemedText>
+        </View>
+      )}
 
-      {/* Middle: Title and Progress */}
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <ThemedText type="defaultSemiBold" numberOfLines={1} style={styles.title}>
-            {title}
-          </ThemedText>
-          {isNew && (
-            <View style={styles.newBadge}>
-              <ThemedText style={styles.newBadgeText}>NEW</ThemedText>
-            </View>
-          )}
+      {/* Completed Badge */}
+      {isCompleted && (
+        <View style={styles.completedBadge}>
+          <ThemedText style={styles.checkmark}>✓</ThemedText>
+        </View>
+      )}
+
+      <View style={styles.mainContent}>
+        {/* Left: Emoji */}
+        <View style={[styles.emojiContainer, { backgroundColor: catColors.bg }]}>
+          <ThemedText style={styles.emoji}>{displayEmoji}</ThemedText>
         </View>
 
-        {/* Progress Bar */}
-        {!isCompleted && progress >= 0 && (
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBarBg, { backgroundColor: NeutralColors.gray[200] }]}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${Math.min(progress, 100)}%`,
-                    backgroundColor: isCompleted ? successColor : difficultyColor,
-                  },
-                ]}
-              />
+        {/* Middle: Title, Description and Meta */}
+        <View style={styles.content}>
+          <ThemedText
+            type="defaultSemiBold"
+            numberOfLines={1}
+            style={[styles.title, { paddingRight: isNew || isCompleted ? 80 : 0 }]}
+          >
+            {title}
+          </ThemedText>
+
+          {description && (
+            <ThemedText
+              style={[styles.description, { color: textSecondary }]}
+              numberOfLines={2}
+            >
+              {description}
+            </ThemedText>
+          )}
+
+          {/* Footer: Category + Difficulty + Status */}
+          <View style={styles.footer}>
+            <View style={styles.footerLeft}>
+              {/* Category Badge */}
+              <View style={[styles.categoryBadge, { backgroundColor: catColors.bg }]}>
+                <ThemedText style={[styles.categoryText, { color: catColors.text }]}>
+                  {categoryLabel}
+                </ThemedText>
+              </View>
+
+              {/* Difficulty Dots */}
+              <View style={styles.difficultyDots}>
+                {[1, 2, 3].map((dot) => (
+                  <View
+                    key={dot}
+                    style={[
+                      styles.dot,
+                      { backgroundColor: dot <= difficultyDots ? difficultyColor : NeutralColors.gray[200] },
+                    ]}
+                  />
+                ))}
+              </View>
+
+              {/* Status indicator */}
+              {isPending && !isCompleted && (
+                <View style={styles.statusIndicator}>
+                  <Ionicons name="time" size={12} color={BrandColors.accent[500]} />
+                </View>
+              )}
             </View>
-            <ThemedText style={[styles.progressText, { color: textSecondary }]}>
-              {progress}%
-            </ThemedText>
-          </View>
-        )}
 
-        {/* Completed indicator */}
-        {isCompleted && (
-          <View style={styles.completedRow}>
-            <Ionicons name="checkmark-circle" size={14} color={successColor} />
-            <ThemedText style={[styles.completedText, { color: successColor }]}>
-              Complété
-            </ThemedText>
+            {/* Points Badge */}
+            <View style={styles.pointsBadge}>
+              <ThemedText style={styles.pointsText}>⭐ +{points}</ThemedText>
+            </View>
           </View>
-        )}
-
-        {/* Pending indicator */}
-        {isPending && !isCompleted && (
-          <View style={styles.pendingRow}>
-            <Ionicons name="time" size={14} color={BrandColors.accent[500]} />
-            <ThemedText style={[styles.pendingText, { color: BrandColors.accent[500] }]}>
-              En attente
-            </ThemedText>
-          </View>
-        )}
-      </View>
-
-      {/* Right: Points */}
-      <View style={styles.pointsContainer}>
-        <ThemedText style={[styles.pointsValue, { color: BrandColors.accent[600] }]}>
-          +{points}
-        </ThemedText>
-        <ThemedText style={[styles.pointsLabel, { color: textSecondary }]}>pts</ThemedText>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -138,101 +181,118 @@ export function ChallengeCardCompact({
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 14,
-    gap: 12,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
+    position: 'relative',
   },
-  emojiContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  newBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: BrandColors.accent[500],
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    zIndex: 1,
+  },
+  newBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  completedBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: BrandColors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
+  },
+  checkmark: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  mainContent: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  emojiContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   emoji: {
-    fontSize: 22,
+    fontSize: 28,
   },
   content: {
     flex: 1,
-    gap: 6,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   title: {
-    fontSize: 15,
-    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  newBadge: {
-    backgroundColor: BrandColors.accent[500],
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  description: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 10,
   },
-  newBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
   },
-  progressContainer: {
+  footerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  progressBarBg: {
-    flex: 1,
+  categoryBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  categoryText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  difficultyDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  dot: {
+    width: 6,
     height: 6,
     borderRadius: 3,
-    overflow: 'hidden',
   },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
+  statusIndicator: {
+    marginLeft: 4,
   },
-  progressText: {
-    fontSize: 11,
-    fontWeight: '600',
-    minWidth: 28,
-    textAlign: 'right',
+  pointsBadge: {
+    backgroundColor: BrandColors.accent[50],
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  completedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  completedText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  pendingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  pendingText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  pointsContainer: {
-    alignItems: 'flex-end',
-  },
-  pointsValue: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  pointsLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: -2,
+  pointsText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: BrandColors.accent[500],
   },
 });

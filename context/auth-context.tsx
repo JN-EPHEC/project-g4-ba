@@ -165,29 +165,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let errorMessage = 'Erreur lors de l\'inscription';
       if (error.code === 'auth/email-already-in-use') {
-        // Si l'email existe déjà, essayer de se connecter automatiquement
-        try {
-          const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          const userData = await UserService.getUserById(userCredential.user.uid);
-
-          if (userData) {
-            setUser(userData);
-            return userData;
-          } else {
-            // L'utilisateur existe dans Auth mais pas dans Firestore, créer le document
-            const newUser = await UserService.createUser(
-              userCredential.user.uid,
-              email,
-              firstName,
-              lastName,
-              role
-            );
-            setUser(newUser);
-            return newUser;
-          }
-        } catch {
-          errorMessage = 'Cet email est déjà utilisé. Si c\'est votre compte, veuillez vous connecter.';
-        }
+        // Ne PAS se connecter automatiquement - c'est un risque de sécurité
+        // L'utilisateur doit se connecter explicitement avec son compte existant
+        errorMessage = 'Cet email est déjà utilisé. Si c\'est votre compte, veuillez vous connecter.';
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = 'Email invalide';
       } else if (error.code === 'auth/weak-password') {

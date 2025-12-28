@@ -23,9 +23,6 @@ interface ActiveChallengeCardProps {
   category?: ChallengeCategory;
   points: number;
   deadline: string;
-  progress: number;
-  current?: string;
-  target?: string;
   onPress?: () => void;
 }
 
@@ -35,9 +32,6 @@ export function ActiveChallengeCard({
   category,
   points,
   deadline,
-  progress,
-  current,
-  target,
   onPress,
 }: ActiveChallengeCardProps) {
   const cardColor = useThemeColor({}, 'card');
@@ -63,16 +57,11 @@ export function ActiveChallengeCard({
         </View>
       </View>
 
-      {/* Progress Bar */}
+      {/* Points display */}
       <View style={styles.progressSection}>
-        <View style={styles.progressLabelRow}>
-          <ThemedText style={styles.progressText}>
-            {current && target ? `${current} / ${target}` : `${progress}%`}
-          </ThemedText>
-          <ThemedText style={styles.progressPercent}>{progress}%</ThemedText>
-        </View>
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+        <View style={styles.pointsRow}>
+          <ThemedText style={styles.pointsLabel}>+{points}</ThemedText>
+          <ThemedText style={styles.pointsUnit}>pts</ThemedText>
         </View>
       </View>
 
@@ -135,30 +124,20 @@ const styles = StyleSheet.create({
   progressSection: {
     marginBottom: 12,
   },
-  progressLabelRow: {
+  pointsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'baseline',
+    gap: 4,
   },
-  progressText: {
-    fontSize: 12,
-    color: BrandColors.secondary[500],
+  pointsLabel: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: BrandColors.accent[500],
   },
-  progressPercent: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: BrandColors.primary[500],
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: BrandColors.secondary[100],
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: BrandColors.primary[500],
-    borderRadius: 3,
+  pointsUnit: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: BrandColors.secondary[400],
   },
   footer: {
     flexDirection: 'row',

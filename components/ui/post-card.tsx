@@ -6,7 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from './avatar';
 import { Card } from './card';
+import { MessageActions } from './message-actions';
+import { CommentsSection } from './comments-section';
 import type { Post, PostAttachment } from '@/src/shared/services/community-service';
+import { ChannelService } from '@/src/shared/services/channel-service';
 import { BrandColors, NeutralColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Radius, Spacing } from '@/constants/design-tokens';
@@ -28,6 +31,14 @@ export interface PostCardProps {
   canDelete?: boolean;
   /** Callback appelé quand l'utilisateur veut supprimer le message */
   onDelete?: (postId: string) => void;
+  /** ID de l'utilisateur courant pour les likes/commentaires */
+  currentUserId?: string;
+  /** Si l'utilisateur est animateur (pour modération) */
+  isAnimator?: boolean;
+  /** Map des auteurs pour les commentaires */
+  authors?: Record<string, PostAuthor>;
+  /** Callback appelé quand un commentaire est ajouté/supprimé */
+  onInteraction?: () => void;
 }
 
 function formatRelativeTime(date: Date): string {
@@ -70,8 +81,24 @@ function AttachmentPreview({ attachment, textSecondary }: { attachment: PostAtta
   );
 }
 
-export function PostCard({ post, author, canDelete, onDelete, isCurrentUser }: PostCardProps & { isCurrentUser?: boolean }) {
+export function PostCard({
+  post,
+  author,
+  canDelete,
+  onDelete,
+  isCurrentUser,
+  currentUserId,
+  isAnimator = false,
+  authors = {},
+  onInteraction,
+}: PostCardProps & { isCurrentUser?: boolean }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [isLiked, setIsLiked] = useState(
+    currentUserId ? (post.likes || []).includes(currentUserId) : false
+  );
+  const [likesCount, setLikesCount] = useState(post.likesCount || 0);
+  const [commentsCount, setCommentsCount] = useState(post.commentsCount || 0);
 
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
@@ -108,6 +135,33 @@ export function PostCard({ post, author, canDelete, onDelete, isCurrentUser }: P
     if (onDelete) {
       onDelete(post.id);
     }
+  };
+
+  const handleLikePress = async () => {
+    if (!currentUserId) return;
+
+    // Mise à jour optimiste
+    const newIsLiked = !isLiked;
+    setIsLiked(newIsLiked);
+    setLikesCount((prev) => (newIsLiked ? prev + 1 : prev - 1));
+
+    try {
+      await ChannelService.toggleLikeMessage(post.id, currentUserId);
+    } catch (error) {
+      // Rollback en cas d'erreur
+      setIsLiked(!newIsLiked);
+      setLikesCount((prev) => (newIsLiked ? prev - 1 : prev + 1));
+      console.error('[PostCard] Error toggling like:', error);
+    }
+  };
+
+  const handleCommentPress = () => {
+    setShowComments((prev) => !prev);
+  };
+
+  const handleCommentAdded = () => {
+    setCommentsCount((prev) => prev + 1);
+    onInteraction?.();
   };
 
   return (
@@ -152,6 +206,30 @@ export function PostCard({ post, author, canDelete, onDelete, isCurrentUser }: P
         <View style={styles.attachmentContainer}>
           <AttachmentPreview attachment={post.attachment} textSecondary={textSecondary} />
         </View>
+      )}
+
+      {/* Like and Comment Actions */}
+      {currentUserId && (
+        <MessageActions
+          likesCount={likesCount}
+          commentsCount={commentsCount}
+          isLiked={isLiked}
+          onLikePress={handleLikePress}
+          onCommentPress={handleCommentPress}
+          showComments={showComments}
+        />
+      )}
+
+      {/* Comments Section */}
+      {showComments && currentUserId && (
+        <CommentsSection
+          messageId={post.id}
+          channelId={post.channelId}
+          currentUserId={currentUserId}
+          isAnimator={isAnimator}
+          authors={authors}
+          onCommentAdded={handleCommentAdded}
+        />
       )}
 
       {/* Modal de confirmation pour le web */}

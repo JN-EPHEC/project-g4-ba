@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -439,7 +440,36 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
               </TouchableOpacity>
             </View>
 
-            {filteredFolders.length === 0 ? (
+            {/* Dossier spécial Autorisations pour les animateurs */}
+            {canManage && selectedFilter === 'all' && (
+              <Animated.View entering={FadeInDown.duration(300)}>
+                <View style={[styles.authorizationsFolderCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                  <TouchableOpacity
+                    onPress={() => router.push('/(animator)/documents/authorizations')}
+                    activeOpacity={0.7}
+                    style={styles.authorizationsFolderMain}
+                  >
+                    <View style={[styles.authorizationsFolderIcon, { backgroundColor: '#fef3c715' }]}>
+                      <Ionicons name="folder" size={28} color="#f59e0b" />
+                    </View>
+                    <View style={styles.authorizationsFolderContent}>
+                      <ThemedText style={[styles.authorizationsFolderName, { color: textColor }]} numberOfLines={1}>
+                        Autorisations à signer
+                      </ThemedText>
+                      <View style={styles.authorizationsFolderMeta}>
+                        <View style={[styles.authorizationsCategoryBadge, { backgroundColor: '#fef3c7' }]}>
+                          <ThemedText style={styles.authorizationsCategoryText}>
+                            Signatures
+                          </ThemedText>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            )}
+
+            {filteredFolders.length === 0 && !(canManage && selectedFilter === 'all') ? (
               <View style={[styles.emptyState, { backgroundColor: cardColor, borderColor: cardBorder }]}>
                 <Ionicons name="folder-open-outline" size={48} color={textSecondary} />
                 <ThemedText style={[styles.emptyTitle, { color: textColor }]}>Aucun dossier</ThemedText>
@@ -453,7 +483,7 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
               filteredFolders.map((folder, index) => (
                 <Animated.View
                   key={folder.id}
-                  entering={FadeInDown.duration(300).delay(index * 50)}
+                  entering={FadeInDown.duration(300).delay((canManage && selectedFilter === 'all' ? index + 1 : index) * 50)}
                 >
                   <FolderCard
                     folder={folder}
@@ -601,6 +631,51 @@ const styles = StyleSheet.create({
   filterTabText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  authorizationsFolderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+  },
+  authorizationsFolderMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  authorizationsFolderIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authorizationsFolderContent: {
+    flex: 1,
+    gap: 4,
+  },
+  authorizationsFolderName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  authorizationsFolderMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: 4,
+  },
+  authorizationsCategoryBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  authorizationsCategoryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#b45309',
   },
   newFolderButton: {
     flexDirection: 'row',

@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ScrollView, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -23,7 +23,14 @@ import { BrandColors } from '@/constants/theme';
 export default function AnimatorChallengesScreen() {
   const { user } = useAuth();
   const animator = user as Animator;
-  const { challenges, loading, error } = useChallenges();
+  const { challenges, loading, error, refetch } = useChallenges();
+
+  // Refetch challenges when screen comes into focus (after editing)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [])
+  );
   const {
     podiumUsers,
     otherUsers,
@@ -271,7 +278,6 @@ export default function AnimatorChallengesScreen() {
                       category={challenge.category}
                       points={challenge.points}
                       deadline={getDeadlineString(challenge.endDate)}
-                      progress={Math.floor(Math.random() * 70) + 10}
                       onPress={() => handleChallengeClick(challenge)}
                     />
                   ))}
@@ -318,7 +324,7 @@ export default function AnimatorChallengesScreen() {
                     category={challenge.category}
                     difficulty={challenge.difficulty}
                     points={challenge.points}
-                    participants={Math.floor(Math.random() * 25) + 5}
+                    participants={challenge.participantsCount || 0}
                     isCompleted={isEndedChallenge(challenge)}
                     isNew={isNewChallenge(challenge) && !isEndedChallenge(challenge)}
                     onPress={() => handleChallengeClick(challenge)}

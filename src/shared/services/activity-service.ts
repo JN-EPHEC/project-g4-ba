@@ -2,10 +2,8 @@ import {
   collection,
   query,
   where,
-  orderBy,
   limit,
   getDocs,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
@@ -54,17 +52,17 @@ export class ActivityService {
   /**
    * Récupérer les activités récentes d'une unité
    * Agrège les données de plusieurs collections
+   * Note: Les requêtes sont simplifiées pour éviter les index composites
    */
   static async getRecentActivities(unitId: string, activityLimit = 10): Promise<Activity[]> {
     const activities: Activity[] = [];
 
     try {
-      // Récupérer les événements récents
+      // Récupérer les événements récents (sans orderBy pour éviter index composite)
       const eventsQuery = query(
         collection(db, 'events'),
         where('unitId', '==', unitId),
-        orderBy('createdAt', 'desc'),
-        limit(5)
+        limit(10)
       );
       const eventsSnapshot = await getDocs(eventsQuery);
       eventsSnapshot.docs.forEach((doc) => {
@@ -80,12 +78,11 @@ export class ActivityService {
         });
       });
 
-      // Récupérer les défis récents
+      // Récupérer les défis récents (sans orderBy pour éviter index composite)
       const challengesQuery = query(
         collection(db, 'challenges'),
         where('unitId', '==', unitId),
-        orderBy('createdAt', 'desc'),
-        limit(5)
+        limit(10)
       );
       const challengesSnapshot = await getDocs(challengesQuery);
       challengesSnapshot.docs.forEach((doc) => {
@@ -101,69 +98,97 @@ export class ActivityService {
         });
       });
 
-      // Récupérer les soumissions de défis récentes (validées)
+      // Récupérer les soumissions de défis récentes (validées ou completed)
       const submissionsQuery = query(
         collection(db, 'challengeSubmissions'),
-        where('status', '==', 'validated'),
-        orderBy('submittedAt', 'desc'),
-        limit(5)
+        where('status', '==', 'completed'),
+        limit(10)
       );
       const submissionsSnapshot = await getDocs(submissionsQuery);
-      submissionsSnapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        activities.push({
-          id: `submission_${doc.id}`,
-          type: 'challenge_validated',
-          title: 'Défi validé',
-          description: `Un scout a complété un défi`,
-          authorId: data.scoutId || '',
-          unitId,
-          createdAt: data.validatedAt?.toDate() || data.submittedAt?.toDate() || new Date(),
-        });
-      });
 
-      // Récupérer les messages récents
-      const messagesQuery = query(
-        collection(db, 'channelMessages'),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-      const messagesSnapshot = await getDocs(messagesQuery);
-      messagesSnapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        activities.push({
-          id: `message_${doc.id}`,
-          type: 'message_posted',
-          title: 'Nouveau message',
-          description: data.content?.substring(0, 50) + (data.content?.length > 50 ? '...' : ''),
-          authorId: data.authorId || '',
-          unitId,
-          createdAt: data.createdAt?.toDate() || new Date(),
-        });
-      });
+      // Importer UserService et ChallengeService pour enrichir les données
+      const { UserService } = await import('@/services/user-service');
+      const { ChallengeService } = await import('@/services/challenge-service');
 
-      // Récupérer les fichiers récents
-      const filesQuery = query(
-        collection(db, 'storageFiles'),
+      for (const doc of submissionsSnapshot.docs) {
+        const data = doc.data();
+        // Vérifier que le scout appartient à l'unité
+        const scout = await UserService.getUserById(data.scoutId);
+        if (scout && 'unitId' in scout && scout.unitId === unitId) {
+          const challenge = await ChallengeService.getChallengeById(data.challengeId);
+          activities.push({
+            id: `submission_${doc.id}`,
+            type: 'challenge_validated',
+            title: challenge?.title || 'Défi validé',
+            description: `${scout.firstName} a complété le défi`,
+            authorId: data.scoutId || '',
+            authorName: `${scout.firstName} ${scout.lastName}`,
+            unitId,
+            createdAt: data.validatedAt?.toDate() || data.submittedAt?.toDate() || new Date(),
+          });
+        }
+      }
+
+      // Récupérer les canaux de l'unité pour les messages
+      const { ChannelService } = await import('@/src/shared/services/channel-service');
+      const channels = await ChannelService.getChannelsByUnit(unitId);
+
+      // Pour chaque canal, récupérer les derniers messages
+      for (const channel of channels.slice(0, 3)) {
+        const messagesQuery = query(
+          collection(db, 'channels', channel.id, 'messages'),
+          limit(3)
+        );
+        const messagesSnapshot = await getDocs(messagesQuery);
+
+        for (const msgDoc of messagesSnapshot.docs) {
+          const msgData = msgDoc.data();
+          const author = await UserService.getUserById(msgData.authorId);
+          if (author) {
+            activities.push({
+              id: `message_${msgDoc.id}`,
+              type: 'message_posted',
+              title: `#${channel.name}`,
+              description: `${author.firstName}: ${(msgData.content || '').substring(0, 40)}${(msgData.content || '').length > 40 ? '...' : ''}`,
+              authorId: msgData.authorId || '',
+              authorName: `${author.firstName} ${author.lastName}`,
+              unitId,
+              createdAt: msgData.createdAt?.toDate() || new Date(),
+            });
+          }
+        }
+      }
+
+      // Récupérer les nouveaux scouts validés récemment
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const scoutsQuery = query(
+        collection(db, 'users'),
         where('unitId', '==', unitId),
-        orderBy('createdAt', 'desc'),
+        where('role', '==', 'scout'),
+        where('validated', '==', true),
         limit(5)
       );
-      const filesSnapshot = await getDocs(filesQuery);
-      filesSnapshot.docs.forEach((doc) => {
+      const scoutsSnapshot = await getDocs(scoutsQuery);
+      scoutsSnapshot.docs.forEach((doc) => {
         const data = doc.data();
-        activities.push({
-          id: `file_${doc.id}`,
-          type: 'file_uploaded',
-          title: data.name,
-          description: `Nouveau fichier ajouté`,
-          authorId: data.uploadedBy || '',
-          unitId,
-          createdAt: data.createdAt?.toDate() || new Date(),
-        });
+        const validatedAt = data.validatedAt?.toDate();
+        if (validatedAt && validatedAt > sevenDaysAgo) {
+          activities.push({
+            id: `scout_${doc.id}`,
+            type: 'challenge_submitted', // Réutilise un type existant pour "nouveau scout"
+            title: 'Nouveau scout',
+            description: `${data.firstName} ${data.lastName} a rejoint l'unité`,
+            authorId: doc.id,
+            authorName: `${data.firstName} ${data.lastName}`,
+            unitId,
+            createdAt: validatedAt,
+          });
+        }
       });
 
-      // Trier par date et limiter
+      // Trier par date (plus récent en premier) et limiter
       activities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       return activities.slice(0, activityLimit);
     } catch (error) {

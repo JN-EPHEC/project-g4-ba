@@ -29,7 +29,8 @@ function convertToLeaderboardUser(entry: LeaderboardEntry, currentUserId?: strin
     id: scout.id,
     name: `${scout.firstName} ${scout.lastName.charAt(0)}.`,
     points: entry.points,
-    avatar: getAvatarForUser(scout.id),
+    avatar: scout.totemEmoji || getAvatarForUser(scout.id),
+    profilePicture: scout.profilePicture,
     streak: (scout as any).streak || 0,
     isMe: scout.id === currentUserId,
   };

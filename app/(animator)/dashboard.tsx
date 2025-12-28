@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View, Image } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -222,7 +222,11 @@ export default function AnimatorDashboardScreen() {
                   style={styles.avatarButton}
                   onPress={() => router.push('/(animator)/profile')}
                 >
-                  <ThemedText style={styles.avatarEmoji}>🦊</ThemedText>
+                  {animator?.profilePicture ? (
+                    <Image source={{ uri: animator.profilePicture }} style={styles.avatarImage} />
+                  ) : (
+                    <ThemedText style={styles.avatarEmoji}>{getUserTotemEmoji(animator) || '👤'}</ThemedText>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -251,6 +255,7 @@ export default function AnimatorDashboardScreen() {
             <TouchableOpacity
               style={[styles.alertCard, { backgroundColor: '#FEF2F2' }]}
               onPress={() => router.push('/(animator)/scouts')}
+              activeOpacity={0.7}
             >
               <View style={[styles.alertIcon, { backgroundColor: '#FEE2E2' }]}>
                 <ThemedText style={styles.alertEmoji}>🏥</ThemedText>
@@ -258,16 +263,17 @@ export default function AnimatorDashboardScreen() {
               <ThemedText style={[styles.alertText, { color: '#DC2626' }]}>
                 {missingHealthRecordsCount} {missingHealthRecordsCount === 1 ? 'fiche santé manquante' : 'fiches santé manquantes'}
               </ThemedText>
-              <TouchableOpacity style={[styles.alertButton, { backgroundColor: '#FECACA' }]}>
+              <View style={[styles.alertButton, { backgroundColor: '#FECACA' }]}>
                 <ThemedText style={[styles.alertButtonText, { color: '#DC2626' }]}>Voir</ThemedText>
-              </TouchableOpacity>
+              </View>
             </TouchableOpacity>
           )}
 
           {pendingAuthorizationsCount > 0 && (
             <TouchableOpacity
               style={[styles.alertCard, { backgroundColor: '#FFFBEB' }]}
-              onPress={() => router.push('/(animator)/documents')}
+              onPress={() => router.push('/(animator)/documents/authorizations')}
+              activeOpacity={0.7}
             >
               <View style={[styles.alertIcon, { backgroundColor: '#FEF3C7' }]}>
                 <ThemedText style={styles.alertEmoji}>📋</ThemedText>
@@ -275,9 +281,9 @@ export default function AnimatorDashboardScreen() {
               <ThemedText style={[styles.alertText, { color: '#D97706' }]}>
                 {pendingAuthorizationsCount} {pendingAuthorizationsCount === 1 ? 'autorisation à signer' : 'autorisations à signer'}
               </ThemedText>
-              <TouchableOpacity style={[styles.alertButton, { backgroundColor: '#FDE68A' }]}>
+              <View style={[styles.alertButton, { backgroundColor: '#FDE68A' }]}>
                 <ThemedText style={[styles.alertButtonText, { color: '#D97706' }]}>Voir</ThemedText>
-              </TouchableOpacity>
+              </View>
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -636,7 +642,9 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   avatarEmoji: { fontSize: 24 },
 
   // Stats

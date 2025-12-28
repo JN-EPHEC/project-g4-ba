@@ -4,17 +4,22 @@ import { UnitService } from '@/services/unit-service';
 import { HealthService } from '@/services/health-service';
 import { DocumentService } from '@/services/document-service';
 import { useAuth } from '@/context/auth-context';
-import { Animator } from '@/types';
+import { ParentScoutService } from '@/services/parent-scout-service';
+import { Animator, Parent } from '@/types';
 
 /**
  * Interface pour le contexte de notifications
  */
 interface NotificationContextType {
+  // Animateur
   pendingChallengesCount: number;
   pendingScoutsCount: number;
   missingHealthRecordsCount: number;
   pendingAuthorizationsCount: number;
   totalNotificationsCount: number;
+  // Parent
+  parentPendingDocumentsCount: number;
+  // Common
   isLoading: boolean;
   refreshNotifications: () => Promise<void>;
 }
@@ -44,26 +49,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [pendingScoutsCount, setPendingScoutsCount] = useState(0);
   const [missingHealthRecordsCount, setMissingHealthRecordsCount] = useState(0);
   const [pendingAuthorizationsCount, setPendingAuthorizationsCount] = useState(0);
+  const [parentPendingDocumentsCount, setParentPendingDocumentsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const refreshNotifications = async () => {
-    // Ne rien faire si l'utilisateur n'est pas connecté ou n'est pas un animateur
-    if (!isAuthenticated || !user || user.role !== 'animator') {
-      setPendingChallengesCount(0);
-      setPendingScoutsCount(0);
-      setMissingHealthRecordsCount(0);
-      setPendingAuthorizationsCount(0);
-      return;
-    }
-
+  const refreshAnimatorNotifications = async () => {
     const animator = user as Animator;
     if (!animator.unitId) {
       return;
     }
 
     try {
-      setIsLoading(true);
-
       // Récupérer le nombre de soumissions en attente
       const pendingSubmissions = await ChallengeSubmissionService.getPendingSubmissions(animator.unitId);
       setPendingChallengesCount(pendingSubmissions.length);
@@ -96,6 +91,54 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         setPendingAuthorizationsCount(0);
       }
     } catch (error) {
+      console.error('Erreur lors de la récupération des notifications animateur:', error);
+    }
+  };
+
+  const refreshParentNotifications = async () => {
+    const parent = user as Parent;
+    if (!parent.id) {
+      return;
+    }
+
+    try {
+      // Récupérer les scouts du parent
+      const scouts = await ParentScoutService.getScoutsByParent(parent.id);
+
+      // Compter les documents en attente pour chaque scout
+      let totalPendingDocs = 0;
+      for (const scout of scouts) {
+        if (scout.unitId) {
+          const pendingDocs = await DocumentService.getPendingDocumentsForScout(scout.id, scout.unitId);
+          totalPendingDocs += pendingDocs.length;
+        }
+      }
+      setParentPendingDocumentsCount(totalPendingDocs);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des notifications parent:', error);
+      setParentPendingDocumentsCount(0);
+    }
+  };
+
+  const refreshNotifications = async () => {
+    if (!isAuthenticated || !user) {
+      setPendingChallengesCount(0);
+      setPendingScoutsCount(0);
+      setMissingHealthRecordsCount(0);
+      setPendingAuthorizationsCount(0);
+      setParentPendingDocumentsCount(0);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      if (user.role === 'animator') {
+        await refreshAnimatorNotifications();
+      } else if (user.role === 'parent') {
+        await refreshParentNotifications();
+      }
+    } catch (error) {
       console.error('Erreur lors de la récupération des notifications:', error);
     } finally {
       setIsLoading(false);
@@ -104,19 +147,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   // Charger les notifications au démarrage et à chaque changement d'utilisateur
   useEffect(() => {
-    if (isAuthenticated && user?.role === 'animator') {
+    if (isAuthenticated && (user?.role === 'animator' || user?.role === 'parent')) {
       refreshNotifications();
     } else {
       setPendingChallengesCount(0);
       setPendingScoutsCount(0);
       setMissingHealthRecordsCount(0);
       setPendingAuthorizationsCount(0);
+      setParentPendingDocumentsCount(0);
     }
   }, [isAuthenticated, user?.id]);
 
   // Polling toutes les 30 secondes pour mettre à jour les notifications
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'animator') {
+    if (!isAuthenticated || (user?.role !== 'animator' && user?.role !== 'parent')) {
       return;
     }
 
@@ -136,6 +180,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     missingHealthRecordsCount,
     pendingAuthorizationsCount,
     totalNotificationsCount,
+    parentPendingDocumentsCount,
     isLoading,
     refreshNotifications,
   };

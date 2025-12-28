@@ -238,6 +238,7 @@ export default function ChallengesScreen() {
               <ChallengeCardCompact
                 key={challenge.id}
                 title={challenge.title}
+                description={challenge.description}
                 emoji={challenge.emoji}
                 category={challenge.category}
                 difficulty={challenge.difficulty}
@@ -255,13 +256,11 @@ export default function ChallengesScreen() {
     );
   };
 
-  // Calculate a mock progress for challenges (could be based on time or other factors)
+  // Get challenge progress - 0 for not started, 100 for completed/pending
   const getChallengeProgress = (challenge: Challenge) => {
     if (isCompleted(challenge.id)) return 100;
     if (isPendingValidation(challenge.id)) return 100;
-    // For now, return a random progress for visual demo
-    // In real app, this could track steps/time spent on challenge
-    return Math.floor(Math.random() * 80);
+    return 0;
   };
 
   if (loading) {

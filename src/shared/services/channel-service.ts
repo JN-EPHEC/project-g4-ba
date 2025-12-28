@@ -11,11 +11,15 @@ import {
   Timestamp,
   updateDoc,
   limit,
+  arrayUnion,
+  arrayRemove,
+  increment,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
   Channel,
   ChannelMessage,
+  MessageComment,
   ChannelType,
   DEFAULT_CHANNELS,
   DEFAULT_CHANNEL_PERMISSIONS,
@@ -25,6 +29,7 @@ import { UserRole } from '@/types';
 export class ChannelService {
   private static readonly CHANNELS_COLLECTION = 'channels';
   private static readonly MESSAGES_COLLECTION = 'channelMessages';
+  private static readonly COMMENTS_COLLECTION = 'messageComments';
 
   /**
    * Créer les canaux par défaut pour une unité
@@ -87,12 +92,29 @@ export class ChannelService {
 
   /**
    * Vérifier si les canaux par défaut existent, sinon les créer
+   * Met aussi à jour les permissions des canaux existants si elles ont changé
    */
   static async ensureDefaultChannels(unitId: string, createdBy: string): Promise<Channel[]> {
     const existingChannels = await this.getChannelsByUnit(unitId);
 
     if (existingChannels.length === 0) {
       return this.createDefaultChannels(unitId, createdBy);
+    }
+
+    // Mettre à jour les permissions des canaux existants si nécessaire
+    for (const channel of existingChannels) {
+      const defaultPerms = DEFAULT_CHANNEL_PERMISSIONS[channel.type];
+      if (defaultPerms) {
+        const currentCanRead = JSON.stringify(channel.permissions.canRead.sort());
+        const defaultCanRead = JSON.stringify(defaultPerms.canRead.sort());
+        const currentCanWrite = JSON.stringify(channel.permissions.canWrite.sort());
+        const defaultCanWrite = JSON.stringify(defaultPerms.canWrite.sort());
+
+        if (currentCanRead !== defaultCanRead || currentCanWrite !== defaultCanWrite) {
+          await this.updateChannel(channel.id, { permissions: defaultPerms });
+          channel.permissions = defaultPerms;
+        }
+      }
     }
 
     return existingChannels;
@@ -313,6 +335,37 @@ export class ChannelService {
     return channel.permissions.canRead.includes(userRole);
   }
 
+  /**
+   * Mettre à jour les permissions de tous les canaux pour correspondre aux permissions par défaut
+   */
+  static async syncAllChannelPermissions(): Promise<number> {
+    const q = query(collection(db, this.CHANNELS_COLLECTION));
+    const snapshot = await getDocs(q);
+    let updatedCount = 0;
+
+    for (const docSnap of snapshot.docs) {
+      const channel = docSnap.data() as Channel;
+      const defaultPerms = DEFAULT_CHANNEL_PERMISSIONS[channel.type];
+
+      if (defaultPerms) {
+        const currentCanRead = JSON.stringify([...(channel.permissions?.canRead || [])].sort());
+        const defaultCanRead = JSON.stringify([...defaultPerms.canRead].sort());
+        const currentCanWrite = JSON.stringify([...(channel.permissions?.canWrite || [])].sort());
+        const defaultCanWrite = JSON.stringify([...defaultPerms.canWrite].sort());
+
+        if (currentCanRead !== defaultCanRead || currentCanWrite !== defaultCanWrite) {
+          await updateDoc(docSnap.ref, {
+            permissions: defaultPerms,
+            updatedAt: Timestamp.fromDate(new Date()),
+          });
+          updatedCount++;
+        }
+      }
+    }
+
+    return updatedCount;
+  }
+
   // ========== MESSAGES NON LUS ==========
 
   private static readonly READ_STATUS_COLLECTION = 'channelReadStatus';
@@ -443,5 +496,150 @@ export class ChannelService {
     });
 
     return { totalUnread, channelUnreads };
+  }
+
+  // ========== LIKES ==========
+
+  /**
+   * Ajouter ou retirer un like sur un message
+   */
+  static async toggleLikeMessage(messageId: string, userId: string): Promise<boolean> {
+    const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+    const messageDoc = await getDoc(messageRef);
+
+    if (!messageDoc.exists()) {
+      throw new Error('Message non trouvé');
+    }
+
+    const likes = messageDoc.data().likes || [];
+    const hasLiked = likes.includes(userId);
+
+    if (hasLiked) {
+      // Retirer le like
+      await updateDoc(messageRef, {
+        likes: arrayRemove(userId),
+        likesCount: increment(-1),
+      });
+      return false;
+    } else {
+      // Ajouter le like
+      await updateDoc(messageRef, {
+        likes: arrayUnion(userId),
+        likesCount: increment(1),
+      });
+      return true;
+    }
+  }
+
+  /**
+   * Vérifier si un utilisateur a liké un message
+   */
+  static async hasUserLiked(messageId: string, userId: string): Promise<boolean> {
+    const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+    const messageDoc = await getDoc(messageRef);
+
+    if (!messageDoc.exists()) {
+      return false;
+    }
+
+    const likes = messageDoc.data().likes || [];
+    return likes.includes(userId);
+  }
+
+  // ========== COMMENTAIRES ==========
+
+  /**
+   * Ajouter un commentaire sur un message
+   */
+  static async addComment(
+    messageId: string,
+    channelId: string,
+    authorId: string,
+    content: string
+  ): Promise<MessageComment> {
+    const now = new Date();
+    const commentRef = doc(collection(db, this.COMMENTS_COLLECTION));
+
+    const comment: MessageComment = {
+      id: commentRef.id,
+      messageId,
+      channelId,
+      authorId,
+      content,
+      createdAt: now,
+    };
+
+    await setDoc(commentRef, {
+      ...comment,
+      createdAt: Timestamp.fromDate(now),
+    });
+
+    // Incrémenter le compteur de commentaires sur le message
+    const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+    await updateDoc(messageRef, {
+      commentsCount: increment(1),
+    });
+
+    return comment;
+  }
+
+  /**
+   * Récupérer les commentaires d'un message
+   */
+  static async getComments(messageId: string): Promise<MessageComment[]> {
+    console.log('[ChannelService] getComments for messageId:', messageId);
+    try {
+      // Requête simple sans orderBy d'abord pour déboguer
+      const q = query(
+        collection(db, this.COMMENTS_COLLECTION),
+        where('messageId', '==', messageId)
+      );
+
+      const snapshot = await getDocs(q);
+      console.log('[ChannelService] getComments snapshot size:', snapshot.size);
+
+      const comments = snapshot.docs.map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+        createdAt: docSnapshot.data().createdAt?.toDate() || new Date(),
+      })) as MessageComment[];
+
+      // Trier manuellement par date de création
+      comments.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      console.log('[ChannelService] getComments result:', comments);
+      return comments;
+    } catch (error) {
+      console.error('[ChannelService] getComments error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprimer un commentaire
+   */
+  static async deleteComment(commentId: string, messageId: string): Promise<void> {
+    const commentRef = doc(db, this.COMMENTS_COLLECTION, commentId);
+    await deleteDoc(commentRef);
+
+    // Décrémenter le compteur de commentaires sur le message
+    const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+    await updateDoc(messageRef, {
+      commentsCount: increment(-1),
+    });
+  }
+
+  /**
+   * Récupérer le nombre de commentaires d'un message
+   */
+  static async getCommentsCount(messageId: string): Promise<number> {
+    const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+    const messageDoc = await getDoc(messageRef);
+
+    if (!messageDoc.exists()) {
+      return 0;
+    }
+
+    return messageDoc.data().commentsCount || 0;
   }
 }

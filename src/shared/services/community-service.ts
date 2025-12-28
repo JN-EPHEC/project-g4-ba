@@ -24,8 +24,12 @@ export interface Post {
   content: string;
   authorId: string;
   unitId: string;
+  channelId?: string;
   imageUrls?: string[];
   attachment?: PostAttachment;
+  likes?: string[];
+  likesCount?: number;
+  commentsCount?: number;
   createdAt: Date;
 }
 

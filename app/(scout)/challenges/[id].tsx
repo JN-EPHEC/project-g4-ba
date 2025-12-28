@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, Alert, TouchableOpacity, Image, ActivityIndicator, Modal, Animated as RNAnimated } from 'react-native';
+import { StyleSheet, View, ScrollView, Alert, TouchableOpacity, Image, ActivityIndicator, Modal, Animated as RNAnimated, TextInput } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { ChallengeSubmissionService } from '@/services/challenge-submission-serv
 import { StorageService } from '@/services/storage-service';
 import { Challenge, ChallengeDifficulty, ChallengeStatus } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { NeutralColors } from '@/constants/theme';
 
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
@@ -23,6 +24,7 @@ export default function ChallengeDetailScreen() {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [submission, setSubmission] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [scoutComment, setScoutComment] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -30,6 +32,9 @@ export default function ChallengeDetailScreen() {
   const [fadeAnim] = useState(new RNAnimated.Value(0));
   const pulseScale = useSharedValue(1);
   const tintColor = useThemeColor({}, 'tint');
+  const cardColor = useThemeColor({}, 'card');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
@@ -144,11 +149,12 @@ export default function ChallengeDetailScreen() {
         selectedImage
       );
 
-      // Soumettre le défi
+      // Soumettre le défi avec le commentaire optionnel
       await ChallengeSubmissionService.submitChallenge(
         challenge.id,
         user.id,
-        proofImageUrl
+        proofImageUrl,
+        scoutComment.trim() || undefined
       );
 
       // Arrêter le loading
@@ -251,8 +257,26 @@ export default function ChallengeDetailScreen() {
                 style={styles.proofImage}
               />
             )}
+            {submission.scoutComment && (
+              <View style={styles.scoutCommentContainer}>
+                <ThemedText style={[styles.scoutCommentLabel, { color: textSecondary }]}>
+                  Ton commentaire :
+                </ThemedText>
+                <ThemedText style={styles.scoutCommentText}>
+                  {submission.scoutComment}
+                </ThemedText>
+              </View>
+            )}
             {submission.comment && (
-              <ThemedText style={styles.comment}>{submission.comment}</ThemedText>
+              <View style={[
+                styles.animatorCommentContainer,
+                submission.status === ChallengeStatus.EXPIRED && styles.rejectedCommentContainer
+              ]}>
+                <ThemedText style={[styles.animatorCommentLabel, { color: textSecondary }]}>
+                  {submission.status === ChallengeStatus.EXPIRED ? 'Raison du rejet :' : 'Commentaire de l\'animateur :'}
+                </ThemedText>
+                <ThemedText style={styles.comment}>{submission.comment}</ThemedText>
+              </View>
             )}
           </Card>
         ) : (
@@ -279,6 +303,30 @@ export default function ChallengeDetailScreen() {
                 </ThemedText>
               </TouchableOpacity>
             )}
+
+            {/* Champ de commentaire */}
+            <View style={styles.commentSection}>
+              <ThemedText style={[styles.commentLabel, { color: textSecondary }]}>
+                Ajouter un commentaire (optionnel)
+              </ThemedText>
+              <TextInput
+                style={[
+                  styles.commentInput,
+                  { backgroundColor: cardColor, color: textColor, borderColor: NeutralColors.gray[300] }
+                ]}
+                value={scoutComment}
+                onChangeText={setScoutComment}
+                placeholder="Décris comment tu as réalisé ce défi..."
+                placeholderTextColor={textSecondary}
+                multiline
+                numberOfLines={3}
+                maxLength={500}
+                textAlignVertical="top"
+              />
+              <ThemedText style={[styles.charCount, { color: textSecondary }]}>
+                {scoutComment.length}/500
+              </ThemedText>
+            </View>
 
             <PrimaryButton
               title={isSubmitting ? 'Soumission...' : 'Soumettre le défi'}
@@ -456,6 +504,55 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 8,
+  },
+  commentSection: {
+    marginBottom: 16,
+  },
+  commentLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 80,
+  },
+  charCount: {
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  scoutCommentContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 8,
+  },
+  scoutCommentLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  scoutCommentText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  animatorCommentContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#22c55e',
+  },
+  rejectedCommentContainer: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderLeftColor: '#ef4444',
+  },
+  animatorCommentLabel: {
+    fontSize: 12,
+    marginBottom: 4,
   },
   errorCard: {
     padding: 20,

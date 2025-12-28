@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -19,6 +19,7 @@ export interface LeaderboardUser {
   name: string;
   points: number;
   avatar: string;
+  profilePicture?: string;
   streak: number;
   isMe?: boolean;
 }
@@ -40,7 +41,11 @@ export function LeaderboardPodium({ users }: LeaderboardPodiumProps) {
       {/* 2nd Place */}
       <View style={styles.podiumItem}>
         <View style={[styles.avatar, styles.avatarSecond, { borderColor: COLORS.silver }]}>
-          <ThemedText style={styles.avatarEmoji}>{second.avatar}</ThemedText>
+          {second.profilePicture ? (
+            <Image source={{ uri: second.profilePicture }} style={styles.avatarImage} />
+          ) : (
+            <ThemedText style={styles.avatarEmoji}>{second.avatar}</ThemedText>
+          )}
         </View>
         <ThemedText style={styles.name} numberOfLines={1}>{second.name}</ThemedText>
         <ThemedText style={[styles.points, { color: COLORS.silver }]}>{second.points} pts</ThemedText>
@@ -52,7 +57,11 @@ export function LeaderboardPodium({ users }: LeaderboardPodiumProps) {
       {/* 1st Place */}
       <View style={styles.podiumItem}>
         <View style={[styles.avatar, styles.avatarFirst, { borderColor: COLORS.gold, backgroundColor: COLORS.goldLight }]}>
-          <ThemedText style={styles.avatarEmojiFirst}>{first.avatar}</ThemedText>
+          {first.profilePicture ? (
+            <Image source={{ uri: first.profilePicture }} style={styles.avatarImageFirst} />
+          ) : (
+            <ThemedText style={styles.avatarEmojiFirst}>{first.avatar}</ThemedText>
+          )}
         </View>
         <ThemedText style={[styles.name, styles.nameFirst]}>{first.name}</ThemedText>
         <ThemedText style={[styles.points, styles.pointsFirst, { color: COLORS.gold }]}>{first.points} pts</ThemedText>
@@ -74,7 +83,11 @@ export function LeaderboardPodium({ users }: LeaderboardPodiumProps) {
             backgroundColor: third.isMe ? `${COLORS.primary}30` : mist,
           }
         ]}>
-          <ThemedText style={styles.avatarEmoji}>{third.avatar}</ThemedText>
+          {third.profilePicture ? (
+            <Image source={{ uri: third.profilePicture }} style={styles.avatarImage} />
+          ) : (
+            <ThemedText style={styles.avatarEmoji}>{third.avatar}</ThemedText>
+          )}
         </View>
         <ThemedText style={[styles.name, third.isMe && { color: COLORS.primary }]} numberOfLines={1}>
           {third.name}
@@ -131,6 +144,16 @@ const styles = StyleSheet.create({
   },
   avatarEmojiFirst: {
     fontSize: 36,
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  avatarImageFirst: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   name: {
     fontSize: 13,

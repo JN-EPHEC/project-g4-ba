@@ -51,7 +51,8 @@ export interface ChallengeSubmission {
   proofImageUrl: string;
   submittedAt: Date;
   status: ChallengeStatus;
-  validatedBy?: string; // ID du parent qui valide
+  validatedBy?: string; // ID de l'animateur qui valide
   validatedAt?: Date;
-  comment?: string;
+  comment?: string; // Commentaire de l'animateur lors de la validation
+  scoutComment?: string; // Commentaire du scout lors de la soumission
 }

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 
 import { useAuth } from '@/context/auth-context';
-import { UserRole } from '@/types';
+import { UserRole, Scout } from '@/types';
 import { BrandColors } from '@/constants/theme';
 
 /**
@@ -36,7 +36,14 @@ export default function IndexScreen() {
       // Utilisateur connecté -> redirection selon le rôle
       switch (user.role) {
         case UserRole.SCOUT:
-          router.replace('/(scout)/dashboard');
+          // Vérifier si le scout est validé par un animateur
+          const scout = user as Scout;
+          if (!scout.validated) {
+            console.log('⏳ Scout non validé -> redirection vers pending-approval');
+            router.replace('/(auth)/pending-approval');
+          } else {
+            router.replace('/(scout)/dashboard');
+          }
           break;
         case UserRole.PARENT:
           router.replace('/(parent)/dashboard');

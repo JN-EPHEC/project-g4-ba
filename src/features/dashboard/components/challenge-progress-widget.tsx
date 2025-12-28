@@ -41,7 +41,7 @@ export function ChallengeProgressWidget({
   const loadProgress = useCallback(async () => {
     try {
       // Récupérer tous les défis de l'unité
-      const challenges = await ChallengeService.getByUnit(unitId);
+      const challenges = await ChallengeService.getChallengesByUnit(unitId);
       const activeChallenges = challenges.filter(
         (c) => new Date(c.endDate) >= new Date()
       );

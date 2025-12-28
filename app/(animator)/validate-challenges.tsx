@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, Image } from 'react-native';
+import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, Image, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
@@ -26,7 +26,14 @@ export default function ValidateChallengesScreen() {
   const [pendingSubmissions, setPendingSubmissions] = useState<SubmissionWithDetails[]>([]);
   const [validatedSubmissions, setValidatedSubmissions] = useState<SubmissionWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectComment, setRejectComment] = useState('');
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
   const iconColor = useThemeColor({}, 'icon');
+  const cardColor = useThemeColor({}, 'card');
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   useEffect(() => {
     loadSubmissions();
@@ -37,24 +44,32 @@ export default function ValidateChallengesScreen() {
       setLoading(true);
 
       if (animator?.unitId) {
-        // Récupérer toutes les soumissions en attente pour l'unité
-        const allSubmissions = await ChallengeSubmissionService.getPendingSubmissions(animator.unitId);
+        // Récupérer les soumissions en attente pour l'unité
+        const pendingSubmissionsData = await ChallengeSubmissionService.getPendingSubmissions(animator.unitId);
 
-        // Charger les détails du défi et du scout pour chaque soumission
-        const submissionsWithDetails = await Promise.all(
-          allSubmissions.map(async (submission) => {
+        // Récupérer les soumissions traitées (validées ou rejetées)
+        const processedSubmissionsData = await ChallengeSubmissionService.getProcessedSubmissions(animator.unitId);
+
+        // Charger les détails du défi et du scout pour les soumissions en attente
+        const pendingWithDetails: SubmissionWithDetails[] = await Promise.all(
+          pendingSubmissionsData.map(async (submission) => {
             const challenge = await ChallengeService.getChallengeById(submission.challengeId);
             const scout = await UserService.getUserById(submission.scoutId) as Scout;
-            return { ...submission, challenge, scout };
+            return { ...submission, challenge: challenge || undefined, scout };
           })
         );
 
-        // Séparer les soumissions en attente et validées
-        const pending = submissionsWithDetails.filter((s) => s.status === 'pending_validation');
-        const validated = submissionsWithDetails.filter((s) => s.status !== 'pending_validation');
+        // Charger les détails du défi et du scout pour les soumissions traitées
+        const processedWithDetails: SubmissionWithDetails[] = await Promise.all(
+          processedSubmissionsData.map(async (submission) => {
+            const challenge = await ChallengeService.getChallengeById(submission.challengeId);
+            const scout = await UserService.getUserById(submission.scoutId) as Scout;
+            return { ...submission, challenge: challenge || undefined, scout };
+          })
+        );
 
-        setPendingSubmissions(pending);
-        setValidatedSubmissions(validated);
+        setPendingSubmissions(pendingWithDetails);
+        setValidatedSubmissions(processedWithDetails);
       }
     } catch (error: any) {
       console.error('Erreur lors du chargement des soumissions:', error);
@@ -75,28 +90,37 @@ export default function ValidateChallengesScreen() {
     }
   };
 
-  const rejectSubmission = async (submissionId: string) => {
-    Alert.alert(
-      'Rejeter cette soumission ?',
-      'Le scout devra soumettre une nouvelle preuve.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Rejeter',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await ChallengeSubmissionService.rejectSubmission(submissionId, animator.id);
-              Alert.alert('❌ Rejeté', 'La soumission a été rejetée');
-              await loadSubmissions();
-            } catch (error: any) {
-              console.error('Erreur lors du rejet:', error);
-              Alert.alert('Erreur', 'Impossible de rejeter la soumission');
-            }
-          },
-        },
-      ]
-    );
+  const openRejectModal = (submissionId: string) => {
+    setSelectedSubmissionId(submissionId);
+    setRejectComment('');
+    setRejectModalVisible(true);
+  };
+
+  const closeRejectModal = () => {
+    setRejectModalVisible(false);
+    setSelectedSubmissionId(null);
+    setRejectComment('');
+  };
+
+  const confirmRejectSubmission = async () => {
+    if (!selectedSubmissionId) return;
+
+    try {
+      setIsRejecting(true);
+      await ChallengeSubmissionService.rejectSubmission(
+        selectedSubmissionId,
+        animator.id,
+        rejectComment.trim() || undefined
+      );
+      closeRejectModal();
+      Alert.alert('❌ Rejeté', 'La soumission a été rejetée');
+      await loadSubmissions();
+    } catch (error: any) {
+      console.error('Erreur lors du rejet:', error);
+      Alert.alert('Erreur', 'Impossible de rejeter la soumission');
+    } finally {
+      setIsRejecting(false);
+    }
   };
 
   const renderSubmissionCard = (submission: SubmissionWithDetails, isPending: boolean) => (
@@ -169,6 +193,17 @@ export default function ValidateChallengesScreen() {
             })}
           </ThemedText>
         </View>
+
+        {/* Commentaire du scout */}
+        {submission.scoutComment && (
+          <View style={styles.scoutCommentSection}>
+            <Ionicons name="chatbubble-outline" size={14} color={BrandColors.primary[500]} />
+            <View style={styles.scoutCommentContent}>
+              <ThemedText style={styles.scoutCommentLabel}>Message du scout :</ThemedText>
+              <ThemedText style={styles.scoutCommentText}>{submission.scoutComment}</ThemedText>
+            </View>
+          </View>
+        )}
       </View>
 
       {isPending && (
@@ -183,7 +218,7 @@ export default function ValidateChallengesScreen() {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.rejectButton]}
-            onPress={() => rejectSubmission(submission.id)}
+            onPress={() => openRejectModal(submission.id)}
           >
             <Ionicons name="close-circle" size={20} color="#ffffff" />
             <ThemedText style={styles.buttonText}>Rejeter</ThemedText>
@@ -192,9 +227,24 @@ export default function ValidateChallengesScreen() {
       )}
 
       {!isPending && submission.comment && (
-        <View style={styles.commentSection}>
-          <Ionicons name="chatbox-outline" size={16} color={iconColor} />
-          <ThemedText style={styles.commentText}>{submission.comment}</ThemedText>
+        <View style={[
+          styles.commentSection,
+          submission.status === 'expired' && styles.rejectedCommentSection
+        ]}>
+          <Ionicons
+            name={submission.status === 'expired' ? 'close-circle-outline' : 'chatbox-outline'}
+            size={16}
+            color={submission.status === 'expired' ? '#ef4444' : iconColor}
+          />
+          <View style={styles.commentContent}>
+            <ThemedText style={[
+              styles.commentLabel,
+              submission.status === 'expired' && { color: '#ef4444' }
+            ]}>
+              {submission.status === 'expired' ? 'Raison du rejet :' : 'Commentaire :'}
+            </ThemedText>
+            <ThemedText style={styles.commentText}>{submission.comment}</ThemedText>
+          </View>
         </View>
       )}
     </Card>
@@ -264,6 +314,81 @@ export default function ValidateChallengesScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Modal de rejet avec commentaire */}
+      <Modal
+        visible={rejectModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeRejectModal}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="close-circle" size={32} color="#ef4444" />
+              </View>
+              <ThemedText type="subtitle" style={styles.modalTitle}>
+                Rejeter la soumission
+              </ThemedText>
+              <ThemedText style={[styles.modalSubtitle, { color: textSecondary }]}>
+                Le scout devra soumettre une nouvelle preuve.
+              </ThemedText>
+            </View>
+
+            <View style={styles.commentInputContainer}>
+              <ThemedText style={[styles.commentInputLabel, { color: textSecondary }]}>
+                Raison du rejet (optionnel)
+              </ThemedText>
+              <TextInput
+                style={[
+                  styles.commentInput,
+                  { backgroundColor: cardColor, color: textColor, borderColor: '#e5e5e5' }
+                ]}
+                value={rejectComment}
+                onChangeText={setRejectComment}
+                placeholder="Explique pourquoi le défi est rejeté..."
+                placeholderTextColor={textSecondary}
+                multiline
+                numberOfLines={4}
+                maxLength={500}
+                textAlignVertical="top"
+              />
+              <ThemedText style={[styles.charCount, { color: textSecondary }]}>
+                {rejectComment.length}/500
+              </ThemedText>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={closeRejectModal}
+                disabled={isRejecting}
+              >
+                <ThemedText style={styles.cancelButtonText}>Annuler</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmRejectButton]}
+                onPress={confirmRejectSubmission}
+                disabled={isRejecting}
+              >
+                {isRejecting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="close-circle" size={18} color="#ffffff" />
+                    <ThemedText style={styles.confirmRejectButtonText}>Rejeter</ThemedText>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ThemedView>
   );
 }
@@ -380,6 +505,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
   },
+  scoutCommentSection: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: 'rgba(34, 139, 34, 0.08)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: BrandColors.primary[500],
+  },
+  scoutCommentContent: {
+    flex: 1,
+  },
+  scoutCommentLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: BrandColors.primary[600],
+    marginBottom: 4,
+  },
+  scoutCommentText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -410,14 +558,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     padding: 16,
-    paddingTop: 0,
-    backgroundColor: '#f3f4f6',
+    paddingTop: 12,
+    marginTop: 0,
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+  },
+  rejectedCommentSection: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: BrandColors.primary[600],
+    marginBottom: 4,
   },
   commentText: {
     flex: 1,
     fontSize: 13,
-    fontStyle: 'italic',
-    opacity: 0.8,
+    lineHeight: 18,
   },
   emptyCard: {
     padding: 40,
@@ -428,5 +590,96 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.7,
     fontSize: 14,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  commentInputContainer: {
+    marginBottom: 20,
+  },
+  commentInputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 100,
+  },
+  charCount: {
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+  },
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  confirmRejectButton: {
+    backgroundColor: '#ef4444',
+  },
+  confirmRejectButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 15,
   },
 });

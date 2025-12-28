@@ -8,8 +8,10 @@ import {
   Alert,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-reanimated';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -38,6 +40,7 @@ export default function ParentDocumentsScreen() {
   const [signatureModalVisible, setSignatureModalVisible] = useState(false);
   const [signatureText, setSignatureText] = useState('');
   const [isSigning, setIsSigning] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
@@ -109,6 +112,8 @@ export default function ParentDocumentsScreen() {
     try {
       setIsSigning(true);
 
+      const docTitle = selectedDocument.doc.title;
+
       // Signer le document
       await DocumentService.signDocument(
         selectedDocument.doc.id,
@@ -117,10 +122,13 @@ export default function ParentDocumentsScreen() {
         signatureText.trim()
       );
 
-      Alert.alert('Succès', 'Le document a été signé avec succès');
       setSignatureModalVisible(false);
       setSelectedDocument(null);
       setSignatureText('');
+
+      // Afficher la notification de succès
+      setSuccessMessage(`"${docTitle}" a été signé avec succès`);
+      setTimeout(() => setSuccessMessage(null), 4000);
 
       // Recharger les documents
       await loadDocuments();
@@ -167,6 +175,28 @@ export default function ParentDocumentsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {/* Toast de succès */}
+      {successMessage && (
+        <Animated.View
+          entering={SlideInUp.duration(300)}
+          exiting={SlideOutUp.duration(300)}
+          style={styles.successToast}
+        >
+          <View style={styles.successToastContent}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.successTextContainer}>
+              <ThemedText style={styles.successTitle}>Document signé</ThemedText>
+              <ThemedText style={styles.successMessage}>{successMessage}</ThemedText>
+            </View>
+            <TouchableOpacity onPress={() => setSuccessMessage(null)} style={styles.successCloseButton}>
+              <Ionicons name="close" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Documents
@@ -625,5 +655,50 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     marginTop: 8,
+  },
+  // Toast de succès
+  successToast: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: '#059669',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  successToastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  successIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successTextContainer: {
+    flex: 1,
+  },
+  successTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  successMessage: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  successCloseButton: {
+    padding: 4,
   },
 });

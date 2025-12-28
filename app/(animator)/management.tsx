@@ -12,7 +12,10 @@ import { UnitService } from '@/services/unit-service';
 import { EventService } from '@/services/event-service';
 import { ChallengeService } from '@/services/challenge-service';
 import { ChannelService } from '@/src/shared/services/channel-service';
-import { Animator, Unit, EventType, ChallengeDifficulty } from '@/types';
+import { DocumentService } from '@/services/document-service';
+import { db } from '@/config/firebase';
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { Animator, Unit, EventType, ChallengeDifficulty, DocumentType } from '@/types';
 import { ChannelType } from '@/src/shared/types/channel';
 import { BrandColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -92,6 +95,37 @@ const SIMULATION_MESSAGES = {
   ],
 };
 
+const SIMULATION_DOCUMENTS = [
+  {
+    title: "[SIMU] Autorisation parentale - Camp d'hiver",
+    description: "Autorisation de participation au camp d'hiver aux Vosges du 15 au 18 janvier.",
+    type: DocumentType.AUTHORIZATION,
+    requiresSignature: true,
+    expiryDays: 30,
+  },
+  {
+    title: "[SIMU] Fiche sanitaire de liaison",
+    description: "Fiche médicale à remplir pour les activités scouts.",
+    type: DocumentType.MEDICAL,
+    requiresSignature: true,
+    expiryDays: 365,
+  },
+  {
+    title: "[SIMU] Règlement intérieur 2025",
+    description: "Règlement intérieur de l'unité à signer par les parents.",
+    type: DocumentType.AUTHORIZATION,
+    requiresSignature: true,
+    expiryDays: 365,
+  },
+  {
+    title: "[SIMU] Autorisation sortie Kayak",
+    description: "Autorisation pour la sortie kayak du 25 janvier.",
+    type: DocumentType.AUTHORIZATION,
+    requiresSignature: true,
+    expiryDays: 45,
+  },
+];
+
 export default function ManagementScreen() {
   const { user } = useAuth();
   const { pendingChallengesCount, pendingScoutsCount } = useNotifications();
@@ -102,6 +136,7 @@ export default function ManagementScreen() {
   const [challengesCount, setChallengesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const iconColor = useThemeColor({}, 'icon');
 
   useEffect(() => {
@@ -182,13 +217,14 @@ export default function ManagementScreen() {
 
     showConfirm(
       'Simulation de vie scout',
-      'Cette action va créer :\n• 5 événements\n• 5 défis\n• 8 messages dans les canaux\n\nVoulez-vous continuer ?',
+      'Cette action va créer :\n• 5 événements\n• 5 défis\n• 4 documents\n• 8 messages dans les canaux\n\nVoulez-vous continuer ?',
       async () => {
         try {
           setIsSimulating(true);
           let createdEvents = 0;
           let createdChallenges = 0;
           let createdMessages = 0;
+          let createdDocuments = 0;
 
           // 1. Créer les événements
           for (const event of SIMULATION_EVENTS) {
@@ -245,7 +281,30 @@ export default function ManagementScreen() {
             }
           }
 
-          // 3. Créer les messages dans les canaux
+          // 3. Créer les documents
+          for (const simDoc of SIMULATION_DOCUMENTS) {
+            try {
+              const expiryDate = new Date();
+              expiryDate.setDate(expiryDate.getDate() + simDoc.expiryDays);
+
+              await DocumentService.createDocument(
+                simDoc.title,
+                simDoc.description,
+                simDoc.type,
+                '', // Pas de fichier URL pour la simulation
+                user.id,
+                animator.unitId,
+                undefined, // Pas de scoutId spécifique
+                simDoc.requiresSignature,
+                expiryDate
+              );
+              createdDocuments++;
+            } catch (error) {
+              console.error(`Erreur création document ${simDoc.title}:`, error);
+            }
+          }
+
+          // 4. Créer les messages dans les canaux
           try {
             const channels = await ChannelService.getChannelsByUnit(animator.unitId);
 
@@ -275,13 +334,104 @@ export default function ManagementScreen() {
 
           showAlert(
             'Simulation terminée !',
-            `Données créées :\n• ${createdEvents} événements\n• ${createdChallenges} défis\n• ${createdMessages} messages`
+            `Données créées :\n• ${createdEvents} événements\n• ${createdChallenges} défis\n• ${createdDocuments} documents\n• ${createdMessages} messages`
           );
         } catch (error) {
           console.error('Erreur simulation:', error);
           showAlert('Erreur', 'Une erreur est survenue pendant la simulation.');
         } finally {
           setIsSimulating(false);
+        }
+      }
+    );
+  };
+
+  // Fonction de reset de la simulation
+  const resetSimulation = async () => {
+    if (!user?.id || !animator?.unitId) {
+      showAlert('Erreur', 'Vous devez être connecté et avoir une unité assignée.');
+      return;
+    }
+
+    showConfirm(
+      'Réinitialiser la simulation',
+      'Cette action va supprimer toutes les données créées par la simulation :\n• Événements\n• Défis\n• Documents\n\n⚠️ Cette action est irréversible !',
+      async () => {
+        try {
+          setIsResetting(true);
+          let deletedEvents = 0;
+          let deletedChallenges = 0;
+          let deletedDocuments = 0;
+
+          // 1. Supprimer les événements de simulation
+          // (créés par l'animateur actuel, avec les titres de simulation)
+          const eventTitles = SIMULATION_EVENTS.map(e => e.title);
+          for (const title of eventTitles) {
+            try {
+              const eventsQuery = query(
+                collection(db, 'events'),
+                where('unitId', '==', animator.unitId),
+                where('title', '==', title)
+              );
+              const eventsSnapshot = await getDocs(eventsQuery);
+              for (const eventDoc of eventsSnapshot.docs) {
+                await deleteDoc(doc(db, 'events', eventDoc.id));
+                deletedEvents++;
+              }
+            } catch (error) {
+              console.error(`Erreur suppression événement ${title}:`, error);
+            }
+          }
+
+          // 2. Supprimer les défis de simulation
+          const challengeTitles = SIMULATION_CHALLENGES.map(c => c.title);
+          for (const title of challengeTitles) {
+            try {
+              const challengesQuery = query(
+                collection(db, 'challenges'),
+                where('unitId', '==', animator.unitId),
+                where('title', '==', title)
+              );
+              const challengesSnapshot = await getDocs(challengesQuery);
+              for (const challengeDoc of challengesSnapshot.docs) {
+                await deleteDoc(doc(db, 'challenges', challengeDoc.id));
+                deletedChallenges++;
+              }
+            } catch (error) {
+              console.error(`Erreur suppression défi ${title}:`, error);
+            }
+          }
+
+          // 3. Supprimer les documents de simulation (identifiés par le préfixe [SIMU])
+          try {
+            const documentsQuery = query(
+              collection(db, 'documents'),
+              where('unitId', '==', animator.unitId)
+            );
+            const documentsSnapshot = await getDocs(documentsQuery);
+            for (const documentDoc of documentsSnapshot.docs) {
+              const data = documentDoc.data();
+              if (data.title && data.title.startsWith('[SIMU]')) {
+                await deleteDoc(doc(db, 'documents', documentDoc.id));
+                deletedDocuments++;
+              }
+            }
+          } catch (error) {
+            console.error('Erreur suppression documents:', error);
+          }
+
+          // Recharger les données
+          await loadManagementData();
+
+          showAlert(
+            'Réinitialisation terminée !',
+            `Données supprimées :\n• ${deletedEvents} événements\n• ${deletedChallenges} défis\n• ${deletedDocuments} documents`
+          );
+        } catch (error) {
+          console.error('Erreur reset simulation:', error);
+          showAlert('Erreur', 'Une erreur est survenue pendant la réinitialisation.');
+        } finally {
+          setIsResetting(false);
         }
       }
     );
@@ -509,8 +659,8 @@ export default function ManagementScreen() {
           Outils
         </ThemedText>
 
-        <TouchableOpacity onPress={runSimulation} disabled={isSimulating}>
-          <Card style={[styles.actionCard, isSimulating && styles.actionCardDisabled]}>
+        <TouchableOpacity onPress={runSimulation} disabled={isSimulating || isResetting}>
+          <Card style={[styles.actionCard, (isSimulating || isResetting) && styles.actionCardDisabled]}>
             <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
               {isSimulating ? (
                 <ActivityIndicator size="small" color={BrandColors.accent[500]} />
@@ -523,10 +673,31 @@ export default function ManagementScreen() {
                 {isSimulating ? 'Simulation en cours...' : 'Simuler vie scout'}
               </ThemedText>
               <ThemedText style={styles.actionDescription}>
-                Créer des événements, défis et messages de test
+                Créer des événements, défis, documents et messages
               </ThemedText>
             </View>
             {!isSimulating && <Ionicons name="chevron-forward" size={20} color={iconColor} />}
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={resetSimulation} disabled={isSimulating || isResetting}>
+          <Card style={[styles.actionCard, (isSimulating || isResetting) && styles.actionCardDisabled]}>
+            <View style={[styles.actionIcon, { backgroundColor: '#dc262615' }]}>
+              {isResetting ? (
+                <ActivityIndicator size="small" color="#dc2626" />
+              ) : (
+                <Ionicons name="trash" size={28} color="#dc2626" />
+              )}
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">
+                {isResetting ? 'Réinitialisation...' : 'Reset simulation'}
+              </ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Supprimer toutes les données de simulation
+              </ThemedText>
+            </View>
+            {!isResetting && <Ionicons name="chevron-forward" size={20} color={iconColor} />}
           </Card>
         </TouchableOpacity>
       </ScrollView>

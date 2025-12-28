@@ -8,7 +8,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Avatar, Badge, Card } from '@/components/ui';
 import { RankBadge } from '@/components/rank-badge';
+import { LinkScoutModal } from '@/components/link-scout-modal';
 import { useAuth } from '@/context/auth-context';
+import { useNotifications } from '@/context/notification-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ParentScoutService } from '@/services/parent-scout-service';
 import { Parent, Scout, UserRole } from '@/types';
@@ -19,8 +21,10 @@ import { getDisplayName } from '@/src/shared/utils/totem-utils';
 export default function ParentDashboardScreen() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const parent = user as Parent;
+  const { parentPendingDocumentsCount } = useNotifications();
   const [scouts, setScouts] = useState<Scout[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   // Vérification de sécurité - rediriger si ce n'est pas un parent
   useEffect(() => {
@@ -80,13 +84,17 @@ export default function ParentDashboardScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.statCardWrapper}>
-            <View style={[styles.statCard, { backgroundColor: BrandColors.accent[500] }]}>
+            <TouchableOpacity
+              style={[styles.statCard, { backgroundColor: BrandColors.accent[500] }]}
+              onPress={() => router.push('/(parent)/documents')}
+              activeOpacity={0.8}
+            >
               <View style={[styles.statIconContainer, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
                 <Ionicons name="document-text" size={24} color="#FFFFFF" />
               </View>
-              <ThemedText style={styles.statValue}>0</ThemedText>
-              <ThemedText style={styles.statLabel}>Documents</ThemedText>
-            </View>
+              <ThemedText style={styles.statValue}>{parentPendingDocumentsCount}</ThemedText>
+              <ThemedText style={styles.statLabel}>À signer</ThemedText>
+            </TouchableOpacity>
           </Animated.View>
         </View>
 
@@ -109,6 +117,7 @@ export default function ParentDashboardScreen() {
             </ThemedText>
             <TouchableOpacity
               style={[styles.linkButton, { backgroundColor: BrandColors.accent[500] }]}
+              onPress={() => setShowLinkModal(true)}
             >
               <ThemedText style={styles.linkButtonText}>Lier un scout</ThemedText>
             </TouchableOpacity>
@@ -122,6 +131,7 @@ export default function ParentDashboardScreen() {
               <TouchableOpacity
                 style={[styles.scoutCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
                 activeOpacity={0.7}
+                onPress={() => router.push(`/(parent)/scouts/${scout.id}`)}
               >
                 <Avatar
                   name={getDisplayName(scout, { showTotem: false })}
@@ -165,16 +175,18 @@ export default function ParentDashboardScreen() {
               <TouchableOpacity
                 style={[styles.actionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
                 activeOpacity={0.7}
+                onPress={() => router.push('/(parent)/challenges')}
               >
                 <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
-                  <Ionicons name="calendar" size={24} color={BrandColors.primary[500]} />
+                  <Ionicons name="checkmark-circle" size={24} color={BrandColors.primary[500]} />
                 </View>
-                <ThemedText style={[styles.actionText, { color: textColor }]}>Événements</ThemedText>
+                <ThemedText style={[styles.actionText, { color: textColor }]}>Validations</ThemedText>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.actionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
                 activeOpacity={0.7}
+                onPress={() => router.push('/(parent)/messages')}
               >
                 <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
                   <Ionicons name="chatbubbles" size={24} color={BrandColors.accent[500]} />
@@ -185,6 +197,7 @@ export default function ParentDashboardScreen() {
               <TouchableOpacity
                 style={[styles.actionCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
                 activeOpacity={0.7}
+                onPress={() => router.push('/(parent)/documents')}
               >
                 <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.secondary[500]}15` }]}>
                   <Ionicons name="document" size={24} color={BrandColors.secondary[500]} />
@@ -195,6 +208,14 @@ export default function ParentDashboardScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Link Scout Modal */}
+      <LinkScoutModal
+        visible={showLinkModal}
+        onClose={() => setShowLinkModal(false)}
+        parentId={parent?.id || ''}
+        onScoutLinked={loadScouts}
+      />
     </ThemedView>
   );
 }

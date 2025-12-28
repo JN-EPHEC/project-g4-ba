@@ -65,20 +65,20 @@ export default function AnimatorLayout() {
         }}
       />
       <Tabs.Screen
-        name="documents"
-        options={{
-          title: 'Documents',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="folder-open" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="challenges"
         options={{
           title: 'Défis',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trophy" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Docs',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="folder-open" size={size} color={color} />
           ),
         }}
       />
@@ -143,6 +143,24 @@ export default function AnimatorLayout() {
       />
       <Tabs.Screen
         name="unit-overview"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="documents/authorizations/index"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="documents/authorizations/create"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="documents/authorizations/[id]"
         options={{
           href: null,
         }}

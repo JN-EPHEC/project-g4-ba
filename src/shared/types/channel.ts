@@ -23,19 +23,19 @@ export interface ChannelPermissions {
  */
 export const DEFAULT_CHANNEL_PERMISSIONS: Record<ChannelType, ChannelPermissions> = {
   [ChannelType.ANNOUNCEMENTS]: {
-    canRead: [UserRole.SCOUT, UserRole.PARENT, UserRole.ANIMATOR],
+    canRead: [UserRole.SCOUT, UserRole.ANIMATOR], // Parents n'ont pas accès aux annonces générales
     canWrite: [UserRole.ANIMATOR],
   },
   [ChannelType.GENERAL]: {
-    canRead: [UserRole.SCOUT, UserRole.PARENT, UserRole.ANIMATOR],
-    canWrite: [UserRole.SCOUT, UserRole.PARENT, UserRole.ANIMATOR],
+    canRead: [UserRole.SCOUT, UserRole.ANIMATOR], // Parents n'ont pas accès au général
+    canWrite: [UserRole.SCOUT, UserRole.ANIMATOR],
   },
   [ChannelType.PARENTS]: {
-    canRead: [UserRole.PARENT, UserRole.ANIMATOR],
-    canWrite: [UserRole.PARENT, UserRole.ANIMATOR],
+    canRead: [UserRole.PARENT, UserRole.ANIMATOR], // Seul canal accessible aux parents
+    canWrite: [UserRole.ANIMATOR], // Seuls les animateurs peuvent écrire (annonces)
   },
   [ChannelType.CUSTOM]: {
-    canRead: [UserRole.SCOUT, UserRole.PARENT, UserRole.ANIMATOR],
+    canRead: [UserRole.SCOUT, UserRole.ANIMATOR],
     canWrite: [UserRole.ANIMATOR],
   },
 };
@@ -71,8 +71,23 @@ export interface ChannelMessage {
     name?: string;
   };
   isPinned: boolean;       // Message épinglé
+  likes?: string[];        // Array des userIds qui ont liké
+  likesCount?: number;     // Compteur de likes
+  commentsCount?: number;  // Nombre de commentaires
   createdAt: Date;
   updatedAt?: Date;
+}
+
+/**
+ * Commentaire sur un message
+ */
+export interface MessageComment {
+  id: string;
+  messageId: string;
+  channelId: string;
+  authorId: string;
+  content: string;
+  createdAt: Date;
 }
 
 /**
@@ -96,8 +111,8 @@ export const DEFAULT_CHANNELS: Omit<Channel, 'id' | 'unitId' | 'createdBy' | 'cr
     isDefault: true,
   },
   {
-    name: 'Parents',
-    description: 'Espace de discussion parents-animateurs',
+    name: 'Annonces Parents',
+    description: 'Annonces et informations pour les parents',
     type: ChannelType.PARENTS,
     icon: '👨‍👩‍👧',
     permissions: DEFAULT_CHANNEL_PERMISSIONS[ChannelType.PARENTS],

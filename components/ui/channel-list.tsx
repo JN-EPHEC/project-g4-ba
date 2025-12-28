@@ -56,7 +56,11 @@ export function ChannelList({
               activeOpacity={0.7}
             >
               <Ionicons
-                name={channel.name === 'Annonces' ? 'megaphone' : channel.name === 'Parents' ? 'people' : 'chatbubble'}
+                name={
+                  channel.type === 'announcements' ? 'megaphone' :
+                  channel.type === 'parents' ? 'folder' :
+                  'chatbubble'
+                }
                 size={16}
                 color={isSelected ? '#FFFFFF' : BrandColors.primary[500]}
               />
