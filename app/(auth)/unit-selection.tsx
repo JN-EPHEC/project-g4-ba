@@ -4,17 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View, ActivityIndicator } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Card, PrimaryButton } from '@/components/ui';
-import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Unit, UserRole } from '@/types';
+import { Unit } from '@/types';
 import { UnitService } from '@/services/unit-service';
 import { BrandColors } from '@/constants/theme';
 
 export default function UnitSelectionScreen() {
   const params = useLocalSearchParams();
-  const { register, isLoading: authLoading } = useAuth();
   const [units, setUnits] = useState<Unit[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,32 +96,19 @@ export default function UnitSelectionScreen() {
       return;
     }
 
-    try {
-      console.log('🚀 Inscription scout avec l\'unité:', selectedUnit);
-
-      // Convertir la date de naissance
-      const dateOfBirth = params.dateOfBirth ? new Date(params.dateOfBirth as string) : new Date();
-
-      // Créer le compte scout
-      const registeredUser = await register(
-        params.email as string,
-        params.password as string,
-        params.firstName as string,
-        params.lastName as string,
-        UserRole.SCOUT,
-        selectedUnit, // Passer l'unitId
-        dateOfBirth // Passer la date de naissance
-      );
-
-      console.log('✅ Inscription réussie, redirection vers la page d\'attente');
-
-      // Rediriger vers la page d'attente de validation
-      router.push('/(auth)/pending-approval');
-    } catch (error: any) {
-      console.error('❌ Erreur d\'inscription:', error);
-      const errorMessage = error?.message || 'Impossible de créer ton compte';
-      Alert.alert('Erreur', errorMessage, [{ text: 'OK', style: 'default' }]);
-    }
+    // Rediriger vers la page de configuration du totem
+    router.push({
+      pathname: '/(auth)/totem-setup',
+      params: {
+        email: params.email as string,
+        password: params.password as string,
+        firstName: params.firstName as string,
+        lastName: params.lastName as string,
+        dateOfBirth: params.dateOfBirth as string,
+        role: params.role as string,
+        unitId: selectedUnit,
+      },
+    });
   };
 
   if (loading) {
@@ -216,9 +200,9 @@ export default function UnitSelectionScreen() {
         </View>
 
         <PrimaryButton
-          title={authLoading ? 'Création du compte...' : 'Continuer'}
+          title="Continuer"
           onPress={handleContinue}
-          disabled={!selectedUnit || authLoading}
+          disabled={!selectedUnit}
           style={styles.confirmButton}
         />
 

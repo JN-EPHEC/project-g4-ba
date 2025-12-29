@@ -97,7 +97,7 @@ export default function ChallengesKPIScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={[styles.backButton, { backgroundColor: cardBorderColor }]}
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(animator)/challenges')}
           >
             <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>

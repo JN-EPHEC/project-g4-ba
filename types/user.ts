@@ -36,6 +36,7 @@ export interface Scout extends User {
   totemName?: string; // Nom de totem scout
   totemAnimal?: string; // Animal du totem (pour compatibilité)
   totemEmoji?: string; // Emoji personnalisé du totem
+  totemTraits?: string; // Traits/qualités du totem (ex: "Force, courage, sagesse")
   validated: boolean; // Validé par l'animateur
   validatedAt?: Date; // Date de validation
   validatedBy?: string; // ID de l'animateur qui a validé

@@ -344,6 +344,25 @@ export default function AnimatorChallengesScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Hero Header */}
+        <ChallengesHeroHeader
+          totalPoints={stats.totalPoints}
+          level={levelInfo.level}
+          levelIcon={levelInfo.levelIcon}
+          levelColor={levelInfo.levelColor}
+          nextLevel={levelInfo.nextLevel}
+          nextLevelIcon={levelInfo.nextLevelIcon}
+          levelProgress={levelInfo.progress}
+          pointsToNextLevel={levelInfo.pointsToNextLevel}
+          isMaxLevel={levelInfo.isMaxLevel}
+          rank={podiumUsers.length + otherUsers.length > 0 ? podiumUsers.length + otherUsers.length : null}
+          streak={podiumUsers.length > 0 ? podiumUsers[0].streak : 0}
+          completedCount={stats.endedCount}
+          inProgressCount={filterCounts.in_progress}
+          onRankPress={() => setActiveMainTab('leaderboard')}
+          onLevelPress={() => setShowLevelModal(true)}
+        />
+
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity
@@ -365,25 +384,6 @@ export default function AnimatorChallengesScreen() {
             </ThemedText>
           </TouchableOpacity>
         </View>
-
-        {/* Hero Header */}
-        <ChallengesHeroHeader
-          totalPoints={stats.totalPoints}
-          level={levelInfo.level}
-          levelIcon={levelInfo.levelIcon}
-          levelColor={levelInfo.levelColor}
-          nextLevel={levelInfo.nextLevel}
-          nextLevelIcon={levelInfo.nextLevelIcon}
-          levelProgress={levelInfo.progress}
-          pointsToNextLevel={levelInfo.pointsToNextLevel}
-          isMaxLevel={levelInfo.isMaxLevel}
-          rank={podiumUsers.length + otherUsers.length > 0 ? podiumUsers.length + otherUsers.length : null}
-          streak={podiumUsers.length > 0 ? podiumUsers[0].streak : 0}
-          completedCount={stats.endedCount}
-          inProgressCount={filterCounts.in_progress}
-          onRankPress={() => setActiveMainTab('leaderboard')}
-          onLevelPress={() => setShowLevelModal(true)}
-        />
 
         {/* Main Tabs */}
         <ChallengesMainTabs

@@ -7,7 +7,7 @@ import {
 import { db } from '@/config/firebase';
 import { Challenge, ChallengeSubmission, ChallengeStatus } from '@/types';
 import { ChallengeService } from './challenge-service';
-import { UserService } from '@/src/features/profile/services/user-service';
+import { UnitService } from '@/services/unit-service';
 
 export interface ChallengeKPI {
   totalChallenges: number;
@@ -41,7 +41,7 @@ export class ChallengeKPIService {
       const challenges = await ChallengeService.getChallengesByUnit(unitId);
 
       // Récupérer le nombre de scouts dans l'unité
-      const scouts = await UserService.getScoutsByUnit(unitId);
+      const scouts = await UnitService.getScoutsByUnit(unitId);
       const totalScouts = scouts.length;
 
       // Récupérer toutes les soumissions pour ces défis
@@ -104,7 +104,7 @@ export class ChallengeKPIService {
   static async getChallengeStats(unitId: string): Promise<ChallengeStats[]> {
     try {
       const challenges = await ChallengeService.getChallengesByUnit(unitId);
-      const scouts = await UserService.getScoutsByUnit(unitId);
+      const scouts = await UnitService.getScoutsByUnit(unitId);
       const totalScouts = scouts.length;
 
       const statsPromises = challenges.map(async (challenge) => {

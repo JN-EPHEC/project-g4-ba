@@ -102,25 +102,28 @@ export default function WelcomeScreen() {
 
       {/* Contenu principal */}
       <View style={styles.content}>
-        {/* Logo avec icône tente */}
+        {/* Logo Wecamp avec feuille */}
         <Animated.View
           entering={FadeInDown.duration(600).delay(300)}
           style={styles.logoContainer}
         >
-          <View style={styles.logoIcon}>
-            <Text style={styles.logoEmoji}>⛺</Text>
+          <View style={styles.logoWrapper}>
+            <View style={styles.leafAbove}>
+              <Text style={styles.leafEmoji}>🌿</Text>
+            </View>
+            <Text style={styles.logoText}>Wecamp</Text>
           </View>
         </Animated.View>
 
-        {/* Titre */}
+        {/* Sous-titre / Slogan */}
         <Animated.Text
           entering={FadeInUp.duration(600).delay(500)}
-          style={styles.title}
+          style={styles.slogan}
         >
-          WeCamp
+          Scouting together
         </Animated.Text>
 
-        {/* Sous-titre */}
+        {/* Description */}
         <Animated.Text
           entering={FadeInUp.duration(600).delay(700)}
           style={styles.subtitle}
@@ -223,33 +226,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   logoContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  logoIcon: {
-    width: 120,
-    height: 120,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
+  logoWrapper: {
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
-  logoEmoji: {
-    fontSize: 60,
+  leafAbove: {
+    marginBottom: -8,
+    marginLeft: -80,
   },
-  title: {
-    fontSize: 48,
-    fontWeight: '700',
+  logoText: {
+    fontSize: 52,
+    fontWeight: '900',
     color: '#FFFFFF',
-    marginBottom: 12,
-    letterSpacing: 1,
+    letterSpacing: -1,
+  },
+  leafEmoji: {
+    fontSize: 32,
+    transform: [{ rotate: '-45deg' }],
+  },
+  slogan: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 24,
+    letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
   },
   // Boutons

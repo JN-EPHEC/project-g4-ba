@@ -17,12 +17,22 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 /**
  * Interface pour le contexte d'authentification
  */
+/**
+ * Données de configuration du totem pour l'inscription
+ */
+interface TotemData {
+  totemAnimal?: string;
+  totemEmoji?: string;
+  totemTraits?: string;
+  totemImageUrl?: string;
+}
+
 interface AuthContextType {
   user: AnyUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<AnyUser>;
-  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string, dateOfBirth?: Date) => Promise<AnyUser>;
+  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string, dateOfBirth?: Date, totemData?: TotemData) => Promise<AnyUser>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<AnyUser>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -128,7 +138,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastName: string,
     role: UserRole,
     unitId?: string,
-    dateOfBirth?: Date
+    dateOfBirth?: Date,
+    totemData?: TotemData
   ) => {
     try {
       setIsLoading(true);
@@ -146,6 +157,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const additionalData: Record<string, any> = {};
       if (unitId) additionalData.unitId = unitId;
       if (dateOfBirth) additionalData.dateOfBirth = dateOfBirth;
+
+      // Ajouter les données totem si présentes
+      if (totemData) {
+        if (totemData.totemAnimal) additionalData.totemAnimal = totemData.totemAnimal;
+        if (totemData.totemEmoji) additionalData.totemEmoji = totemData.totemEmoji;
+        if (totemData.totemTraits) additionalData.totemTraits = totemData.totemTraits;
+        if (totemData.totemImageUrl) additionalData.profilePicture = totemData.totemImageUrl;
+      }
 
       const newUser = await UserService.createUser(
         userCredential.user.uid,
