@@ -99,14 +99,12 @@ export class LevelService {
    */
   static async getScoutLevelInfo(points: number): Promise<ScoutLevelInfo | null> {
     try {
-      // Initialiser les niveaux si nécessaire
-      await this.initializeDefaultLevels();
-
+      // Récupérer les niveaux depuis Firebase
       const levels = await this.getAllLevels();
 
+      // Si aucun niveau en base, utiliser la version synchrone avec les valeurs par défaut
       if (levels.length === 0) {
-        console.warn('No levels found in database');
-        return null;
+        return this.getScoutLevelInfoSync(points);
       }
 
       // Trouver le niveau actuel basé sur les points

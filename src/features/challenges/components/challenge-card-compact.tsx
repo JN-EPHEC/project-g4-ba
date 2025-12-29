@@ -17,6 +17,7 @@ interface ChallengeCardCompactProps {
   isCompleted?: boolean;
   isPending?: boolean;
   isNew?: boolean;
+  completedCount?: number;
   onPress?: () => void;
 }
 
@@ -62,6 +63,7 @@ export function ChallengeCardCompact({
   isCompleted = false,
   isPending = false,
   isNew = false,
+  completedCount = 0,
   onPress,
 }: ChallengeCardCompactProps) {
   const cardColor = useThemeColor({}, 'card');
@@ -159,6 +161,16 @@ export function ChallengeCardCompact({
                   />
                 ))}
               </View>
+
+              {/* Participants count */}
+              {completedCount > 0 && (
+                <View style={styles.participantsContainer}>
+                  <Ionicons name="people-outline" size={12} color={textSecondary} />
+                  <ThemedText style={[styles.participantsText, { color: textSecondary }]}>
+                    {completedCount}
+                  </ThemedText>
+                </View>
+              )}
 
               {/* Status indicator */}
               {isPending && !isCompleted && (
@@ -283,6 +295,15 @@ const styles = StyleSheet.create({
   },
   statusIndicator: {
     marginLeft: 4,
+  },
+  participantsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  participantsText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   pointsBadge: {
     backgroundColor: BrandColors.accent[50],

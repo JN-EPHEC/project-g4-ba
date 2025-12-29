@@ -137,24 +137,27 @@ export default function ChallengeDetailScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedImage || !challenge || !user?.id) return;
+    if (!challenge || !user?.id) return;
 
     try {
       setIsSubmitting(true);
 
-      // Upload la photo
-      const proofImageUrl = await StorageService.uploadChallengePhoto(
-        challenge.id,
-        user.id,
-        selectedImage
-      );
+      // Upload la photo si fournie
+      let proofImageUrl: string | undefined;
+      if (selectedImage) {
+        proofImageUrl = await StorageService.uploadChallengePhoto(
+          challenge.id,
+          user.id,
+          selectedImage
+        );
+      }
 
-      // Soumettre le défi avec le commentaire optionnel
+      // Soumettre le défi avec commentaire obligatoire et photo optionnelle
       await ChallengeSubmissionService.submitChallenge(
         challenge.id,
         user.id,
-        proofImageUrl,
-        scoutComment.trim() || undefined
+        scoutComment.trim(),
+        proofImageUrl
       );
 
       // Arrêter le loading
@@ -282,7 +285,7 @@ export default function ChallengeDetailScreen() {
         ) : (
           <Card style={styles.submitCard}>
             <ThemedText type="subtitle" style={styles.submitTitle}>
-              Soumettre votre preuve
+              Soumettre le défi
             </ThemedText>
 
             {selectedImage ? (
@@ -299,15 +302,15 @@ export default function ChallengeDetailScreen() {
               <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
                 <Ionicons name="camera" size={48} color={tintColor} />
                 <ThemedText style={styles.imagePickerText}>
-                  Ajouter une photo de preuve
+                  Ajouter une photo (optionnel)
                 </ThemedText>
               </TouchableOpacity>
             )}
 
-            {/* Champ de commentaire */}
+            {/* Champ de commentaire obligatoire */}
             <View style={styles.commentSection}>
               <ThemedText style={[styles.commentLabel, { color: textSecondary }]}>
-                Ajouter un commentaire (optionnel)
+                Décris comment tu as réalisé ce défi *
               </ThemedText>
               <TextInput
                 style={[
@@ -331,7 +334,7 @@ export default function ChallengeDetailScreen() {
             <PrimaryButton
               title={isSubmitting ? 'Soumission...' : 'Soumettre le défi'}
               onPress={handleSubmit}
-              disabled={!selectedImage || isSubmitting}
+              disabled={isSubmitting || !scoutComment.trim()}
               style={styles.submitButton}
             />
           </Card>

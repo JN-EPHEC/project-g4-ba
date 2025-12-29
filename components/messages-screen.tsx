@@ -118,9 +118,21 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       const fetchedMessages = await ChannelService.getMessages(selectedChannel.id);
       setMessages(fetchedMessages);
 
-      // Charger les auteurs
+      // Charger les auteurs des messages
       const authorIds = [...new Set(fetchedMessages.map((m) => m.authorId))];
       const authorsMap: Record<string, PostAuthor> = { ...authors };
+
+      // Toujours ajouter l'utilisateur courant à la map des auteurs
+      if (!authorsMap[user.id]) {
+        authorsMap[user.id] = {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profilePicture: user.profilePicture,
+          totemAnimal: (user as any).totemAnimal,
+          totemEmoji: (user as any).totemEmoji,
+        };
+      }
 
       await Promise.all(
         authorIds
@@ -151,7 +163,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       setIsLoadingMessages(false);
       setIsRefreshing(false);
     }
-  }, [selectedChannel?.id]);
+  }, [selectedChannel?.id, user]);
 
   useEffect(() => {
     loadChannels();

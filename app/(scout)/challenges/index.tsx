@@ -16,6 +16,7 @@ import { useAuth } from '@/context/auth-context';
 import { LeaderboardPodium } from '@/src/features/challenges/components/leaderboard-podium';
 import { LeaderboardList } from '@/src/features/challenges/components/leaderboard-list';
 import { BadgesGrid } from '@/src/features/challenges/components/badges-grid';
+import { CompletedChallengesSection } from '@/src/features/challenges/components/completed-challenges-section';
 import { LevelProgressModal } from '@/src/features/challenges/components/level-progress-modal';
 import { useLeaderboard } from '@/src/features/challenges/hooks';
 import { LeaderboardService } from '@/services/leaderboard-service';
@@ -203,6 +204,16 @@ export default function ChallengesScreen() {
 
         return <BadgesGrid badges={badgesForGrid} />;
 
+      case 'achievements':
+        const completedChallenges = challenges.filter((c) => isCompleted(c.id));
+        return (
+          <CompletedChallengesSection
+            challenges={completedChallenges}
+            submissions={submissions}
+            onChallengePress={handleChallengeClick}
+          />
+        );
+
       case 'challenges':
       default:
         return renderChallengesContent();
@@ -247,6 +258,7 @@ export default function ChallengesScreen() {
                 isCompleted={isCompleted(challenge.id)}
                 isPending={isPendingValidation(challenge.id)}
                 isNew={isNewChallenge(challenge)}
+                completedCount={challenge.participantsCount || 0}
                 onPress={() => handleChallengeClick(challenge)}
               />
             ))}
@@ -289,46 +301,44 @@ export default function ChallengesScreen() {
   const levelInfo = getScoutLevelInfo(scout?.points || 0);
 
   return (
-    <View style={[styles.container, { backgroundColor: levelInfo.levelColor }]}>
+    <ThemedView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={levelInfo.levelColor} translucent />
-      {/* Hero Header fixé en haut - en dehors du ScrollView */}
-      <ChallengesHeroHeader
-        totalPoints={scout?.points || 0}
-        level={levelInfo.level}
-        levelIcon={levelInfo.levelIcon}
-        levelColor={levelInfo.levelColor}
-        nextLevel={levelInfo.nextLevel}
-        nextLevelIcon={levelInfo.nextLevelIcon}
-        levelProgress={levelInfo.progress}
-        pointsToNextLevel={levelInfo.pointsToNextLevel}
-        isMaxLevel={levelInfo.isMaxLevel}
-        rank={userRank}
-        streak={0}
-        completedCount={completedCount}
-        inProgressCount={filterCounts.in_progress}
-        onRankPress={() => setActiveMainTab('leaderboard')}
-        onLevelPress={() => setShowLevelModal(true)}
-      />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Header - scrolle avec le contenu */}
+        <ChallengesHeroHeader
+          totalPoints={scout?.points || 0}
+          level={levelInfo.level}
+          levelIcon={levelInfo.levelIcon}
+          levelColor={levelInfo.levelColor}
+          nextLevel={levelInfo.nextLevel}
+          nextLevelIcon={levelInfo.nextLevelIcon}
+          levelProgress={levelInfo.progress}
+          pointsToNextLevel={levelInfo.pointsToNextLevel}
+          isMaxLevel={levelInfo.isMaxLevel}
+          rank={userRank}
+          streak={0}
+          completedCount={completedCount}
+          inProgressCount={filterCounts.in_progress}
+          onRankPress={() => setActiveMainTab('leaderboard')}
+          onLevelPress={() => setShowLevelModal(true)}
+        />
 
-      <ThemedView style={styles.scrollContainer}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Content Section with padding */}
-          <View style={styles.contentSection}>
-            {/* Main Tabs */}
-            <ChallengesMainTabs
-              activeTab={activeMainTab}
-              onTabChange={handleMainTabChange}
-            />
+        {/* Content Section with padding */}
+        <View style={styles.contentSection}>
+          {/* Main Tabs */}
+          <ChallengesMainTabs
+            activeTab={activeMainTab}
+            onTabChange={handleMainTabChange}
+          />
 
-            {/* Tab Content */}
-            {renderTabContent()}
-          </View>
-        </ScrollView>
-      </ThemedView>
+          {/* Tab Content */}
+          {renderTabContent()}
+        </View>
+      </ScrollView>
 
       {/* Modal de détails du défi */}
       {selectedChallenge && (
@@ -345,7 +355,7 @@ export default function ChallengesScreen() {
         onClose={() => setShowLevelModal(false)}
         currentPoints={scout?.points || 0}
       />
-    </View>
+    </ThemedView>
   );
 }
 
@@ -477,14 +487,24 @@ function ChallengeModal({
               </View>
             </View>
 
-            {/* Photo requirement notice */}
+            {/* Participants count */}
+            {(challenge.participantsCount || 0) > 0 && (
+              <View style={styles.participantsRow}>
+                <Ionicons name="people" size={18} color={BrandColors.primary[500]} />
+                <ThemedText style={styles.participantsModalText}>
+                  {challenge.participantsCount} scout{challenge.participantsCount !== 1 ? 's' : ''} {challenge.participantsCount !== 1 ? 'ont' : 'a'} complété ce défi
+                </ThemedText>
+              </View>
+            )}
+
+            {/* Photo notice */}
             {canSubmit && (
               <View style={[styles.photoNotice, { backgroundColor: infoBackground }]}>
                 <View style={[styles.photoNoticeIcon, { backgroundColor: cardColor }]}>
                   <Ionicons name="camera" size={20} color={tintColor} />
                 </View>
                 <ThemedText style={[styles.photoNoticeText, { color: tintColor }]}>
-                  Une photo de preuve est requise pour valider ce défi
+                  Tu peux ajouter une photo pour prouver ta réalisation
                 </ThemedText>
               </View>
             )}
@@ -526,12 +546,6 @@ function ChallengeModal({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#D97B4A', // Couleur du header pour éviter le flash blanc
-    // S'assurer que le container ne déborde pas de la zone des Tabs
-    overflow: 'hidden',
-  },
-  scrollContainer: {
     flex: 1,
   },
   scrollView: {
@@ -690,6 +704,22 @@ const styles = StyleSheet.create({
   },
   modalDate: {
     fontSize: 15,
+  },
+  participantsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: BrandColors.primary[50],
+    borderRadius: 12,
+  },
+  participantsModalText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: BrandColors.primary[700],
+    flex: 1,
   },
   photoNotice: {
     flexDirection: 'row',

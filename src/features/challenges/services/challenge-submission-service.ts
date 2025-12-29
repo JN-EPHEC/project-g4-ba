@@ -8,6 +8,7 @@ import {
   where,
   getDocs,
   Timestamp,
+  increment,
   type DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -35,18 +36,25 @@ export class ChallengeSubmissionService {
       validatedBy: data.validatedBy,
       validatedAt: data.validatedAt?.toDate(),
       comment: data.comment,
+      scoutComment: data.scoutComment,
     };
   }
 
   /**
-   * Soumet un défi avec une preuve photo
+   * Soumet un défi avec une preuve photo optionnelle et un commentaire obligatoire
    */
   static async submitChallenge(
     challengeId: string,
     scoutId: string,
-    proofImageUrl: string
+    scoutComment: string,
+    proofImageUrl?: string
   ): Promise<ChallengeSubmission> {
     try {
+      // Vérifier que le commentaire est fourni
+      if (!scoutComment || !scoutComment.trim()) {
+        throw new Error('Un commentaire est requis pour soumettre le défi');
+      }
+
       // Vérifier que le scout existe
       const scout = await UserService.getUserById(scoutId);
       if (!scout || scout.role !== UserRole.SCOUT) {
@@ -62,13 +70,18 @@ export class ChallengeSubmissionService {
         throw new Error('Vous avez déjà soumis ce défi et il est en attente de validation');
       }
 
-      const submissionData = {
+      const submissionData: Record<string, any> = {
         challengeId,
         scoutId,
-        proofImageUrl,
+        scoutComment: scoutComment.trim(),
         submittedAt: Timestamp.fromDate(new Date()),
         status: ChallengeStatus.PENDING_VALIDATION,
       };
+
+      // Ajouter la photo seulement si fournie (ne pas inclure undefined)
+      if (proofImageUrl) {
+        submissionData.proofImageUrl = proofImageUrl;
+      }
 
       const submissionRef = doc(collection(db, this.COLLECTION_NAME));
       await setDoc(submissionRef, submissionData);
@@ -117,6 +130,12 @@ export class ChallengeSubmissionService {
           const newPoints = (scout.points || 0) + challenge.points;
           await UserService.updateUser(submission.scoutId, { points: newPoints });
         }
+
+        // Incrémenter le compteur de participants validés
+        const challengeRef = doc(db, 'challenges', submission.challengeId);
+        await updateDoc(challengeRef, {
+          participantsCount: increment(1),
+        });
       }
     } catch (error) {
       console.error('Erreur lors de la validation de la soumission:', error);

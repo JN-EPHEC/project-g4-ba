@@ -57,7 +57,8 @@ function getWeekDays(selectedDate: Date): Date[] {
   return days;
 }
 
-function isSameDay(date1: Date, date2: Date): boolean {
+function isSameDay(date1: Date | null, date2: Date | null): boolean {
+  if (!date1 || !date2) return false;
   return (
     date1.getDate() === date2.getDate() &&
     date1.getMonth() === date2.getMonth() &&
@@ -70,7 +71,7 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
   const { user } = useAuth();
   const { events, loading, error, refetch } = useEvents();
   const [selectedFilter, setSelectedFilter] = useState<EventTypeFilter>('all');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -80,9 +81,9 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
 
-  // Week days for the calendar
-  const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate]);
+  // Week days for the calendar (toujours basé sur aujourd'hui)
   const today = new Date();
+  const weekDays = useMemo(() => getWeekDays(today), []);
 
   // Calculer le nombre de colonnes en fonction de la largeur
   const getColumns = () => {
@@ -97,6 +98,16 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
   const filteredEvents = useMemo(() => {
     let filtered = events;
 
+    // Filtrer par date sélectionnée (si une date est sélectionnée)
+    if (selectedDate) {
+      filtered = filtered.filter((event) => {
+        const eventDate = event.startDate instanceof Date
+          ? event.startDate
+          : (event.startDate as any)?.toDate?.() || new Date(event.startDate);
+        return isSameDay(eventDate, selectedDate);
+      });
+    }
+
     // Filtrer par type si ce n'est pas 'all'
     if (selectedFilter !== 'all') {
       filtered = filtered.filter((event) => {
@@ -106,7 +117,7 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
     }
 
     return filtered;
-  }, [events, selectedFilter]);
+  }, [events, selectedFilter, selectedDate]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -190,7 +201,7 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
           <View>
             <ThemedText style={styles.title}>Événements</ThemedText>
             <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
-              {filteredEvents.length} événement{filteredEvents.length !== 1 ? 's' : ''} à venir
+              {events.length} événement{events.length !== 1 ? 's' : ''} à venir
             </ThemedText>
           </View>
           {canCreate && (
@@ -214,7 +225,7 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
         >
           {weekDays.map((day, index) => {
             const isToday = isSameDay(day, today);
-            const isSelected = isSameDay(day, selectedDate);
+            const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
             const dayName = DAYS_SHORT[day.getDay()];
 
             return (
@@ -226,7 +237,14 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
                   isSelected && styles.dayCardSelected,
                   isToday && !isSelected && styles.dayCardToday,
                 ]}
-                onPress={() => setSelectedDate(day)}
+                onPress={() => {
+                  // Si on clique sur le jour déjà sélectionné, on désélectionne
+                  if (isSelected) {
+                    setSelectedDate(null);
+                  } else {
+                    setSelectedDate(day);
+                  }
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={[
@@ -260,21 +278,23 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
             {/* Calendar illustration */}
             <View style={[styles.calendarIllustration, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
               <Text style={[styles.calendarMonth, { color: BrandColors.primary[500] }]}>
-                {MONTHS_FR[selectedDate.getMonth()].toUpperCase()}
+                {MONTHS_FR[(selectedDate || today).getMonth()].toUpperCase()}
               </Text>
-              <Text style={[styles.calendarDay, { color: textColor }]}>{selectedDate.getDate()}</Text>
+              <Text style={[styles.calendarDay, { color: textColor }]}>{(selectedDate || today).getDate()}</Text>
               <Text style={[styles.calendarWeekday, { color: textSecondary }]}>
-                {DAYS_FR[selectedDate.getDay()]}
+                {DAYS_FR[(selectedDate || today).getDay()]}
               </Text>
             </View>
 
             <ThemedText style={styles.emptyTitle}>Aucun événement</ThemedText>
             <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
-              {selectedFilter === 'all'
-                ? canCreate
-                  ? 'Créez votre premier événement pour commencer à organiser vos activités'
-                  : 'Aucun événement à venir pour le moment'
-                : 'Aucun événement de ce type'}
+              {selectedDate
+                ? 'Aucun événement prévu ce jour'
+                : selectedFilter === 'all'
+                  ? canCreate
+                    ? 'Créez votre premier événement pour commencer à organiser vos activités'
+                    : 'Aucun événement à venir pour le moment'
+                  : 'Aucun événement de ce type'}
             </ThemedText>
             {canCreate && selectedFilter === 'all' && (
               <TouchableOpacity

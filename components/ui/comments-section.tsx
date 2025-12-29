@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { CommentItem } from './comment-item';
 import { ChannelService } from '@/src/shared/services/channel-service';
+import { UserService } from '@/services/user-service';
 import { MessageComment } from '@/src/shared/types/channel';
 import { BrandColors, NeutralColors } from '@/constants/theme';
 
@@ -40,6 +41,8 @@ export function CommentsSection({
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Local authors map pour stocker les auteurs chargés dynamiquement
+  const [localAuthors, setLocalAuthors] = useState<Record<string, Author>>({});
 
   const cardColor = useThemeColor({}, 'card');
   const inputBg = useThemeColor({}, 'inputBackground');
@@ -53,10 +56,39 @@ export function CommentsSection({
   const loadComments = async () => {
     try {
       setLoading(true);
-      console.log('[CommentsSection] Loading comments for messageId:', messageId);
       const fetchedComments = await ChannelService.getComments(messageId);
-      console.log('[CommentsSection] Fetched comments:', fetchedComments.length, fetchedComments);
       setComments(fetchedComments);
+
+      // Charger les auteurs des commentaires qui ne sont pas dans la map
+      const missingAuthorIds = fetchedComments
+        .map((c) => c.authorId)
+        .filter((id) => !authors[id] && !localAuthors[id]);
+
+      const uniqueMissingIds = [...new Set(missingAuthorIds)];
+
+      if (uniqueMissingIds.length > 0) {
+        const newAuthors: Record<string, Author> = {};
+        await Promise.all(
+          uniqueMissingIds.map(async (authorId) => {
+            try {
+              const userData = await UserService.getUserById(authorId);
+              if (userData) {
+                newAuthors[authorId] = {
+                  id: userData.id,
+                  firstName: userData.firstName,
+                  lastName: userData.lastName,
+                  profilePicture: userData.profilePicture,
+                  totemAnimal: (userData as any).totemAnimal,
+                  totemEmoji: (userData as any).totemEmoji,
+                };
+              }
+            } catch (error) {
+              console.error('[CommentsSection] Error loading author:', error);
+            }
+          })
+        );
+        setLocalAuthors((prev) => ({ ...prev, ...newAuthors }));
+      }
     } catch (error) {
       console.error('[CommentsSection] Error loading comments:', error);
     } finally {
@@ -95,17 +127,23 @@ export function CommentsSection({
     }
   };
 
-  const getAuthorName = (authorId: string): string => {
-    const author = authors[authorId];
-    if (!author) return 'Utilisateur';
-    // Utiliser le totem si disponible, sinon prénom + nom
-    if (author.totemAnimal) {
-      return `${author.totemEmoji || ''} ${author.totemAnimal}`.trim();
+  const getAuthor = (authorId: string): { name: string; avatar?: string } => {
+    // Chercher d'abord dans les auteurs passés en props, puis dans les auteurs locaux
+    const author = authors[authorId] || localAuthors[authorId];
+    if (!author) return { name: 'Utilisateur' };
+
+    // Récupérer l'avatar
+    const avatar = author.profilePicture || author.avatarUrl;
+
+    // Utiliser juste le prénom
+    let name: string;
+    if (author.firstName) {
+      name = author.firstName;
+    } else {
+      name = author.displayName || 'Utilisateur';
     }
-    if (author.firstName && author.lastName) {
-      return `${author.firstName} ${author.lastName}`;
-    }
-    return author.displayName || 'Utilisateur';
+
+    return { name, avatar };
   };
 
   if (loading) {
@@ -124,11 +162,13 @@ export function CommentsSection({
           {comments.map((comment) => {
             const isOwnComment = comment.authorId === currentUserId;
             const canDelete = isOwnComment || isAnimator;
+            const authorInfo = getAuthor(comment.authorId);
 
             return (
               <CommentItem
                 key={comment.id}
-                authorName={getAuthorName(comment.authorId)}
+                authorName={authorInfo.name}
+                authorAvatar={authorInfo.avatar}
                 content={comment.content}
                 createdAt={comment.createdAt}
                 isOwnComment={isOwnComment}

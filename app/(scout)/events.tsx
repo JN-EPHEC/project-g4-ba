@@ -6,7 +6,7 @@ export default function ScoutEventsScreen() {
   return (
     <EventsScreen
       userRole={UserRole.SCOUT}
-      canCreate={true}
+      canCreate={false}
       canDelete={false}
     />
   );

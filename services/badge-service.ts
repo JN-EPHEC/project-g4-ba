@@ -303,13 +303,19 @@ export class BadgeService {
         return null;
       }
 
-      const scoutBadgeData = {
+      const scoutBadgeData: Record<string, any> = {
         scoutId,
         badgeId,
         unlockedAt: Timestamp.fromDate(new Date()),
-        awardedBy,
-        comment,
       };
+
+      // N'ajouter que les champs définis (Firebase n'accepte pas undefined)
+      if (awardedBy) {
+        scoutBadgeData.awardedBy = awardedBy;
+      }
+      if (comment) {
+        scoutBadgeData.comment = comment;
+      }
 
       const scoutBadgeRef = doc(collection(db, this.SCOUT_BADGES_COLLECTION));
       await setDoc(scoutBadgeRef, scoutBadgeData);

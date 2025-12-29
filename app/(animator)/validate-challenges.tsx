@@ -7,7 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
 import { RankBadge } from '@/components/rank-badge';
 import { useAuth } from '@/context/auth-context';
-import { ChallengeSubmissionService } from '@/services/challenge-submission-service';
+import { ChallengeSubmissionService } from '@/src/features/challenges/services/challenge-submission-service';
 import { ChallengeService } from '@/services/challenge-service';
 import { UserService } from '@/services/user-service';
 import { Animator, ChallengeSubmission, Challenge, Scout } from '@/types';

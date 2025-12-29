@@ -48,7 +48,7 @@ export interface ChallengeSubmission {
   id: string;
   challengeId: string;
   scoutId: string;
-  proofImageUrl: string;
+  proofImageUrl?: string; // Photo de preuve optionnelle
   submittedAt: Date;
   status: ChallengeStatus;
   validatedBy?: string; // ID de l'animateur qui valide

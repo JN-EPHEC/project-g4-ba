@@ -344,6 +344,28 @@ export default function AnimatorChallengesScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={[styles.quickActionButton, { backgroundColor: BrandColors.primary[50] }]}
+            onPress={() => router.push('/(animator)/challenges/kpi')}
+          >
+            <Ionicons name="stats-chart" size={20} color={BrandColors.primary[600]} />
+            <ThemedText style={[styles.quickActionText, { color: BrandColors.primary[700] }]}>
+              Statistiques
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickActionButton, { backgroundColor: BrandColors.accent[50] }]}
+            onPress={() => router.push('/(animator)/validate-challenges')}
+          >
+            <Ionicons name="checkmark-circle" size={20} color={BrandColors.accent[600]} />
+            <ThemedText style={[styles.quickActionText, { color: BrandColors.accent[600] }]}>
+              Valider
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+
         {/* Hero Header */}
         <ChallengesHeroHeader
           totalPoints={stats.totalPoints}
@@ -726,5 +748,40 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: BrandColors.accent[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: BrandColors.accent[500],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  quickActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

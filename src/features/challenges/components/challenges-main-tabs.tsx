@@ -4,17 +4,18 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
 
-export type MainTab = 'challenges' | 'leaderboard' | 'badges';
+export type MainTab = 'challenges' | 'achievements' | 'leaderboard' | 'badges';
 
 interface ChallengesMainTabsProps {
   activeTab: MainTab;
   onTabChange: (tab: MainTab) => void;
 }
 
-const TABS: { key: MainTab; label: string; emoji: string }[] = [
-  { key: 'challenges', label: 'Défis', emoji: '⭐' },
-  { key: 'leaderboard', label: 'Classement', emoji: '🏆' },
-  { key: 'badges', label: 'Badges', emoji: '🏅' },
+const TABS: { key: MainTab; label: string }[] = [
+  { key: 'challenges', label: 'Défis' },
+  { key: 'achievements', label: 'Réussites' },
+  { key: 'leaderboard', label: 'Classement' },
+  { key: 'badges', label: 'Badges' },
 ];
 
 export function ChallengesMainTabs({ activeTab, onTabChange }: ChallengesMainTabsProps) {
@@ -37,7 +38,6 @@ export function ChallengesMainTabs({ activeTab, onTabChange }: ChallengesMainTab
             onPress={() => onTabChange(tab.key)}
             activeOpacity={0.7}
           >
-            <ThemedText style={styles.emoji}>{tab.emoji}</ThemedText>
             <ThemedText
               style={[
                 styles.tabLabel,
@@ -64,13 +64,11 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     borderRadius: 10,
-    gap: 6,
   },
   activeTab: {
     shadowColor: '#000',
@@ -79,11 +77,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  emoji: {
-    fontSize: 16,
-  },
   tabLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

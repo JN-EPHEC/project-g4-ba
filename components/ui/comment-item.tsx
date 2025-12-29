@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors, NeutralColors } from '@/constants/theme';
@@ -19,6 +20,7 @@ interface CommentItemProps {
 
 export function CommentItem({
   authorName,
+  authorAvatar,
   content,
   createdAt,
   isOwnComment,
@@ -35,12 +37,16 @@ export function CommentItem({
 
   return (
     <View style={[styles.container, { backgroundColor: cardColor }]}>
-      {/* Avatar placeholder */}
-      <View style={styles.avatar}>
-        <ThemedText style={styles.avatarText}>
-          {authorName.charAt(0).toUpperCase()}
-        </ThemedText>
-      </View>
+      {/* Avatar */}
+      {authorAvatar ? (
+        <Image source={{ uri: authorAvatar }} style={styles.avatar} contentFit="cover" />
+      ) : (
+        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+          <ThemedText style={styles.avatarText}>
+            {authorName.charAt(0).toUpperCase()}
+          </ThemedText>
+        </View>
+      )}
 
       {/* Content */}
       <View style={styles.content}>
@@ -86,6 +92,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  avatarPlaceholder: {
     backgroundColor: BrandColors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',

@@ -91,6 +91,15 @@ export default function ScoutLayout() {
         }}
       />
       <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="more"
         options={{
           title: 'Plus',
@@ -100,12 +109,6 @@ export default function ScoutLayout() {
         }}
       />
       {/* Routes cachées */}
-      <Tabs.Screen
-        name="documents"
-        options={{
-          href: null, // Accessible depuis Plus
-        }}
-      />
       <Tabs.Screen
         name="profile"
         options={{
