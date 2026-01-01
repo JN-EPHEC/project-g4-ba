@@ -29,17 +29,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 4,
+    direction: 'ltr',
   },
   title: {
     fontSize: 34,
     fontWeight: '700',
     letterSpacing: -0.5,
     marginBottom: 4,
+    writingDirection: 'ltr',
   },
   subtitle: {
     fontSize: 15,
     color: '#999999',
     letterSpacing: -0.3,
+    writingDirection: 'ltr',
   },
   iconContainer: {
     width: 56,

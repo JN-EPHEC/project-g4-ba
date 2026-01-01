@@ -433,16 +433,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: Spacing.md,
+    direction: 'ltr',
   },
   title: {
     fontSize: 34,
     fontWeight: '700',
     letterSpacing: -0.5,
     marginBottom: 4,
+    writingDirection: 'ltr',
   },
   subtitle: {
     fontSize: 15,
     letterSpacing: -0.3,
+    writingDirection: 'ltr',
   },
   createButton: {
     flexDirection: 'row',

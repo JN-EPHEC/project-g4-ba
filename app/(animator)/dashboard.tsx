@@ -631,12 +631,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: Spacing.xl,
+    direction: 'ltr',
   },
   greetingContainer: { flex: 1 },
-  greeting: { fontSize: 15, color: 'rgba(255,255,255,0.8)', marginBottom: Spacing.xs },
-  unitName: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.5 },
-  unitGroup: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  greeting: { fontSize: 15, color: 'rgba(255,255,255,0.8)', marginBottom: Spacing.xs, writingDirection: 'ltr' },
+  unitName: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.5, writingDirection: 'ltr' },
+  unitGroup: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2, writingDirection: 'ltr' },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, direction: 'ltr' },
   notificationButton: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -663,19 +664,20 @@ const styles = StyleSheet.create({
   avatarEmoji: { fontSize: 24 },
 
   // Stats
-  statsRow: { flexDirection: 'row', gap: Spacing.md },
+  statsRow: { flexDirection: 'row', gap: Spacing.md, direction: 'ltr' },
   statCard: {
     flex: 1, backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: Radius.lg, paddingVertical: Spacing.lg, alignItems: 'center',
   },
-  statValue: { fontSize: 28, fontWeight: '700', color: '#FFFFFF' },
-  statLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+  statValue: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', writingDirection: 'ltr' },
+  statLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2, writingDirection: 'ltr' },
 
   // Alerts
   alertCard: {
     flexDirection: 'row', alignItems: 'center',
     marginHorizontal: Spacing.xl, marginTop: Spacing.md,
     padding: Spacing.md, borderRadius: Radius.lg, gap: Spacing.md,
+    direction: 'ltr',
   },
   alertIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   alertEmoji: { fontSize: 20 },
@@ -684,7 +686,7 @@ const styles = StyleSheet.create({
   alertButtonText: { fontSize: 13, fontWeight: '600' },
 
   // Quick Actions
-  quickActions: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md },
+  quickActions: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md, direction: 'ltr' },
   primaryAction: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
@@ -705,10 +707,11 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, marginBottom: Spacing.md,
+    direction: 'ltr',
   },
-  sectionTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
-  seeAllButton: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  seeAllText: { fontSize: 14, fontWeight: '500' },
+  sectionTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3, writingDirection: 'ltr' },
+  seeAllButton: { flexDirection: 'row', alignItems: 'center', gap: 2, direction: 'ltr' },
+  seeAllText: { fontSize: 14, fontWeight: '500', writingDirection: 'ltr' },
 
   // Events
   eventsScroll: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
@@ -723,6 +726,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     marginBottom: Spacing.md,
+    direction: 'ltr',
   },
   eventDateBadge: {
     width: 56,
@@ -736,12 +740,12 @@ const styles = StyleSheet.create({
   eventInfo: { flex: 1 },
   eventTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
   eventMeta: { fontSize: 13 },
-  eventAttendees: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  eventAttendees: { flexDirection: 'row', alignItems: 'center', gap: 6, direction: 'ltr' },
   eventAttendeesText: { fontSize: 13 },
 
   // Messages
   messagesCard: { marginHorizontal: Spacing.xl, borderRadius: Radius.xl, borderWidth: 1, overflow: 'hidden' },
-  messageItem: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md },
+  messageItem: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md, direction: 'ltr' },
   messageContent: { flex: 1 },
   channelName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
   messagePreview: { fontSize: 13 },
@@ -749,30 +753,30 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', padding: Spacing.xl },
 
   // Challenges & Leaderboard
-  challengesRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, gap: Spacing.md },
+  challengesRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, gap: Spacing.md, direction: 'ltr' },
   challengesCard: { flex: 1, padding: Spacing.md, borderRadius: Radius.xl, borderWidth: 1 },
   leaderboardCard: { flex: 1, padding: Spacing.md, borderRadius: Radius.xl, borderWidth: 1 },
   cardSubtitle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: Spacing.md },
   emptySmall: { fontSize: 12, textAlign: 'center', paddingVertical: Spacing.lg },
-  challengeItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.sm },
+  challengeItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.sm, direction: 'ltr' },
   challengeEmoji: { fontSize: 24 },
   challengeInfo: { flex: 1 },
   challengeTitle: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
   progressBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
   challengeProgress: { fontSize: 12, fontWeight: '600' },
-  leaderboardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm, gap: Spacing.sm },
+  leaderboardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm, gap: Spacing.sm, direction: 'ltr' },
   leaderboardRank: { fontSize: 14, fontWeight: '700', width: 20 },
   leaderboardEmoji: { fontSize: 20 },
   leaderboardName: { flex: 1, fontSize: 13, fontWeight: '500' },
   leaderboardPoints: { fontSize: 14, fontWeight: '700' },
 
   // Widgets Row
-  widgetsRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md },
+  widgetsRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md, direction: 'ltr' },
 
   // Weather Widget
   weatherWidget: { flex: 1, borderRadius: Radius.xl, padding: Spacing.lg },
-  weatherHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+  weatherHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs, direction: 'ltr' },
   weatherIcon: { fontSize: 32 },
   weatherTemp: { fontSize: 36, fontWeight: '300', color: '#FFFFFF' },
   weatherDesc: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', marginBottom: Spacing.sm },
@@ -780,7 +784,7 @@ const styles = StyleSheet.create({
 
   // Birthday Widget
   birthdayWidget: { flex: 1, borderRadius: Radius.xl, padding: Spacing.lg, borderWidth: 1 },
-  birthdayHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  birthdayHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm, direction: 'ltr' },
   birthdayEmoji: { fontSize: 20 },
   birthdayLabel: { fontSize: 12, fontWeight: '600' },
   birthdayName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
