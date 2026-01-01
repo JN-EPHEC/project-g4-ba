@@ -1,9 +1,15 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+import { Platform, I18nManager } from 'react-native';
 import 'react-native-reanimated';
 import { DURATION } from '@/src/shared/animations';
+
+// Désactiver RTL globalement pour éviter les bugs d'affichage sur certains appareils
+if (I18nManager.isRTL) {
+  I18nManager.allowRTL(false);
+  I18nManager.forceRTL(false);
+}
 
 // Import global CSS for web
 if (Platform.OS === 'web') {

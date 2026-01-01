@@ -1,9 +1,14 @@
 import React from 'react';
-import { View, StyleSheet, type ViewStyle } from 'react-native';
+import { View, StyleSheet, Text, I18nManager, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 
-import { ThemedText } from '@/components/themed-text';
 import { BrandColors } from '@/constants/theme';
+
+// Désactiver RTL pour éviter les bugs d'affichage
+if (I18nManager.isRTL) {
+  I18nManager.allowRTL(false);
+  I18nManager.forceRTL(false);
+}
 
 // Palette de couleurs pour les avatars
 const AVATAR_COLORS = [
@@ -94,7 +99,7 @@ export function Avatar({ imageUrl, name, size = 'medium', style }: AvatarProps) 
           contentFit="cover"
         />
       ) : (
-        <ThemedText
+        <Text
           style={[
             styles.initials,
             {
@@ -104,7 +109,7 @@ export function Avatar({ imageUrl, name, size = 'medium', style }: AvatarProps) 
           ]}
         >
           {getInitials(name)}
-        </ThemedText>
+        </Text>
       )}
     </View>
   );
