@@ -419,6 +419,7 @@ function EventCardWithAttendance({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    direction: 'ltr',
   },
   scrollView: {
     flex: 1,
@@ -427,6 +428,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 60,
     paddingBottom: 100,
+    direction: 'ltr',
   },
   headerRow: {
     flexDirection: 'row',
@@ -441,6 +443,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: 4,
     writingDirection: 'ltr',
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 15,
