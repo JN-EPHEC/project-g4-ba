@@ -339,6 +339,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
+    writingDirection: 'ltr',
   },
   menuItem: {
     flexDirection: 'row',
@@ -351,6 +352,7 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 16,
     fontWeight: '500',
+    writingDirection: 'ltr',
   },
   cancelButton: {
     paddingVertical: Spacing.md,
@@ -360,5 +362,6 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '500',
+    writingDirection: 'ltr',
   },
 });

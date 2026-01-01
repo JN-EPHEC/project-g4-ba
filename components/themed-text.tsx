@@ -1,4 +1,4 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { I18nManager, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Typography } from '@/constants/design-tokens';
@@ -65,7 +65,7 @@ export function ThemedText({
   return (
     <Text
       style={[
-        { color: finalColor },
+        { color: finalColor, writingDirection: 'ltr' },
         styles[type] || styles.default,
         style,
       ]}

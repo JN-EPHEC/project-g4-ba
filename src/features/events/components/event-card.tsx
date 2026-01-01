@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -84,11 +84,21 @@ export function EventCard({
   const textSecondary = useThemeColor({}, 'textSecondary');
 
   const handleDelete = () => {
-    if (onDelete) {
-      const confirmed = confirm('Êtes-vous sûr de vouloir supprimer cet événement ?');
-      if (confirmed) {
+    if (!onDelete) return;
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
         onDelete();
       }
+    } else {
+      Alert.alert(
+        'Supprimer l\'événement',
+        'Êtes-vous sûr de vouloir supprimer cet événement ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: onDelete },
+        ]
+      );
     }
   };
 
@@ -228,6 +238,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -0.5,
+    writingDirection: 'ltr',
   },
   month: {
     fontSize: 14,
@@ -235,6 +246,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
     marginTop: 4,
+    writingDirection: 'ltr',
   },
   content: {
     flex: 1,
@@ -268,6 +280,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: -0.3,
+    writingDirection: 'ltr',
   },
   title: {
     fontSize: 18,
@@ -275,6 +288,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: Spacing.sm,
     lineHeight: 24,
+    writingDirection: 'ltr',
   },
   infoRow: {
     flexDirection: 'row',
@@ -288,6 +302,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     flex: 1,
+    writingDirection: 'ltr',
   },
   participantsRow: {
     flexDirection: 'row',
@@ -299,6 +314,7 @@ const styles = StyleSheet.create({
   participantsText: {
     fontSize: 14,
     flex: 1,
+    writingDirection: 'ltr',
   },
   fullBadge: {
     fontSize: 11,
@@ -309,6 +325,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     borderRadius: Radius.sm,
     letterSpacing: 0.5,
+    writingDirection: 'ltr',
   },
   attendanceButton: {
     paddingVertical: Spacing.sm,
@@ -326,5 +343,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.3,
+    writingDirection: 'ltr',
   },
 });

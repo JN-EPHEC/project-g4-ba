@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AvatarUploader } from '@/components/avatar-uploader';
@@ -26,24 +26,31 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     console.log('🔘 Bouton Déconnexion cliqué!');
 
-    // Version simplifiée qui fonctionne toujours
-    const confirmLogout = confirm('Êtes-vous sûr de vouloir vous déconnecter ?');
-
-    if (confirmLogout) {
-      console.log('✅ Confirmation de déconnexion');
-
-      // Appeler logout en arrière-plan
-      logout().catch(error => {
+    const doLogout = async () => {
+      try {
+        console.log('✅ Confirmation de déconnexion');
+        await logout();
+        console.log('🔄 Redirection vers login...');
+        router.replace('/(auth)/auth');
+      } catch (error) {
         console.error('❌ Erreur lors de la déconnexion:', error);
-      });
+      }
+    };
 
-      // Recharger immédiatement la page
-      console.log('🔄 Rechargement de la page...');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/(auth)/login';
+    // Sur web, utiliser confirm, sinon Alert.alert
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+        doLogout();
       }
     } else {
-      console.log('❌ Déconnexion annulée');
+      Alert.alert(
+        'Déconnexion',
+        'Êtes-vous sûr de vouloir vous déconnecter ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Déconnexion', style: 'destructive', onPress: doLogout },
+        ]
+      );
     }
   };
 

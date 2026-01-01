@@ -53,6 +53,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshAnimatorNotifications = async () => {
+    // Vérifier que l'utilisateur est toujours authentifié avant de faire des requêtes
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
     const animator = user as Animator;
     if (!animator.unitId) {
       return;
@@ -61,10 +66,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       // Récupérer le nombre de soumissions en attente
       const pendingSubmissions = await ChallengeSubmissionService.getPendingSubmissions(animator.unitId);
+      // Vérifier encore l'authentification après chaque requête async
+      if (!isAuthenticated) return;
       setPendingChallengesCount(pendingSubmissions.length);
 
       // Récupérer le nombre de scouts non validés
       const scouts = await UnitService.getScoutsByUnit(animator.unitId);
+      if (!isAuthenticated) return;
       const unvalidatedScouts = scouts.filter((s: any) => !s.validated);
       setPendingScoutsCount(unvalidatedScouts.length);
 
@@ -74,28 +82,46 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
       // Récupérer les statistiques de fiches santé
       try {
+        if (!isAuthenticated) return;
         const healthStats = await HealthService.getUnitHealthStats(scoutIds);
+        if (!isAuthenticated) return;
         // Comptabiliser les fiches manquantes + non signées
         setMissingHealthRecordsCount(healthStats.missing + healthStats.unsigned);
-      } catch (error) {
-        console.error('Erreur lors de la récupération des stats de santé:', error);
+      } catch (error: any) {
+        // Ignorer silencieusement les erreurs de permission (déconnexion en cours)
+        if (error?.code !== 'permission-denied' && !error?.message?.includes('insufficient permissions')) {
+          console.error('Erreur lors de la récupération des stats de santé:', error);
+        }
         setMissingHealthRecordsCount(0);
       }
 
       // Récupérer les statistiques d'autorisations
       try {
+        if (!isAuthenticated) return;
         const authStats = await DocumentService.getUnitAuthorizationStats(animator.unitId, scoutIds);
+        if (!isAuthenticated) return;
         setPendingAuthorizationsCount(authStats.scoutsWithPendingDocs.length);
-      } catch (error) {
-        console.error('Erreur lors de la récupération des stats d\'autorisations:', error);
+      } catch (error: any) {
+        // Ignorer silencieusement les erreurs de permission (déconnexion en cours)
+        if (error?.code !== 'permission-denied' && !error?.message?.includes('insufficient permissions')) {
+          console.error('Erreur lors de la récupération des stats d\'autorisations:', error);
+        }
         setPendingAuthorizationsCount(0);
       }
-    } catch (error) {
-      console.error('Erreur lors de la récupération des notifications animateur:', error);
+    } catch (error: any) {
+      // Ignorer silencieusement les erreurs de permission (déconnexion en cours)
+      if (error?.code !== 'permission-denied' && !error?.message?.includes('insufficient permissions')) {
+        console.error('Erreur lors de la récupération des notifications animateur:', error);
+      }
     }
   };
 
   const refreshParentNotifications = async () => {
+    // Vérifier que l'utilisateur est toujours authentifié avant de faire des requêtes
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
     const parent = user as Parent;
     if (!parent.id) {
       return;
@@ -104,18 +130,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       // Récupérer les scouts du parent
       const scouts = await ParentScoutService.getScoutsByParent(parent.id);
+      if (!isAuthenticated) return;
 
       // Compter les documents en attente pour chaque scout
       let totalPendingDocs = 0;
       for (const scout of scouts) {
+        if (!isAuthenticated) return;
         if (scout.unitId) {
           const pendingDocs = await DocumentService.getPendingDocumentsForScout(scout.id, scout.unitId);
+          if (!isAuthenticated) return;
           totalPendingDocs += pendingDocs.length;
         }
       }
       setParentPendingDocumentsCount(totalPendingDocs);
-    } catch (error) {
-      console.error('Erreur lors de la récupération des notifications parent:', error);
+    } catch (error: any) {
+      // Ignorer silencieusement les erreurs de permission (déconnexion en cours)
+      if (error?.code !== 'permission-denied' && !error?.message?.includes('insufficient permissions')) {
+        console.error('Erreur lors de la récupération des notifications parent:', error);
+      }
       setParentPendingDocumentsCount(0);
     }
   };
