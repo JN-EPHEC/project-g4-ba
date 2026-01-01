@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Switch,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +24,7 @@ import { BrandColors } from '@/constants/theme';
 import { TOTEM_ANIMALS } from '@/components/totem-selector';
 import { AIImageService } from '@/services/ai-image-service';
 
-type GenerationState = 'idle' | 'generating' | 'preview' | 'error';
+type GenerationState = 'idle' | 'generating' | 'success' | 'error';
 
 export default function TotemSetupScreen() {
   const params = useLocalSearchParams();
@@ -100,7 +100,7 @@ export default function TotemSetupScreen() {
     const traits = getCurrentTraits();
 
     if (!animalName) {
-      Alert.alert('Erreur', 'Veuillez d\'abord choisir ou créer un animal totem');
+      Alert.alert('Erreur', "Veuillez d'abord choisir ou créer un animal totem");
       return;
     }
 
@@ -112,7 +112,7 @@ export default function TotemSetupScreen() {
     if (result.success && result.imageBase64 && result.imageUrl) {
       setGeneratedImageBase64(result.imageBase64);
       setGeneratedImageUrl(result.imageUrl);
-      setGenerationState('preview');
+      setGenerationState('success');
     } else {
       setErrorMessage(result.error || 'Erreur lors de la génération');
       setGenerationState('error');
@@ -175,8 +175,8 @@ export default function TotemSetupScreen() {
     }
   };
 
-  const isGenerating = generationState === 'generating';
   const hasAnimal = isCustomMode ? !!customAnimalName : !!selectedAnimal;
+  const isGenerating = generationState === 'generating';
 
   return (
     <KeyboardAvoidingView
@@ -212,13 +212,7 @@ export default function TotemSetupScreen() {
             </View>
             <Switch
               value={isCustomMode}
-              onValueChange={(value) => {
-                setIsCustomMode(value);
-                // Réinitialiser l'image générée quand on change de mode
-                setGeneratedImageBase64(null);
-                setGeneratedImageUrl(null);
-                setGenerationState('idle');
-              }}
+              onValueChange={setIsCustomMode}
               trackColor={{ false: '#E5E7EB', true: BrandColors.accent[200] }}
               thumbColor={isCustomMode ? BrandColors.accent[500] : '#FFFFFF'}
             />
@@ -252,8 +246,12 @@ export default function TotemSetupScreen() {
                   placeholder="🐉"
                   placeholderTextColor="#9CA3AF"
                   value={customEmoji}
-                  onChangeText={setCustomEmoji}
-                  maxLength={2}
+                  onChangeText={(text) => {
+                    // Garder seulement le premier emoji (qui peut faire plusieurs caractères)
+                    const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u;
+                    const match = text.match(emojiRegex);
+                    setCustomEmoji(match ? match[0] : text.slice(0, 4));
+                  }}
                 />
               </View>
             </View>
@@ -307,13 +305,7 @@ export default function TotemSetupScreen() {
                       styles.animalCard,
                       isSelected && styles.animalCardSelected,
                     ]}
-                    onPress={() => {
-                      setSelectedAnimal(animal.name);
-                      // Réinitialiser l'image générée
-                      setGeneratedImageBase64(null);
-                      setGeneratedImageUrl(null);
-                      setGenerationState('idle');
-                    }}
+                    onPress={() => setSelectedAnimal(animal.name)}
                     activeOpacity={0.7}
                   >
                     <View
@@ -403,8 +395,8 @@ export default function TotemSetupScreen() {
                       {isGenerating
                         ? 'Génération...'
                         : generatedImageBase64
-                        ? 'Régénérer'
-                        : 'Générer'}
+                          ? 'Régénérer'
+                          : 'Générer'}
                     </ThemedText>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -671,6 +663,28 @@ const styles = StyleSheet.create({
   aiContent: {
     flexDirection: 'row',
     gap: 16,
+  },
+  aiInfoContent: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'center',
+  },
+  infoBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: `${BrandColors.primary[500]}10`,
+    padding: 12,
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: BrandColors.primary[500],
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: BrandColors.primary[700],
+    lineHeight: 18,
   },
   imagePreview: {
     width: 100,

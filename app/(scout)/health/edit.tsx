@@ -61,6 +61,8 @@ export default function EditHealthScreen() {
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
   const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
+  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
+  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -246,10 +248,10 @@ export default function EditHealthScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Groupe sanguin</ThemedText>
               <TouchableOpacity
-                style={[styles.selector, { borderColor }]}
+                style={[styles.selector, { borderColor, backgroundColor: inputBg }]}
                 onPress={() => setShowBloodTypeModal(true)}
               >
-                <ThemedText style={bloodType ? {} : styles.placeholder}>
+                <ThemedText style={bloodType ? {} : { color: placeholderColor }}>
                   {bloodType || 'Sélectionner...'}
                 </ThemedText>
                 <Ionicons name="chevron-down" size={20} color={iconColor} />
@@ -259,22 +261,22 @@ export default function EditHealthScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Nom de la mutuelle</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
                 value={insuranceName}
                 onChangeText={setInsuranceName}
                 placeholder="Ex: Mutualité Chrétienne"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
               />
             </View>
 
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Numéro d'affiliation</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
                 value={insuranceNumber}
                 onChangeText={setInsuranceNumber}
                 placeholder="Ex: 123-456-789"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
               />
             </View>
           </Card>
@@ -482,11 +484,11 @@ export default function EditHealthScreen() {
             </View>
 
             <TextInput
-              style={[styles.textArea, { borderColor, color: textColor }]}
+              style={[styles.textArea, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={additionalNotes}
               onChangeText={setAdditionalNotes}
               placeholder="Informations complémentaires utiles pour les animateurs..."
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -597,6 +599,8 @@ function AllergyModal({
   const borderColor = useThemeColor({}, 'border');
   const textColor = useThemeColor({}, 'text');
   const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
+  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
+  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
 
   useEffect(() => {
     if (initialData) {
@@ -637,11 +641,11 @@ function AllergyModal({
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Nom de l'allergie *</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={name}
               onChangeText={setName}
               placeholder="Ex: Arachides, Gluten, Pénicilline..."
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
             />
           </View>
 
@@ -667,11 +671,11 @@ function AllergyModal({
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Description (optionnel)</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={description}
               onChangeText={setDescription}
               placeholder="Réactions, précautions..."
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
             />
           </View>
 
@@ -719,6 +723,8 @@ function MedicationModal({
   const borderColor = useThemeColor({}, 'border');
   const textColor = useThemeColor({}, 'text');
   const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
+  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
+  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
 
   useEffect(() => {
     if (initialData) {
@@ -759,33 +765,33 @@ function MedicationModal({
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Nom du médicament *</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={name}
               onChangeText={setName}
               placeholder="Ex: Ventoline, Insuline..."
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Dosage *</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={dosage}
               onChangeText={setDosage}
               placeholder="Ex: 100mg, 2 bouffées..."
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Fréquence *</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={frequency}
               onChangeText={setFrequency}
               placeholder="Ex: 2x/jour, si besoin..."
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
             />
           </View>
 
@@ -830,6 +836,8 @@ function ContactModal({
   const borderColor = useThemeColor({}, 'border');
   const textColor = useThemeColor({}, 'text');
   const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
+  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
+  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
 
   useEffect(() => {
     if (initialData) {
@@ -870,33 +878,33 @@ function ContactModal({
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Nom *</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={name}
               onChangeText={setName}
               placeholder="Ex: Marie Dupont"
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Relation *</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={relation}
               onChangeText={setRelation}
               placeholder="Ex: Mère, Père, Tuteur..."
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Téléphone *</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor, color: textColor }]}
+              style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBg }]}
               value={phone}
               onChangeText={setPhone}
               placeholder="Ex: +32 470 12 34 56"
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
               keyboardType="phone-pad"
             />
           </View>
@@ -985,14 +993,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#2A2A2A',
   },
   textArea: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#2A2A2A',
     minHeight: 100,
   },
   charCount: {
@@ -1008,7 +1014,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
-    backgroundColor: '#2A2A2A',
   },
   listItem: {
     flexDirection: 'row',

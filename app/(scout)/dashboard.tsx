@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/auth-context';
-import { Scout, UserRole } from '@/types';
+import { Scout, UserRole, HealthRecord } from '@/types';
 import { useEvents } from '@/src/features/events/hooks/use-events';
 import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
 import { useAllChallengeProgress } from '@/src/features/challenges/hooks/use-all-challenge-progress';
@@ -16,6 +17,7 @@ import { useScoutLevel } from '@/src/features/challenges/hooks/use-scout-level';
 import { LeaderboardService, LeaderboardEntry } from '@/services/leaderboard-service';
 import { ChannelService } from '@/src/shared/services/channel-service';
 import { UserService } from '@/services/user-service';
+import { HealthService } from '@/services/health-service';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { BrandColors, NeutralColors } from '@/constants/theme';
@@ -53,6 +55,10 @@ export default function ScoutDashboardScreen() {
   const [recentChannels, setRecentChannels] = useState<RecentChannel[]>([]);
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [newMembers, setNewMembers] = useState<{ id: string; firstName: string; lastName: string; validatedAt: Date }[]>([]);
+
+  // State pour la fiche santé
+  const [healthRecord, setHealthRecord] = useState<HealthRecord | null>(null);
+  const [healthRecordLoading, setHealthRecordLoading] = useState(true);
 
   // Filtrer les nouveautés non vues
   const lastNewsViewedAt = scout?.lastNewsViewedAt || new Date(0);
@@ -125,6 +131,29 @@ export default function ScoutDashboardScreen() {
       loadNewMembers();
     }
   }, [scout?.unitId, scout?.id]);
+
+  // Charger la fiche santé (et recharger quand l'écran revient au focus)
+  const loadHealthRecord = useCallback(async () => {
+    if (!scout?.id) {
+      setHealthRecordLoading(false);
+      return;
+    }
+    try {
+      const record = await HealthService.getHealthRecord(scout.id);
+      setHealthRecord(record);
+    } catch (error) {
+      console.error('Erreur chargement fiche santé:', error);
+    } finally {
+      setHealthRecordLoading(false);
+    }
+  }, [scout?.id]);
+
+  // Recharger la fiche santé quand l'écran revient au premier plan
+  useFocusEffect(
+    useCallback(() => {
+      loadHealthRecord();
+    }, [loadHealthRecord])
+  );
 
   const loadLeaderboard = async () => {
     if (!scout?.unitId) return;
@@ -206,6 +235,13 @@ export default function ScoutDashboardScreen() {
     { value: completedCount.toString(), label: 'Défis', isAccent: false },
     { value: events.length.toString(), label: 'Événements', isAccent: false },
   ];
+
+  // Vérifier si la fiche santé est manquante ou incomplète
+  // On utilise hasBasicHealthInfo pour ne pas bloquer le scout avant la signature parent
+  const isHealthRecordMissing = !healthRecordLoading && healthRecord === null;
+  const isHealthRecordIncomplete = !healthRecordLoading && healthRecord !== null && !HealthService.hasBasicHealthInfo(healthRecord);
+  const needsParentSignature = !healthRecordLoading && healthRecord !== null && HealthService.needsParentSignature(healthRecord);
+  const showHealthAlert = isHealthRecordMissing || isHealthRecordIncomplete;
 
   // Helper pour obtenir l'avatar ou l'emoji
   const getAvatarContent = () => {
@@ -319,6 +355,60 @@ export default function ScoutDashboardScreen() {
 
         {/* Contenu principal */}
         <View style={styles.content}>
+          {/* ==================== ALERTE FICHE SANTÉ MANQUANTE (ROUGE) ==================== */}
+          {showHealthAlert && (
+            <Animated.View entering={FadeInUp.duration(400)} style={styles.healthAlertSection}>
+              <TouchableOpacity
+                style={styles.healthAlertCard}
+                onPress={() => router.push('/(scout)/health/edit')}
+                activeOpacity={0.8}
+              >
+                <View style={styles.healthAlertIconContainer}>
+                  <Ionicons name="medical" size={28} color="#FFFFFF" />
+                </View>
+                <View style={styles.healthAlertContent}>
+                  <ThemedText style={styles.healthAlertTitle}>
+                    {isHealthRecordMissing ? 'Fiche santé manquante' : 'Fiche santé incomplète'}
+                  </ThemedText>
+                  <ThemedText style={styles.healthAlertDescription}>
+                    {isHealthRecordMissing
+                      ? 'Tu dois remplir ta fiche santé pour participer aux activités.'
+                      : 'Ajoute au moins un contact d\'urgence pour compléter ta fiche.'}
+                  </ThemedText>
+                </View>
+                <View style={styles.healthAlertArrow}>
+                  <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* ==================== ALERTE SIGNATURE PARENT (ORANGE) ==================== */}
+          {needsParentSignature && !showHealthAlert && (
+            <Animated.View entering={FadeInUp.duration(400)} style={styles.healthAlertSection}>
+              <TouchableOpacity
+                style={styles.signatureAlertCard}
+                onPress={() => router.push('/(scout)/health')}
+                activeOpacity={0.8}
+              >
+                <View style={styles.signatureAlertIconContainer}>
+                  <Ionicons name="create-outline" size={28} color="#FFFFFF" />
+                </View>
+                <View style={styles.healthAlertContent}>
+                  <ThemedText style={styles.healthAlertTitle}>
+                    Signature parent requise
+                  </ThemedText>
+                  <ThemedText style={styles.healthAlertDescription}>
+                    Ta fiche santé doit être signée par un parent ou tuteur.
+                  </ThemedText>
+                </View>
+                <View style={styles.signatureAlertArrow}>
+                  <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
           {/* ==================== PROCHAINS ÉVÉNEMENTS ==================== */}
           <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -1329,5 +1419,84 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+
+  // ==================== ALERTE FICHE SANTÉ ====================
+  healthAlertSection: {
+    marginBottom: 24,
+  },
+  healthAlertCard: {
+    backgroundColor: '#DC2626',
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  healthAlertIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthAlertContent: {
+    flex: 1,
+  },
+  healthAlertTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  healthAlertDescription: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 18,
+  },
+  healthAlertArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ==================== ALERTE SIGNATURE PARENT (ORANGE) ====================
+  signatureAlertCard: {
+    backgroundColor: BrandColors.accent[500],
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    shadowColor: BrandColors.accent[500],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  signatureAlertIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signatureAlertArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import 'react-native-reanimated';
+import { DURATION } from '@/src/shared/animations';
 
 // Import global CSS for web
 if (Platform.OS === 'web') {
@@ -52,13 +53,28 @@ function AppContent() {
 
   return (
     <NavigationThemeProvider value={theme} key={colorScheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(scout)" />
-        <Stack.Screen name="(parent)" />
-        <Stack.Screen name="(animator)" />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          animationDuration: DURATION.normal,
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+        }}
+      >
+        <Stack.Screen name="index" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(scout)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(parent)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(animator)" options={{ animation: 'fade' }} />
+        <Stack.Screen
+          name="modal"
+          options={{
+            presentation: 'modal',
+            title: 'Modal',
+            animation: 'slide_from_bottom',
+          }}
+        />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </NavigationThemeProvider>

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View, Image } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AnimatedCard, AnimatedPressable } from '@/src/shared/animations';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,6 +14,7 @@ import { NotificationsModal } from '@/src/features/notifications/components/noti
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ChallengeService } from '@/services/challenge-service';
 import { EventService } from '@/services/event-service';
+import { EventAttendanceService } from '@/services/event-attendance-service';
 import { UnitService } from '@/services/unit-service';
 import { LeaderboardService } from '@/services/leaderboard-service';
 import { ChannelService } from '@/src/shared/services/channel-service';
@@ -53,7 +55,7 @@ export default function AnimatorDashboardScreen() {
   const [scoutsCount, setScoutsCount] = useState(0);
   const [eventsCount, setEventsCount] = useState(0);
   const [challengesCount, setChallengesCount] = useState(0);
-  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<(Event & { attendeesCount?: number })[]>([]);
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [topScouts, setTopScouts] = useState<LeaderboardUser[]>([]);
   const [activeChallenges, setActiveChallenges] = useState<ActiveChallenge[]>([]);
@@ -96,14 +98,14 @@ export default function AnimatorDashboardScreen() {
 
           // Charger le classement
           try {
-            const leaderboard = await LeaderboardService.getLeaderboard(unitData.id);
-            setTopScouts(leaderboard.slice(0, 3).map(s => ({
-              id: s.id,
-              firstName: s.firstName,
-              lastName: s.lastName,
-              totemAnimal: s.totemAnimal,
-              points: s.points,
-              avatarUrl: s.avatarUrl,
+            const leaderboard = await LeaderboardService.getLeaderboardByUnit(unitData.id);
+            setTopScouts(leaderboard.slice(0, 3).map(entry => ({
+              id: entry.scout.id,
+              firstName: entry.scout.firstName,
+              lastName: entry.scout.lastName,
+              totemAnimal: entry.scout.totemAnimal,
+              points: entry.points,
+              avatarUrl: entry.scout.profilePicture,
             })));
           } catch (error) {
             console.error('Erreur leaderboard:', error);
@@ -127,11 +129,23 @@ export default function AnimatorDashboardScreen() {
         }
       }
 
-      // Charger les événements
+      // Charger les événements avec le nombre d'inscrits
       try {
         const allEvents = await EventService.getUpcomingEvents(animator?.unitId);
         setEventsCount(allEvents.length);
-        setUpcomingEvents(allEvents.slice(0, 4));
+
+        // Charger le nombre d'inscrits pour chaque événement affiché
+        const eventsWithAttendees = await Promise.all(
+          allEvents.slice(0, 4).map(async (event) => {
+            try {
+              const attendances = await EventAttendanceService.getAttendanceByEvent(event.id);
+              return { ...event, attendeesCount: attendances.length };
+            } catch {
+              return { ...event, attendeesCount: 0 };
+            }
+          })
+        );
+        setUpcomingEvents(eventsWithAttendees);
       } catch (error) {
         setEventsCount(0);
       }
@@ -233,18 +247,18 @@ export default function AnimatorDashboardScreen() {
 
             {/* Stats Row */}
             <View style={styles.statsRow}>
-              <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(animator)/scouts')}>
+              <AnimatedPressable style={styles.statCard} onPress={() => router.push('/(animator)/scouts')}>
                 <ThemedText style={styles.statValue}>{isLoading ? '...' : scoutsCount}</ThemedText>
                 <ThemedText style={styles.statLabel}>Scouts</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(animator)/events')}>
+              </AnimatedPressable>
+              <AnimatedPressable style={styles.statCard} onPress={() => router.push('/(animator)/events')}>
                 <ThemedText style={styles.statValue}>{isLoading ? '...' : eventsCount}</ThemedText>
                 <ThemedText style={styles.statLabel}>Événements</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(animator)/challenges')}>
+              </AnimatedPressable>
+              <AnimatedPressable style={styles.statCard} onPress={() => router.push('/(animator)/challenges')}>
                 <ThemedText style={styles.statValue}>{isLoading ? '...' : challengesCount}</ThemedText>
                 <ThemedText style={styles.statLabel}>Défis</ThemedText>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
           </LinearGradient>
         </Animated.View>
@@ -291,26 +305,27 @@ export default function AnimatorDashboardScreen() {
         {/* Quick Actions */}
         <Animated.View entering={FadeInUp.duration(400).delay(150)}>
           <View style={styles.quickActions}>
-            <TouchableOpacity
+            <AnimatedPressable
               style={[styles.primaryAction, { backgroundColor: BrandColors.accent[500] }]}
               onPress={() => router.push('/(animator)/events/create')}
+              animationOptions={{ scaleValue: 0.95 }}
             >
               <Ionicons name="add" size={20} color="#FFFFFF" />
               <ThemedText style={styles.primaryActionText}>Événement</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AnimatedPressable>
+            <AnimatedPressable
               style={[styles.secondaryAction, { backgroundColor: cardColor, borderColor: cardBorder }]}
               onPress={() => router.push('/(animator)/messages')}
             >
               <Ionicons name="megaphone-outline" size={20} color={textColor} />
               <ThemedText style={[styles.secondaryActionText, { color: textColor }]}>Annonce</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AnimatedPressable>
+            <AnimatedPressable
               style={[styles.moreAction, { backgroundColor: cardColor, borderColor: cardBorder }]}
               onPress={() => router.push('/(animator)/management')}
             >
               <Ionicons name="ellipsis-horizontal" size={20} color={textSecondary} />
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         </Animated.View>
 
@@ -326,11 +341,13 @@ export default function AnimatorDashboardScreen() {
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventsScroll}>
-              {upcomingEvents.map((event) => {
+              {upcomingEvents.map((event, index) => {
                 const eventDate = formatEventDate(new Date(event.startDate));
                 return (
-                  <TouchableOpacity
+                  <AnimatedCard
                     key={event.id}
+                    index={index}
+                    staggerDelay={80}
                     style={[styles.eventCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
                     onPress={() => router.push('/(animator)/events')}
                   >
@@ -342,7 +359,7 @@ export default function AnimatorDashboardScreen() {
                       <View style={styles.eventInfo}>
                         <ThemedText style={[styles.eventTitle, { color: textColor }]} numberOfLines={1}>{event.title}</ThemedText>
                         <ThemedText style={[styles.eventMeta, { color: textSecondary }]}>
-                          {new Date(event.startDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {event.eventType || 'Activité'}
+                          {new Date(event.startDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {event.type || 'Activité'}
                         </ThemedText>
                       </View>
                     </View>
@@ -350,7 +367,7 @@ export default function AnimatorDashboardScreen() {
                       <Ionicons name="person-outline" size={14} color={textSecondary} />
                       <ThemedText style={[styles.eventAttendeesText, { color: textSecondary }]}>{event.attendeesCount || 0} inscrits</ThemedText>
                     </View>
-                  </TouchableOpacity>
+                  </AnimatedCard>
                 );
               })}
             </ScrollView>
@@ -372,14 +389,12 @@ export default function AnimatorDashboardScreen() {
               <ThemedText style={[styles.emptyText, { color: textSecondary }]}>Aucun message récent</ThemedText>
             ) : (
               recentMessages.map((item, index) => {
-                const hasUnread = item.channel.type === 'announcements' || item.channel.type === 'parents';
                 return (
                   <TouchableOpacity
                     key={item.channel.id}
                     style={[styles.messageItem, index < recentMessages.length - 1 && { borderBottomWidth: 1, borderBottomColor: cardBorder }]}
                     onPress={() => router.push('/(animator)/messages')}
                   >
-                    {hasUnread && <View style={[styles.unreadDot, { backgroundColor: BrandColors.accent[500] }]} />}
                     <View style={styles.messageContent}>
                       <ThemedText style={[styles.channelName, { color: textColor }]}>#{item.channel.name}</ThemedText>
                       <ThemedText style={[styles.messagePreview, { color: textSecondary }]} numberOfLines={1}>
@@ -727,7 +742,6 @@ const styles = StyleSheet.create({
   // Messages
   messagesCard: { marginHorizontal: Spacing.xl, borderRadius: Radius.xl, borderWidth: 1, overflow: 'hidden' },
   messageItem: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md },
-  unreadDot: { width: 8, height: 8, borderRadius: 4 },
   messageContent: { flex: 1 },
   channelName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
   messagePreview: { fontSize: 13 },

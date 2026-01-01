@@ -20,6 +20,7 @@ import { TotemSelector, TOTEM_ANIMALS } from '@/components/totem-selector';
 import { TotemImageGenerator } from '@/components/totem-image-generator';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Scout } from '@/types';
 import { BrandColors } from '@/constants/theme';
 import { Spacing } from '@/constants/design-tokens';
@@ -27,11 +28,15 @@ import { Spacing } from '@/constants/design-tokens';
 export default function EditProfileScreen() {
   const { user, updateUser, isLoading } = useAuth();
   const scout = user as Scout;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const iconColor = useThemeColor({}, 'icon');
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
-  const inputBackground = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'background');
-  const placeholderColor = useThemeColor({ light: '#999999', dark: '#666666' }, 'icon');
+  // Forcer explicitement les couleurs selon le thème
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+  const inputBackground = isDark ? '#2A2A2A' : '#F5F5F5';
+  const placeholderColor = isDark ? '#6B7280' : '#9CA3AF';
 
   const [formData, setFormData] = useState({
     firstName: scout?.firstName || '',

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, ScrollView, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedView } from '@/components/themed-view';
@@ -23,9 +24,16 @@ import { BrandColors } from '@/constants/theme';
 export default function HealthScreen() {
   const { user } = useAuth();
   const scout = user as Scout;
-  const { healthRecord, loading, error } = useHealthRecord(scout?.id, scout?.id);
+  const { healthRecord, loading, error, reload } = useHealthRecord(scout?.id, scout?.id);
   const tintColor = useThemeColor({}, 'tint');
   const textSecondary = useThemeColor({}, 'textSecondary');
+
+  // Rafraîchir les données quand l'écran regagne le focus (après édition)
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
+  );
 
   const primaryContact = healthRecord
     ? HealthService.getPrimaryEmergencyContact(healthRecord)

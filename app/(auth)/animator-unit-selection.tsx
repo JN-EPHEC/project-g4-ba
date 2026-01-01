@@ -1,15 +1,37 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Card, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { Unit, UserRole } from '@/types';
 import { UnitService } from '@/services/unit-service';
-import { BrandColors } from '@/constants/theme';
+
+// Design System Colors
+const colors = {
+  primary: '#2D5A45',
+  primaryLight: '#3d7a5a',
+  accent: '#E07B4C',
+  accentLight: '#FEF3EE',
+  neutral: '#8B7E74',
+  neutralLight: '#C4BBB3',
+  dark: '#1A2E28',
+  mist: '#E8EDE9',
+  canvas: '#FDFCFB',
+  cardBg: '#FFFFFF',
+  scouts: '#004B87',
+  guides: '#00A86B',
+};
 
 // Codes d'accès par catégorie de fédération
 const ACCESS_CODES: Record<string, string> = {
@@ -24,11 +46,9 @@ export default function AnimatorUnitSelectionScreen() {
   const params = useLocalSearchParams();
   const { register, isLoading: authLoading } = useAuth();
   const [units, setUnits] = useState<Unit[]>([]);
-  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
-  const [accessCode, setAccessCode] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const tintColor = useThemeColor({}, 'tint');
-  const iconColor = useThemeColor({}, 'icon');
+  const [accessCode, setAccessCode] = useState('');
 
   useEffect(() => {
     loadUnits();
@@ -48,38 +68,55 @@ export default function AnimatorUnitSelectionScreen() {
     }
   };
 
-  const getUnitIcon = (category: string): keyof typeof Ionicons.glyphMap => {
+  const getUnitColor = (unit: Unit): string => {
+    // Utiliser la catégorie définie ou la déduire du nom
+    let category = unit.category?.toLowerCase() || '';
+    if (!category) {
+      const nameLower = unit.name.toLowerCase();
+      if (nameLower.includes('scout')) category = 'scouts';
+      else if (nameLower.includes('guide')) category = 'guides';
+      else if (nameLower.includes('patro')) category = 'patro';
+      else if (nameLower.includes('sgp')) category = 'sgp';
+      else if (nameLower.includes('faucon')) category = 'faucons';
+    }
+
     switch (category) {
       case 'scouts':
-        return 'shield';
+        return colors.scouts;
       case 'guides':
-        return 'flower';
+        return colors.guides;
       case 'patro':
-        return 'sunny';
+        return '#059669';
       case 'sgp':
-        return 'people-circle';
+        return '#7c3aed';
       case 'faucons':
-        return 'flame';
+        return '#dc2626';
       default:
-        return 'flag';
+        return colors.neutral;
     }
   };
 
-  const getUnitColor = (category: string): string => {
-    switch (category) {
-      case 'scouts':
-        return '#1e40af'; // Bleu foncé - Les Scouts
-      case 'guides':
-        return '#db2777'; // Rose vif - Les Guides
-      case 'patro':
-        return '#059669'; // Vert émeraude - Le Patro
-      case 'sgp':
-        return '#7c3aed'; // Violet - SGP
-      case 'faucons':
-        return '#dc2626'; // Rouge vif - Faucons Rouges
-      default:
-        return '#6b7280';
+  const getUnitInitial = (name: string): string => {
+    return name.charAt(0).toUpperCase();
+  };
+
+  const getSelectedUnit = (): Unit | undefined => {
+    return units.find(u => u.id === selectedUnit);
+  };
+
+  // Déduire la catégorie à partir du nom si elle n'est pas définie
+  const getCategoryFromUnit = (unit: Unit): string => {
+    if (unit.category) {
+      return String(unit.category).toLowerCase();
     }
+    // Déduire la catégorie à partir du nom
+    const nameLower = unit.name.toLowerCase();
+    if (nameLower.includes('scout')) return 'scouts';
+    if (nameLower.includes('guide')) return 'guides';
+    if (nameLower.includes('patro')) return 'patro';
+    if (nameLower.includes('sgp')) return 'sgp';
+    if (nameLower.includes('faucon')) return 'faucons';
+    return '';
   };
 
   const handleContinue = async () => {
@@ -99,11 +136,16 @@ export default function AnimatorUnitSelectionScreen() {
       return;
     }
 
+    const unit = getSelectedUnit();
+    if (!unit) {
+      Alert.alert('Erreur', 'Fédération non trouvée');
+      return;
+    }
+
     // Vérifier que le code d'accès correspond à la catégorie de la fédération sélectionnée
-    const categoryKey = String(selectedUnit.category).toLowerCase();
-    console.log('🔍 Catégorie brute:', selectedUnit.category);
-    console.log('🔍 Catégorie key:', categoryKey);
-    console.log('🔍 Keys disponibles dans ACCESS_CODES:', Object.keys(ACCESS_CODES));
+    const categoryKey = getCategoryFromUnit(unit);
+    console.log('🔍 Catégorie brute:', unit.category);
+    console.log('🔍 Catégorie déduite:', categoryKey);
     const expectedCode = ACCESS_CODES[categoryKey];
     console.log('🔍 Code attendu:', expectedCode);
     console.log('🔍 Code entré (uppercase):', accessCode.trim().toUpperCase());
@@ -118,7 +160,7 @@ export default function AnimatorUnitSelectionScreen() {
       console.log('❌ Code invalide');
       Alert.alert(
         'Code invalide',
-        `Le code d'accès est incorrect pour ${selectedUnit.name}. Le code attendu est: ${expectedCode}`,
+        `Le code d'accès est incorrect pour ${unit.name}. Le code attendu est: ${expectedCode}`,
         [{ text: 'Réessayer', style: 'default' }]
       );
       return;
@@ -127,9 +169,7 @@ export default function AnimatorUnitSelectionScreen() {
     console.log('✅ Code valide, création du compte...');
 
     try {
-      console.log('🚀 Inscription animateur avec la fédération:', selectedUnit.name, 'ID:', selectedUnit.id);
-      console.log('🎯 AVANT register() - UserRole.ANIMATOR =', UserRole.ANIMATOR);
-      console.log('🎯 AVANT register() - typeof UserRole.ANIMATOR =', typeof UserRole.ANIMATOR);
+      console.log('🚀 Inscription animateur avec la fédération:', unit.name, 'ID:', unit.id);
 
       // Créer le compte animateur avec unitId
       const registeredUser = await register(
@@ -138,13 +178,11 @@ export default function AnimatorUnitSelectionScreen() {
         params.firstName as string,
         params.lastName as string,
         UserRole.ANIMATOR,
-        selectedUnit.id // Passer l'unitId (pas la catégorie)
+        unit.id
       );
-      console.log('🎯 APRÈS register() - registeredUser.role =', registeredUser?.role);
+      console.log('✅ Inscription animateur réussie');
 
-      console.log('✅ Inscription animateur réussie, redirection vers le dashboard');
-
-      // Attendre un peu pour que l'état auth soit mis à jour, puis rediriger
+      // Rediriger vers le dashboard
       setTimeout(() => {
         router.replace('/(animator)/dashboard');
       }, 500);
@@ -157,131 +195,148 @@ export default function AnimatorUnitSelectionScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: '#f9fafb' }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={tintColor} />
-          <ThemedText style={styles.loadingText}>Chargement des fédérations...</ThemedText>
-        </View>
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <ThemedText style={styles.loadingText}>Chargement des fédérations...</ThemedText>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: '#f9fafb' }]}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
         <View style={styles.header}>
-          {/* Icône nature */}
-          <View style={styles.logoContainer}>
-            <View style={[styles.logoIcon, { backgroundColor: BrandColors.accent[500] }]}>
-              <Ionicons name="star" size={32} color="#FFFFFF" />
-            </View>
+          <View style={styles.iconContainer}>
+            <ThemedText style={styles.iconEmoji}>⭐</ThemedText>
           </View>
-          <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
-            Choisis ta fédération
-          </ThemedText>
+          <ThemedText style={styles.title}>Choisis ta fédération</ThemedText>
           <ThemedText style={styles.subtitle}>
             Sélectionne la fédération que tu animes
           </ThemedText>
         </View>
 
-        <View style={styles.unitsContainer}>
+        {/* Federations List */}
+        <View style={styles.federationsContainer}>
           {units.length === 0 ? (
-            <Card style={styles.emptyCard}>
-              <Ionicons name="alert-circle-outline" size={48} color={iconColor} />
-              <ThemedText style={styles.emptyText}>
-                Aucune fédération disponible
-              </ThemedText>
-            </Card>
+            <View style={styles.emptyCard}>
+              <Ionicons name="alert-circle-outline" size={48} color={colors.neutral} />
+              <ThemedText style={styles.emptyText}>Aucune fédération disponible</ThemedText>
+            </View>
           ) : (
             units.map((unit) => {
-              const isSelected = selectedUnit?.id === unit.id;
-              const unitColor = getUnitColor(unit.category);
+              const isSelected = selectedUnit === unit.id;
+              const unitColor = getUnitColor(unit);
 
               return (
                 <Pressable
                   key={unit.id}
                   onPress={() => {
-                    console.log('🎯 Fédération sélectionnée:', unit.name, 'ID:', unit.id, 'Category:', unit.category);
-                    setSelectedUnit(unit);
+                    console.log('🎯 Fédération sélectionnée:', unit.name, 'ID:', unit.id);
+                    setSelectedUnit(unit.id);
                   }}
-                  style={({ pressed }) => [
-                    styles.unitCard,
-                    {
-                      borderColor: isSelected ? unitColor : '#e5e7eb',
-                      borderWidth: isSelected ? 3 : 1,
-                      backgroundColor: isSelected ? unitColor + '10' : '#ffffff',
-                      transform: [{ scale: isSelected ? 1.02 : 1 }],
+                  style={[
+                    styles.federationCard,
+                    isSelected && {
+                      borderColor: unitColor,
+                      borderWidth: 2,
+                      shadowColor: unitColor,
+                      shadowOpacity: 0.2,
                     },
-                    pressed && styles.unitCardPressed,
                   ]}
                 >
-                  <View style={[styles.unitIconContainer, {
-                    backgroundColor: unitColor + '25',
-                    borderWidth: 2,
-                    borderColor: unitColor + '40',
-                  }]}>
-                    <Ionicons name={getUnitIcon(unit.category)} size={36} color={unitColor} />
+                  {/* Logo/Initial */}
+                  <View style={[styles.federationLogo, { backgroundColor: `${unitColor}15` }]}>
+                    <ThemedText style={[styles.federationInitial, { color: unitColor }]}>
+                      {getUnitInitial(unit.name)}
+                    </ThemedText>
                   </View>
 
-                  <View style={styles.unitContent}>
-                    <ThemedText type="subtitle" style={styles.unitTitle}>
-                      {unit.name}
-                    </ThemedText>
+                  {/* Info */}
+                  <View style={styles.federationInfo}>
+                    <ThemedText style={styles.federationName}>{unit.name}</ThemedText>
                     {unit.description && (
-                      <ThemedText style={styles.unitDescription}>{unit.description}</ThemedText>
+                      <ThemedText style={styles.federationDescription}>
+                        {unit.description}
+                      </ThemedText>
                     )}
                   </View>
 
-                  {isSelected && (
-                    <View style={[styles.checkmark, { backgroundColor: unitColor }]}>
-                      <Ionicons name="checkmark-circle" size={28} color="#ffffff" />
-                    </View>
-                  )}
+                  {/* Checkmark */}
+                  <View
+                    style={[
+                      styles.checkmark,
+                      isSelected
+                        ? { backgroundColor: unitColor, borderWidth: 0 }
+                        : { borderColor: colors.mist, borderWidth: 2 },
+                    ]}
+                  >
+                    {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                  </View>
                 </Pressable>
               );
             })
           )}
         </View>
 
-        {/* Champ code d'accès */}
-        <Card style={styles.codeCard}>
-          <View style={styles.codeHeader}>
-            <Ionicons name="key" size={24} color={BrandColors.accent[500]} />
-            <ThemedText type="subtitle" style={styles.codeTitle}>
-              Code d'accès animateur
+        {/* Code Animateur Section - Toujours visible pour animateurs */}
+        {selectedUnit && (
+          <View style={styles.codeSection}>
+            <View style={styles.codeSectionHeader}>
+              <ThemedText style={styles.codeIcon}>🔑</ThemedText>
+              <ThemedText style={styles.codeSectionTitle}>Code d'accès animateur</ThemedText>
+            </View>
+
+            <ThemedText style={styles.codeSectionDescription}>
+              Entre le code fourni par ta fédération pour confirmer que tu es animateur.
             </ThemedText>
-          </View>
-          <ThemedText style={styles.codeDescription}>
-            Entre le code fourni par ta fédération pour confirmer que tu es animateur
-          </ThemedText>
-          <View style={styles.inputContainer}>
+
             <TextInput
-              style={styles.input}
-              placeholder="Code d'accès (ex: SCOUTS2025)"
-              placeholderTextColor="#9ca3af"
+              style={styles.codeInput}
+              placeholder="Ex: GUIDES2025"
+              placeholderTextColor={colors.neutralLight}
               value={accessCode}
-              onChangeText={setAccessCode}
+              onChangeText={(text) => setAccessCode(text.toUpperCase())}
               autoCapitalize="characters"
-              autoCorrect={false}
             />
           </View>
-        </Card>
+        )}
 
-        <PrimaryButton
-          title={authLoading ? 'Création du compte...' : 'Continuer'}
-          onPress={handleContinue}
-          disabled={!selectedUnit || !accessCode.trim() || authLoading}
-          style={styles.confirmButton}
-        />
+        {/* Spacer */}
+        <View style={styles.spacer} />
 
-        <View style={styles.footer}>
-          <ThemedText
-            type="link"
-            onPress={() => router.back()}
-            style={[styles.backLink, { color: BrandColors.accent[500] }]}
+        {/* Buttons */}
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.continueButton,
+              (!selectedUnit || !accessCode.trim() || authLoading) && styles.continueButtonDisabled,
+            ]}
+            onPress={handleContinue}
+            disabled={!selectedUnit || !accessCode.trim() || authLoading}
+            activeOpacity={0.8}
           >
-            Retour
-          </ThemedText>
+            <ThemedText
+              style={[
+                styles.continueButtonText,
+                (!selectedUnit || !accessCode.trim() || authLoading) && styles.continueButtonTextDisabled,
+              ]}
+            >
+              {authLoading ? 'Création du compte...' : 'Continuer'}
+            </ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={styles.backButtonText}>Retour</ThemedText>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -291,153 +346,204 @@ export default function AnimatorUnitSelectionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
     padding: 24,
     paddingTop: 60,
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
   loadingContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 16,
   },
   loadingText: {
     fontSize: 16,
-    opacity: 0.7,
+    color: colors.neutral,
   },
+
+  // Header
   header: {
     alignItems: 'center',
     marginBottom: 32,
   },
-  logoContainer: {
-    marginBottom: 16,
-  },
-  logoIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: colors.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 24,
+  },
+  iconEmoji: {
+    fontSize: 40,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.dark,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 15,
+    color: colors.neutral,
     textAlign: 'center',
-    fontWeight: '500',
+    lineHeight: 22,
   },
-  unitsContainer: {
+
+  // Federations
+  federationsContainer: {
     gap: 12,
     marginBottom: 24,
   },
   emptyCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
     padding: 40,
     alignItems: 'center',
     gap: 16,
+    borderWidth: 1,
+    borderColor: colors.mist,
   },
   emptyText: {
+    fontSize: 15,
+    color: colors.neutral,
     textAlign: 'center',
-    opacity: 0.7,
   },
-  unitCard: {
+  federationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: colors.cardBg,
     borderRadius: 16,
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    padding: 16,
     gap: 16,
-    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  unitCardPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  unitIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  federationLogo: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
-  unitContent: {
-    flex: 1,
-    gap: 4,
-  },
-  unitTitle: {
-    fontSize: 18,
+  federationInitial: {
+    fontSize: 24,
     fontWeight: '700',
-    color: '#1f2937',
   },
-  unitDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '500',
+  federationInfo: {
+    flex: 1,
+  },
+  federationName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  federationDescription: {
+    fontSize: 13,
+    color: colors.neutral,
+    marginTop: 2,
   },
   checkmark: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
-  codeCard: {
-    padding: 20,
-    marginBottom: 24,
-    backgroundColor: '#ffffff',
+
+  // Code Section
+  codeSection: {
+    backgroundColor: colors.cardBg,
     borderRadius: 16,
+    padding: 24,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.mist,
+    marginBottom: 24,
   },
-  codeHeader: {
+  codeSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 12,
   },
-  codeTitle: {
-    fontSize: 18,
+  codeIcon: {
+    fontSize: 20,
+  },
+  codeSectionTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#1f2937',
+    color: colors.dark,
   },
-  codeDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 16,
-    lineHeight: 20,
+  codeSectionDescription: {
+    fontSize: 13,
+    color: colors.neutral,
+    lineHeight: 18,
+    marginBottom: 12,
   },
-  inputContainer: {
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
+  codeInput: {
+    backgroundColor: colors.mist,
     borderRadius: 12,
-    backgroundColor: '#f9fafb',
-  },
-  input: {
     padding: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.dark,
+    letterSpacing: 1,
   },
-  confirmButton: {
-    marginBottom: 16,
+
+  // Spacer
+  spacer: {
+    flex: 1,
+    minHeight: 20,
   },
-  footer: {
+
+  // Buttons
+  buttonsContainer: {
+    gap: 12,
+  },
+  continueButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  continueButtonDisabled: {
+    backgroundColor: colors.mist,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  continueButtonTextDisabled: {
+    color: colors.neutralLight,
+  },
+  backButton: {
+    padding: 12,
     alignItems: 'center',
   },
-  backLink: {
-    fontSize: 16,
+  backButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.accent,
   },
 });

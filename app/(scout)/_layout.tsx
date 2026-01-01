@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Platform } from 'react-native';
 
 import { router } from 'expo-router';
 
@@ -50,8 +51,13 @@ export default function ScoutLayout() {
         tabBarActiveTintColor: tintColor,
         tabBarStyle: {
           backgroundColor,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         headerShown: false,
+        animation: Platform.OS === 'ios' ? 'shift' : 'fade',
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen

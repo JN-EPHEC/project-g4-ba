@@ -214,15 +214,14 @@ const ANIMAL_TRANSLATIONS: Record<string, string> = {
 /**
  * Cloud Function pour générer une image de totem via Hugging Face
  * Contourne les restrictions CORS du navigateur
+ * Note: Cette fonction permet les appels non authentifiés pour l'inscription
  */
 export const generateTotemImage = functions
   .region('europe-west1')
   .runWith({ timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
-    // Vérifier l'authentification
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'Vous devez être connecté');
-    }
+    // Authentification optionnelle - permet la génération pendant l'inscription
+    const userId = context.auth?.uid || 'anonymous';
 
     const { animalName } = data;
 
@@ -286,7 +285,7 @@ export const generateTotemImage = functions
 
       // Uploader vers Firebase Storage
       const bucket = admin.storage().bucket();
-      const fileName = `totems/${context.auth.uid}/${Date.now()}.png`;
+      const fileName = `totems/${userId}/${Date.now()}.png`;
       const file = bucket.file(fileName);
 
       await file.save(Buffer.from(imageBuffer), {

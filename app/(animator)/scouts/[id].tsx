@@ -17,17 +17,21 @@ import { ThemedView } from '@/components/themed-view';
 import { Card, PrimaryButton } from '@/components/ui';
 import { RankBadge } from '@/components/rank-badge';
 import { UserService } from '@/services/user-service';
-import { Scout } from '@/types';
+import { HealthService } from '@/services/health-service';
+import { Scout, HealthRecord, AllergySeverity } from '@/types';
+import { BrandColors } from '@/constants/theme';
 
 export default function ScoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [scout, setScout] = useState<Scout | null>(null);
+  const [healthRecord, setHealthRecord] = useState<HealthRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadScout();
+      loadHealthRecord();
     }
   }, [id]);
 
@@ -42,6 +46,33 @@ export default function ScoutDetailScreen() {
       console.error('Erreur chargement scout:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHealthRecord = async () => {
+    try {
+      const record = await HealthService.getHealthRecord(id as string);
+      setHealthRecord(record);
+    } catch (error) {
+      console.error('Erreur chargement fiche santé:', error);
+    }
+  };
+
+  const getSeverityLabel = (severity: AllergySeverity) => {
+    switch (severity) {
+      case AllergySeverity.LIGHT: return 'Léger';
+      case AllergySeverity.MODERATE: return 'Modéré';
+      case AllergySeverity.SEVERE: return 'Sévère';
+      default: return severity;
+    }
+  };
+
+  const getSeverityColor = (severity: AllergySeverity) => {
+    switch (severity) {
+      case AllergySeverity.LIGHT: return '#d97706';
+      case AllergySeverity.MODERATE: return '#ea580c';
+      case AllergySeverity.SEVERE: return '#dc2626';
+      default: return '#888';
     }
   };
 
@@ -231,6 +262,151 @@ export default function ScoutDetailScreen() {
           </Card>
         )}
 
+        {/* Fiche Santé */}
+        <Card style={styles.infoCard}>
+          <View style={styles.healthHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>🏥 Fiche Santé</ThemedText>
+            {healthRecord && HealthService.isHealthRecordComplete(healthRecord) ? (
+              <View style={styles.healthBadgeComplete}>
+                <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+                <ThemedText style={styles.healthBadgeTextComplete}>Complète</ThemedText>
+              </View>
+            ) : healthRecord && HealthService.hasBasicHealthInfo(healthRecord) ? (
+              <View style={styles.healthBadgePending}>
+                <Ionicons name="time" size={16} color="#f59e0b" />
+                <ThemedText style={styles.healthBadgeTextPending}>En attente signature</ThemedText>
+              </View>
+            ) : (
+              <View style={styles.healthBadgeMissing}>
+                <Ionicons name="alert-circle" size={16} color="#dc2626" />
+                <ThemedText style={styles.healthBadgeTextMissing}>Manquante</ThemedText>
+              </View>
+            )}
+          </View>
+
+          {!healthRecord ? (
+            <View style={styles.healthEmpty}>
+              <Ionicons name="document-text-outline" size={48} color="#555" />
+              <ThemedText style={styles.healthEmptyText}>
+                Ce scout n'a pas encore rempli sa fiche santé
+              </ThemedText>
+            </View>
+          ) : (
+            <>
+              {/* Groupe sanguin & Mutuelle */}
+              {(healthRecord.bloodType || healthRecord.insuranceName) && (
+                <View style={styles.healthSection}>
+                  {healthRecord.bloodType && (
+                    <View style={styles.healthInfoRow}>
+                      <ThemedText style={styles.healthLabel}>Groupe sanguin</ThemedText>
+                      <ThemedText style={styles.healthValue}>{healthRecord.bloodType}</ThemedText>
+                    </View>
+                  )}
+                  {healthRecord.insuranceName && (
+                    <View style={styles.healthInfoRow}>
+                      <ThemedText style={styles.healthLabel}>Mutuelle</ThemedText>
+                      <ThemedText style={styles.healthValue}>
+                        {healthRecord.insuranceName}
+                        {healthRecord.insuranceNumber && ` (${healthRecord.insuranceNumber})`}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Allergies */}
+              {healthRecord.allergies && healthRecord.allergies.length > 0 && (
+                <View style={styles.healthSection}>
+                  <ThemedText style={styles.healthSectionTitle}>🚨 Allergies</ThemedText>
+                  {healthRecord.allergies.map((allergy, index) => (
+                    <View key={allergy.id || index} style={styles.healthItem}>
+                      <View style={styles.healthItemHeader}>
+                        <ThemedText style={styles.healthItemName}>{allergy.name}</ThemedText>
+                        <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(allergy.severity) + '20' }]}>
+                          <ThemedText style={[styles.severityText, { color: getSeverityColor(allergy.severity) }]}>
+                            {getSeverityLabel(allergy.severity)}
+                          </ThemedText>
+                        </View>
+                        {allergy.requiresEpiPen && (
+                          <View style={styles.epipenBadge}>
+                            <ThemedText style={styles.epipenText}>💉 EpiPen</ThemedText>
+                          </View>
+                        )}
+                      </View>
+                      {allergy.description && (
+                        <ThemedText style={styles.healthItemDesc}>{allergy.description}</ThemedText>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Médicaments */}
+              {healthRecord.medications && healthRecord.medications.length > 0 && (
+                <View style={styles.healthSection}>
+                  <ThemedText style={styles.healthSectionTitle}>💊 Médicaments</ThemedText>
+                  {healthRecord.medications.map((med, index) => (
+                    <View key={med.id || index} style={styles.healthItem}>
+                      <View style={styles.healthItemHeader}>
+                        <ThemedText style={styles.healthItemName}>{med.name}</ThemedText>
+                        {med.isVital && (
+                          <View style={styles.vitalBadge}>
+                            <ThemedText style={styles.vitalText}>VITAL</ThemedText>
+                          </View>
+                        )}
+                      </View>
+                      <ThemedText style={styles.healthItemDesc}>
+                        {med.dosage} - {med.frequency}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Contacts d'urgence */}
+              {healthRecord.emergencyContacts && healthRecord.emergencyContacts.length > 0 && (
+                <View style={styles.healthSection}>
+                  <ThemedText style={styles.healthSectionTitle}>📞 Contacts d'urgence</ThemedText>
+                  {healthRecord.emergencyContacts.map((contact, index) => (
+                    <View key={contact.id || index} style={styles.healthItem}>
+                      <View style={styles.healthItemHeader}>
+                        <ThemedText style={styles.healthItemName}>{contact.name}</ThemedText>
+                        {contact.isPrimary && (
+                          <View style={styles.primaryBadge}>
+                            <ThemedText style={styles.primaryText}>Principal</ThemedText>
+                          </View>
+                        )}
+                      </View>
+                      <ThemedText style={styles.healthItemDesc}>
+                        {contact.relation} • {contact.phone}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Notes */}
+              {healthRecord.additionalNotes && (
+                <View style={styles.healthSection}>
+                  <ThemedText style={styles.healthSectionTitle}>📝 Notes</ThemedText>
+                  <ThemedText style={styles.healthNotes}>{healthRecord.additionalNotes}</ThemedText>
+                </View>
+              )}
+
+              {/* Signature */}
+              {healthRecord.signedByParentName && (
+                <View style={styles.signatureSection}>
+                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                  <ThemedText style={styles.signatureText}>
+                    Signé par {healthRecord.signedByParentName}
+                    {healthRecord.signedAt && ` le ${formatDate(healthRecord.signedAt)}`}
+                  </ThemedText>
+                </View>
+              )}
+            </>
+          )}
+        </Card>
+
         {/* Actions */}
         <View style={styles.actionsSection}>
           <PrimaryButton
@@ -384,5 +560,175 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     marginTop: 16,
+  },
+
+  // ==================== FICHE SANTÉ ====================
+  healthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  healthBadgeComplete: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#22c55e20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  healthBadgeTextComplete: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  healthBadgePending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f59e0b20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  healthBadgeTextPending: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  healthBadgeMissing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#dc262620',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  healthBadgeTextMissing: {
+    color: '#dc2626',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  healthEmpty: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  healthEmptyText: {
+    color: '#888',
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  healthSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#3A3A3A',
+  },
+  healthSectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  healthInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  healthLabel: {
+    color: '#888',
+    fontSize: 14,
+  },
+  healthValue: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  healthItem: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  healthItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  healthItemName: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  healthItemDesc: {
+    color: '#888',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  severityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  severityText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  epipenBadge: {
+    backgroundColor: '#dc262620',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  epipenText: {
+    color: '#dc2626',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  vitalBadge: {
+    backgroundColor: '#dc262620',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  vitalText: {
+    color: '#dc2626',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  primaryBadge: {
+    backgroundColor: BrandColors.primary[500] + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  primaryText: {
+    color: BrandColors.primary[500],
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  healthNotes: {
+    color: '#CCCCCC',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  signatureSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#3A3A3A',
+  },
+  signatureText: {
+    color: '#22c55e',
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

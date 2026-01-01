@@ -127,6 +127,7 @@ export class WeatherService {
 
   /**
    * Récupérer les coordonnées d'une ville (geocoding)
+   * En cas d'erreur, retourne les coordonnées par défaut (Belgique)
    */
   static async getCoordinates(
     cityName: string
@@ -139,9 +140,16 @@ export class WeatherService {
         format: 'json',
       });
 
+      // Ajouter un timeout de 5 secondes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?${params}`
+        `https://geocoding-api.open-meteo.com/v1/search?${params}`,
+        { signal: controller.signal }
       );
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -158,10 +166,14 @@ export class WeatherService {
         };
       }
 
-      return null;
+      // Pas de résultat, utiliser les coordonnées par défaut
+      const defaultCoords = this.getDefaultCoordinates();
+      return { ...defaultCoords, name: 'Belgique' };
     } catch (error) {
-      console.error('[WeatherService] Erreur geocoding:', error);
-      return null;
+      console.error('[WeatherService] Erreur geocoding, utilisation des coordonnées par défaut:', error);
+      // En cas d'erreur, retourner les coordonnées par défaut
+      const defaultCoords = this.getDefaultCoordinates();
+      return { ...defaultCoords, name: 'Belgique' };
     }
   }
 

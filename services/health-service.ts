@@ -375,12 +375,31 @@ export class HealthService {
 
   /**
    * Vérifie si une fiche santé est complète (a les informations essentielles)
+   * Complète = contacts d'urgence + signature parent
    */
   static isHealthRecordComplete(record: HealthRecord): boolean {
     return (
       record.emergencyContacts.length > 0 &&
       record.signedByParentId !== null &&
       record.signedByParentId !== undefined
+    );
+  }
+
+  /**
+   * Vérifie si une fiche santé a les informations de base remplies
+   * (sans exiger la signature parentale)
+   */
+  static hasBasicHealthInfo(record: HealthRecord): boolean {
+    return record.emergencyContacts.length > 0;
+  }
+
+  /**
+   * Vérifie si une fiche santé nécessite une signature parentale
+   */
+  static needsParentSignature(record: HealthRecord): boolean {
+    return (
+      record.emergencyContacts.length > 0 &&
+      (record.signedByParentId === null || record.signedByParentId === undefined)
     );
   }
 }
