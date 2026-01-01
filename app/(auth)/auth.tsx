@@ -113,7 +113,7 @@ export default function AuthScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="votre.email@exemple.com"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -130,7 +130,7 @@ export default function AuthScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry

@@ -216,7 +216,7 @@ export default function UnitSelectionScreen() {
             <TextInput
               style={styles.codeInput}
               placeholder="Ex: GUIDES2025"
-              placeholderTextColor={colors.neutralLight}
+              placeholderTextColor="#6B7280"
               value={animatorCode}
               onChangeText={(text) => setAnimatorCode(text.toUpperCase())}
               autoCapitalize="characters"

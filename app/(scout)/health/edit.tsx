@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Card, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useHealthRecord } from '@/src/features/health/hooks/use-health-record';
 import {
   Scout,
@@ -57,12 +58,16 @@ export default function EditHealthScreen() {
   const scout = user as Scout;
   const { healthRecord, loading, updateRecord } = useHealthRecord(scout?.id, scout?.id);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
   const iconColor = useThemeColor({}, 'icon');
-  const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
-  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
-  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
+  const cardBg = isDark ? '#1a1a1a' : '#ffffff';
+  const inputBg = isDark ? '#2A2A2A' : '#F5F5F5';
+  // Placeholder plus foncé en mode clair pour être visible
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -596,11 +601,14 @@ function AllergyModal({
   const [description, setDescription] = useState('');
   const [requiresEpiPen, setRequiresEpiPen] = useState(false);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
-  const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
-  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
-  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+  const cardBg = isDark ? '#1a1a1a' : '#ffffff';
+  const inputBg = isDark ? '#2A2A2A' : '#F5F5F5';
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
 
   useEffect(() => {
     if (initialData) {
@@ -720,11 +728,14 @@ function MedicationModal({
   const [frequency, setFrequency] = useState('');
   const [isVital, setIsVital] = useState(false);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
-  const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
-  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
-  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+  const cardBg = isDark ? '#1a1a1a' : '#ffffff';
+  const inputBg = isDark ? '#2A2A2A' : '#F5F5F5';
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
 
   useEffect(() => {
     if (initialData) {
@@ -833,11 +844,14 @@ function ContactModal({
   const [phone, setPhone] = useState('');
   const [isPrimary, setIsPrimary] = useState(false);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
-  const cardBg = useThemeColor({ light: '#ffffff', dark: '#1a1a1a' }, 'surface');
-  const inputBg = useThemeColor({ light: '#F5F5F5', dark: '#2A2A2A' }, 'surface');
-  const placeholderColor = useThemeColor({ light: '#9CA3AF', dark: '#6B7280' }, 'text');
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+  const cardBg = isDark ? '#1a1a1a' : '#ffffff';
+  const inputBg = isDark ? '#2A2A2A' : '#F5F5F5';
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
 
   useEffect(() => {
     if (initialData) {

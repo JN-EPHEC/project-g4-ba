@@ -17,13 +17,19 @@ import { ThemedText } from '@/components/themed-text';
 import { Card, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BrandColors } from '@/constants/theme';
 
 export default function ChangePasswordScreen() {
   const { changePassword } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const iconColor = useThemeColor({}, 'icon');
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+  const inputBackground = isDark ? '#2A2A2A' : '#F5F5F5';
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
   const errorColor = useThemeColor({}, 'error');
 
   const [formData, setFormData] = useState({
@@ -142,14 +148,14 @@ export default function ChangePasswordScreen() {
               <ThemedText style={styles.label}>Mot de passe actuel</ThemedText>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput, { borderColor, color: textColor }]}
+                  style={[styles.input, styles.passwordInput, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                   value={formData.currentPassword}
                   onChangeText={(text) => {
                     setFormData({ ...formData, currentPassword: text });
                     setError(null);
                   }}
                   placeholder="Entrez votre mot de passe actuel"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={placeholderColor}
                   secureTextEntry={!showPasswords.current}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -172,14 +178,14 @@ export default function ChangePasswordScreen() {
               <ThemedText style={styles.label}>Nouveau mot de passe</ThemedText>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput, { borderColor, color: textColor }]}
+                  style={[styles.input, styles.passwordInput, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                   value={formData.newPassword}
                   onChangeText={(text) => {
                     setFormData({ ...formData, newPassword: text });
                     setError(null);
                   }}
                   placeholder="Entrez votre nouveau mot de passe"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={placeholderColor}
                   secureTextEntry={!showPasswords.new}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -205,14 +211,14 @@ export default function ChangePasswordScreen() {
               <ThemedText style={styles.label}>Confirmer le nouveau mot de passe</ThemedText>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput, { borderColor, color: textColor }]}
+                  style={[styles.input, styles.passwordInput, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                   value={formData.confirmPassword}
                   onChangeText={(text) => {
                     setFormData({ ...formData, confirmPassword: text });
                     setError(null);
                   }}
                   placeholder="Confirmez votre nouveau mot de passe"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={placeholderColor}
                   secureTextEntry={!showPasswords.confirm}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -332,7 +338,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#2A2A2A',
   },
   passwordInput: {
     paddingRight: 50,

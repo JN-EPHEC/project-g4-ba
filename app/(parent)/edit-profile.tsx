@@ -18,14 +18,22 @@ import { AvatarUploader } from '@/components/avatar-uploader';
 import { Card, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Parent } from '@/types';
 
 export default function EditProfileScreen() {
   const { user, updateUser } = useAuth();
   const parent = user as Parent;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const iconColor = useThemeColor({}, 'icon');
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
+  // Forcer explicitement les couleurs selon le thème
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+  const inputBackground = isDark ? '#2A2A2A' : '#F5F5F5';
+  // Placeholder plus foncé en mode clair pour être visible
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
 
   const [formData, setFormData] = useState({
     firstName: parent?.firstName || '',
@@ -103,33 +111,33 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Prénom</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.firstName}
                 onChangeText={(text) => setFormData({ ...formData, firstName: text })}
                 placeholder="Ton prénom"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
               />
             </View>
 
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Nom</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.lastName}
                 onChangeText={(text) => setFormData({ ...formData, lastName: text })}
                 placeholder="Ton nom"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
               />
             </View>
 
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Téléphone</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.phone}
                 onChangeText={(text) => setFormData({ ...formData, phone: text })}
                 placeholder="Ton numéro de téléphone"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
                 keyboardType="phone-pad"
               />
             </View>
@@ -144,11 +152,11 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Bio</ThemedText>
               <TextInput
-                style={[styles.textArea, { borderColor, color: textColor }]}
+                style={[styles.textArea, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.bio}
                 onChangeText={(text) => setFormData({ ...formData, bio: text })}
                 placeholder="Écris quelque chose sur toi..."
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -183,7 +191,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 100,
     paddingBottom: 40,
   },
   header: {
@@ -232,14 +239,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#2A2A2A',
   },
   textArea: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#2A2A2A',
     minHeight: 100,
   },
   charCount: {

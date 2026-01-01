@@ -21,6 +21,7 @@ import { TotemSelector, TOTEM_ANIMALS } from '@/components/totem-selector';
 import { TotemImageGenerator } from '@/components/totem-image-generator';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Animator } from '@/types';
 import { BrandColors } from '@/constants/theme';
 import { Spacing } from '@/constants/design-tokens';
@@ -28,9 +29,16 @@ import { Spacing } from '@/constants/design-tokens';
 export default function EditProfileScreen() {
   const { user, updateUser, isLoading } = useAuth();
   const animator = user as Animator;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const iconColor = useThemeColor({}, 'icon');
   const borderColor = useThemeColor({}, 'border');
-  const textColor = useThemeColor({}, 'text');
+  // Forcer explicitement les couleurs selon le thème
+  const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+  const inputBackground = isDark ? '#2A2A2A' : '#F5F5F5';
+  // Placeholder plus foncé en mode clair pour être visible
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
 
   const [formData, setFormData] = useState({
     firstName: animator?.firstName || '',
@@ -142,33 +150,33 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Prénom</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.firstName}
                 onChangeText={(text) => setFormData({ ...formData, firstName: text })}
                 placeholder="Ton prénom"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
               />
             </View>
 
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Nom</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.lastName}
                 onChangeText={(text) => setFormData({ ...formData, lastName: text })}
                 placeholder="Ton nom"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
               />
             </View>
 
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Téléphone</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.phone}
                 onChangeText={(text) => setFormData({ ...formData, phone: text })}
                 placeholder="Ton numéro de téléphone"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
                 keyboardType="phone-pad"
               />
             </View>
@@ -183,11 +191,11 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Bio</ThemedText>
               <TextInput
-                style={[styles.textArea, { borderColor, color: textColor }]}
+                style={[styles.textArea, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.bio}
                 onChangeText={(text) => setFormData({ ...formData, bio: text })}
                 placeholder="Écris quelque chose sur toi... (ton parcours scout, tes motivations, etc.)"
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -225,11 +233,11 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Nom de totem (surnom)</ThemedText>
               <TextInput
-                style={[styles.input, { borderColor, color: textColor }]}
+                style={[styles.input, { borderColor, color: textColor, backgroundColor: inputBackground }]}
                 value={formData.totemName}
                 onChangeText={(text) => setFormData({ ...formData, totemName: text })}
                 placeholder={formData.totemAnimal ? `Ex: ${formData.totemAnimal} Sage` : 'Ex: Hibou Sage'}
-                placeholderTextColor="#888"
+                placeholderTextColor={placeholderColor}
               />
               <ThemedText style={styles.totemHint}>
                 Combine ton animal avec un adjectif qui te caractérise
@@ -335,14 +343,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#2A2A2A',
   },
   textArea: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#2A2A2A',
     minHeight: 100,
   },
   charCount: {

@@ -121,5 +121,7 @@ const styles = StyleSheet.create({
   },
   initials: {
     fontWeight: '600',
+    textAlign: 'center',
+    writingDirection: 'ltr',
   },
 });

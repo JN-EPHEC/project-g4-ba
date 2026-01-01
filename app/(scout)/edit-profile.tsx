@@ -36,7 +36,8 @@ export default function EditProfileScreen() {
   // Forcer explicitement les couleurs selon le thème
   const textColor = isDark ? '#FFFFFF' : '#1A1A1A';
   const inputBackground = isDark ? '#2A2A2A' : '#F5F5F5';
-  const placeholderColor = isDark ? '#6B7280' : '#9CA3AF';
+  // Placeholder plus foncé en mode clair pour être visible
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
 
   const [formData, setFormData] = useState({
     firstName: scout?.firstName || '',

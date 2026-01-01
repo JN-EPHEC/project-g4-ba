@@ -146,7 +146,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Jean"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={formData.firstName}
                 onChangeText={(text) => setFormData({ ...formData, firstName: text })}
                 autoComplete="given-name"
@@ -163,7 +163,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Dupont"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={formData.lastName}
                 onChangeText={(text) => setFormData({ ...formData, lastName: text })}
                 autoComplete="family-name"
@@ -180,7 +180,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="votre.email@exemple.com"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={formData.email}
                 onChangeText={(text) => setFormData({ ...formData, email: text })}
                 keyboardType="email-address"
@@ -253,7 +253,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={formData.password}
                 onChangeText={(text) => setFormData({ ...formData, password: text })}
                 secureTextEntry
@@ -271,7 +271,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={formData.confirmPassword}
                 onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                 secureTextEntry

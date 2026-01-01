@@ -230,7 +230,7 @@ export default function TotemSetupScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Ex: Dragon, Phénix, Licorne..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   value={customAnimalName}
                   onChangeText={setCustomAnimalName}
                 />
@@ -244,7 +244,7 @@ export default function TotemSetupScreen() {
                 <TextInput
                   style={[styles.input, styles.emojiInput]}
                   placeholder="🐉"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   value={customEmoji}
                   onChangeText={(text) => {
                     // Garder seulement le premier emoji (qui peut faire plusieurs caractères)
@@ -263,7 +263,7 @@ export default function TotemSetupScreen() {
                 <TextInput
                   style={[styles.input, styles.textArea]}
                   placeholder="Ex: Force, sagesse, protection..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   value={customTraits}
                   onChangeText={setCustomTraits}
                   multiline
@@ -283,7 +283,7 @@ export default function TotemSetupScreen() {
               <TextInput
                 style={styles.searchInput}
                 placeholder="Rechercher un animal..."
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
