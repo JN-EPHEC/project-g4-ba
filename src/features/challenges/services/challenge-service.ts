@@ -43,6 +43,8 @@ export class ChallengeService {
       isGlobal: data.isGlobal || false,
       allowMultipleValidations: data.allowMultipleValidations || false,
       notifyMembers: data.notifyMembers !== false,
+      isArchived: data.isArchived || false,
+      archivedAt: data.archivedAt?.toDate(),
     };
   }
 
@@ -267,6 +269,38 @@ export class ChallengeService {
       );
     } catch (error) {
       console.error('Erreur lors de la récupération des défis du créateur:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Archive un défi
+   */
+  static async archiveChallenge(challengeId: string): Promise<void> {
+    try {
+      const challengeRef = doc(db, this.COLLECTION_NAME, challengeId);
+      await updateDoc(challengeRef, {
+        isArchived: true,
+        archivedAt: Timestamp.fromDate(new Date()),
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'archivage du défi:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Désarchive un défi
+   */
+  static async unarchiveChallenge(challengeId: string): Promise<void> {
+    try {
+      const challengeRef = doc(db, this.COLLECTION_NAME, challengeId);
+      await updateDoc(challengeRef, {
+        isArchived: false,
+        archivedAt: null,
+      });
+    } catch (error) {
+      console.error('Erreur lors du désarchivage du défi:', error);
       throw error;
     }
   }

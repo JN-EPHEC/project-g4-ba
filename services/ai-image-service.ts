@@ -46,19 +46,10 @@ export class AIImageService {
       if (result.data.success && result.data.imageBase64) {
         console.log('[AIImageService] Image générée avec succès');
 
-        // Convertir base64 en Blob pour compatibilité
-        const base64Data = result.data.imageBase64.split(',')[1];
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const imageBlob = new Blob([byteArray], { type: 'image/png' });
-
+        // Sur React Native, on ne peut pas créer de Blob depuis ArrayBuffer
+        // On retourne directement le base64 et l'URL
         return {
           success: true,
-          imageBlob,
           imageBase64: result.data.imageBase64,
           imageUrl: result.data.imageUrl,
         };

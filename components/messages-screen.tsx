@@ -131,6 +131,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
           profilePicture: user.profilePicture,
           totemAnimal: (user as any).totemAnimal,
           totemEmoji: (user as any).totemEmoji,
+          role: user.role,
         };
       }
 
@@ -148,6 +149,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                   profilePicture: userData.profilePicture,
                   totemAnimal: (userData as any).totemAnimal,
                   totemEmoji: (userData as any).totemEmoji,
+                  role: userData.role,
                 };
               }
             } catch (error) {

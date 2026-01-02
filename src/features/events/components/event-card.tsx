@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert, ImageBackground } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors, NeutralColors } from '@/constants/theme';
@@ -31,6 +32,8 @@ interface EventCardProps {
   participants?: Participant[];
   /** Callback pour voir les participants */
   onViewParticipants?: () => void;
+  /** URL de l'image de fond */
+  imageUrl?: string;
 }
 
 // Nature theme event types
@@ -74,6 +77,7 @@ export function EventCard({
   canDelete,
   onDelete,
   onViewParticipants,
+  imageUrl,
 }: EventCardProps) {
   const config = EVENT_TYPE_CONFIG[type];
 
@@ -118,6 +122,110 @@ export function EventCard({
   // Event color based on type
   const eventColor = type === 'activity' ? BrandColors.accent[500] : BrandColors.primary[500];
 
+  // Si on a une image, on utilise un layout différent avec l'image en fond
+  if (imageUrl) {
+    return (
+      <TouchableOpacity
+        style={[styles.cardWithImage, { borderColor: cardBorder }]}
+        onPress={onPress}
+        activeOpacity={0.6}
+      >
+        <ImageBackground
+          source={{ uri: imageUrl }}
+          style={styles.imageBackground}
+          imageStyle={styles.imageStyle}
+        >
+          <LinearGradient
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)']}
+            style={styles.imageGradient}
+          >
+            {/* Header with Type Badge and Delete Button */}
+            <View style={styles.imageHeader}>
+              <View style={[styles.typeBadge, { backgroundColor: 'rgba(255,255,255,0.9)' }]}>
+                <Text style={styles.typeIcon}>{config.icon}</Text>
+                <Text style={[styles.typeLabel, { color: config.color }]}>
+                  {config.label}
+                </Text>
+              </View>
+              <View style={styles.imageHeaderRight}>
+                <View style={styles.dateBadgeSmall}>
+                  <Text style={styles.dateBadgeDay}>{day}</Text>
+                  <Text style={styles.dateBadgeMonth}>{month.toUpperCase()}</Text>
+                </View>
+                {canDelete && onDelete && (
+                  <TouchableOpacity
+                    onPress={handleDelete}
+                    style={[styles.deleteButton, { backgroundColor: 'rgba(255,59,48,0.9)' }]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Bottom content */}
+            <View style={styles.imageContent}>
+              <Text style={styles.imageTitleText} numberOfLines={2}>
+                {title}
+              </Text>
+
+              <View style={styles.imageInfoRow}>
+                <View style={styles.infoChip}>
+                  <Text style={styles.infoChipIcon}>🕐</Text>
+                  <Text style={styles.infoChipText}>{time}</Text>
+                </View>
+                <View style={styles.infoChip}>
+                  <Text style={styles.infoChipIcon}>📍</Text>
+                  <Text style={styles.infoChipText} numberOfLines={1}>{location}</Text>
+                </View>
+              </View>
+
+              <View style={styles.imageFooter}>
+                <TouchableOpacity
+                  style={styles.participantsChip}
+                  onPress={onViewParticipants}
+                  disabled={!onViewParticipants}
+                >
+                  <Text style={styles.infoChipIcon}>👥</Text>
+                  <Text style={styles.infoChipText}>
+                    {participantCount}{maxParticipants ? `/${maxParticipants}` : ''}
+                  </Text>
+                  {isFull && <Text style={styles.fullBadgeSmall}>COMPLET</Text>}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.attendanceButtonSmall,
+                    isRegistered
+                      ? { backgroundColor: 'rgba(255,255,255,0.95)' }
+                      : { backgroundColor: BrandColors.accent[500] },
+                    isFull && !isRegistered && { backgroundColor: 'rgba(255,255,255,0.5)' },
+                  ]}
+                  onPress={onAttendancePress}
+                  disabled={isFull && !isRegistered}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.attendanceButtonTextSmall,
+                      isRegistered
+                        ? { color: BrandColors.primary[600] }
+                        : { color: '#FFFFFF' },
+                    ]}
+                  >
+                    {isRegistered ? '✓ Inscrit' : isFull ? 'Complet' : "S'inscrire"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+      </TouchableOpacity>
+    );
+  }
+
+  // Layout par défaut sans image
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: cardColor, borderColor: cardBorder }]}
@@ -221,6 +329,117 @@ export function EventCard({
 }
 
 const styles = StyleSheet.create({
+  // Layout avec image
+  cardWithImage: {
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    height: 220,
+  },
+  imageBackground: {
+    flex: 1,
+    width: '100%',
+  },
+  imageStyle: {
+    borderRadius: Radius.xl,
+  },
+  imageGradient: {
+    flex: 1,
+    padding: Spacing.md,
+    justifyContent: 'space-between',
+  },
+  imageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  imageHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  dateBadgeSmall: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    alignItems: 'center',
+  },
+  dateBadgeDay: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: BrandColors.primary[600],
+  },
+  dateBadgeMonth: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: BrandColors.primary[500],
+    marginTop: -2,
+  },
+  imageContent: {
+    gap: Spacing.sm,
+  },
+  imageTitleText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  imageInfoRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    flexWrap: 'wrap',
+  },
+  infoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.md,
+    gap: 4,
+  },
+  infoChipIcon: {
+    fontSize: 12,
+  },
+  infoChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: NeutralColors.gray[700],
+    maxWidth: 120,
+  },
+  participantsChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.md,
+    gap: 4,
+  },
+  fullBadgeSmall: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FF3B30',
+    marginLeft: 4,
+  },
+  imageFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  attendanceButtonSmall: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
+  },
+  attendanceButtonTextSmall: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Layout par défaut sans image
   card: {
     borderRadius: Radius.xl,
     overflow: 'hidden',

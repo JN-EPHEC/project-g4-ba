@@ -47,8 +47,21 @@ export function useAllChallengeProgress() {
     return submission?.status === ChallengeStatus.PENDING_VALIDATION;
   };
 
+  const isStarted = (challengeId: string) => {
+    const submission = getSubmissionForChallenge(challengeId);
+    return submission?.status === ChallengeStatus.STARTED;
+  };
+
   const completedCount = submissions.filter(
     (sub) => sub.status === ChallengeStatus.COMPLETED
+  ).length;
+
+  const startedCount = submissions.filter(
+    (sub) => sub.status === ChallengeStatus.STARTED
+  ).length;
+
+  const pendingCount = submissions.filter(
+    (sub) => sub.status === ChallengeStatus.PENDING_VALIDATION
   ).length;
 
   return {
@@ -56,9 +69,12 @@ export function useAllChallengeProgress() {
     loading,
     error,
     completedCount,
+    startedCount,
+    pendingCount,
     getSubmissionForChallenge,
     isCompleted,
     isPending,
+    isStarted,
     refetch: loadSubmissions,
   };
 }

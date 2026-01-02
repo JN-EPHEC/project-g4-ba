@@ -22,6 +22,7 @@ export interface PostAuthor {
   profilePicture?: string;
   totemAnimal?: string;
   totemEmoji?: string;
+  role?: string; // 'animator' | 'scout' | 'parent'
 }
 
 export interface PostCardProps {
@@ -113,6 +114,8 @@ export function PostCard({
     ? `${author.firstName} ${author.lastName}`
     : 'Utilisateur';
 
+  const isAuthorAnimator = author?.role === 'animator';
+
   const handleDelete = () => {
     if (onDelete) {
       if (Platform.OS === 'web') {
@@ -174,9 +177,16 @@ export function PostCard({
         />
         <View style={styles.headerText}>
           <View style={styles.nameRow}>
-            <ThemedText type="defaultSemiBold" style={[styles.authorName, { color: textColor }]}>
+            <ThemedText type="defaultSemiBold" style={[styles.authorName, { color: isAuthorAnimator ? BrandColors.accent[600] : textColor }]}>
               {authorName}
             </ThemedText>
+            {isAuthorAnimator && (
+              <View style={[styles.animatorBadge, { backgroundColor: `${BrandColors.accent[500]}20` }]}>
+                <ThemedText style={[styles.animatorBadgeText, { color: BrandColors.accent[600] }]}>
+                  Animateur
+                </ThemedText>
+              </View>
+            )}
             {isCurrentUser && (
               <View style={[styles.youBadge, { backgroundColor: `${BrandColors.primary[500]}20` }]}>
                 <ThemedText style={[styles.youBadgeText, { color: BrandColors.primary[500] }]}>
@@ -303,6 +313,15 @@ const styles = StyleSheet.create({
   youBadgeText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  animatorBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  animatorBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   timestamp: {
     fontSize: 12,

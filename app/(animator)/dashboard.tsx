@@ -203,21 +203,9 @@ export default function AnimatorDashboardScreen() {
             colors={[BrandColors.primary[600], BrandColors.primary[500]]}
             style={styles.headerGradient}
           >
-            {/* Top bar */}
-            <View style={styles.topBar}>
-              <View style={styles.greetingContainer}>
-                <ThemedText style={styles.greeting}>
-                  Bonjour {getDisplayName(animator, { firstNameOnly: true })} 👋
-                </ThemedText>
-                {unit && (
-                  <>
-                    <ThemedText style={styles.unitName}>{unit.name}</ThemedText>
-                    {unit.scoutGroup?.name && (
-                      <ThemedText style={styles.unitGroup}>{unit.scoutGroup.name}</ThemedText>
-                    )}
-                  </>
-                )}
-              </View>
+            {/* Title row with actions */}
+            <View style={styles.titleRow}>
+              <ThemedText type="title" style={styles.pageTitle}>Accueil</ThemedText>
               <View style={styles.topBarRight}>
                 <TouchableOpacity
                   style={styles.notificationButton}
@@ -243,6 +231,21 @@ export default function AnimatorDashboardScreen() {
                   )}
                 </TouchableOpacity>
               </View>
+            </View>
+
+            {/* Greeting section */}
+            <View style={styles.greetingContainer}>
+              <ThemedText style={styles.greeting}>
+                Bonjour {getDisplayName(animator, { firstNameOnly: true })} 👋
+              </ThemedText>
+              {unit && (
+                <>
+                  <ThemedText style={styles.unitName}>{unit.name}</ThemedText>
+                  {unit.scoutGroup?.name && (
+                    <ThemedText style={styles.unitGroup}>{unit.scoutGroup.name}</ThemedText>
+                  )}
+                </>
+              )}
             </View>
 
             {/* Stats Row */}
@@ -621,10 +624,22 @@ const styles = StyleSheet.create({
   // Header
   headerGradient: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing['3xl'],
+    paddingTop: 80,
     paddingBottom: Spacing.xl,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+    direction: 'ltr',
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   topBar: {
     flexDirection: 'row',
@@ -633,9 +648,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     direction: 'ltr',
   },
-  greetingContainer: { flex: 1 },
+  greetingContainer: { flex: 1, marginTop: Spacing.sm },
   greeting: { fontSize: 15, color: 'rgba(255,255,255,0.8)', marginBottom: Spacing.xs, writingDirection: 'ltr' },
-  unitName: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.5, writingDirection: 'ltr' },
+  unitName: { fontSize: 26, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.5, writingDirection: 'ltr', marginTop: 2 },
   unitGroup: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2, writingDirection: 'ltr' },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, direction: 'ltr' },
   notificationButton: {
@@ -664,12 +679,13 @@ const styles = StyleSheet.create({
   avatarEmoji: { fontSize: 24 },
 
   // Stats
-  statsRow: { flexDirection: 'row', gap: Spacing.md, direction: 'ltr' },
+  statsRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg, direction: 'ltr' },
   statCard: {
     flex: 1, backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: Radius.lg, paddingVertical: Spacing.lg, alignItems: 'center',
+    borderRadius: Radius.lg, paddingTop: 18, paddingBottom: 14, alignItems: 'center',
+    overflow: 'visible',
   },
-  statValue: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', writingDirection: 'ltr' },
+  statValue: { fontSize: 24, fontWeight: '600', color: '#FFFFFF', writingDirection: 'ltr' },
   statLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2, writingDirection: 'ltr' },
 
   // Alerts

@@ -103,6 +103,19 @@ export class StorageService {
   }
 
   /**
+   * Upload une image de fond pour un événement
+   */
+  static async uploadEventImage(
+    localUri: string,
+    userId: string
+  ): Promise<string> {
+    const path = `events/${userId}/${Date.now()}.jpg`;
+    return this.uploadImage(localUri, path, {
+      contentType: 'image/jpeg',
+    });
+  }
+
+  /**
    * Upload une pièce jointe pour un post du fil d'unité
    */
   static async uploadPostAttachment(

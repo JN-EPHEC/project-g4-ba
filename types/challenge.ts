@@ -4,6 +4,7 @@
 
 export enum ChallengeStatus {
   ACTIVE = 'active',
+  STARTED = 'started', // Scout a commencé le défi
   COMPLETED = 'completed',
   PENDING_VALIDATION = 'pending_validation',
   EXPIRED = 'expired',
@@ -42,6 +43,8 @@ export interface Challenge {
   isGlobal?: boolean; // Visible par tous les groupes
   allowMultipleValidations?: boolean; // Permettre plusieurs validations
   notifyMembers?: boolean; // Notifier les membres
+  isArchived?: boolean; // Archivé par l'animateur
+  archivedAt?: Date; // Date d'archivage
 }
 
 export interface ChallengeSubmission {
@@ -49,7 +52,8 @@ export interface ChallengeSubmission {
   challengeId: string;
   scoutId: string;
   proofImageUrl?: string; // Photo de preuve optionnelle
-  submittedAt: Date;
+  startedAt?: Date; // Date où le scout a commencé le défi
+  submittedAt?: Date; // Date de soumission (optionnel si juste commencé)
   status: ChallengeStatus;
   validatedBy?: string; // ID de l'animateur qui valide
   validatedAt?: Date;

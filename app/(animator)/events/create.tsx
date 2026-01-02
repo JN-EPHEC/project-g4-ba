@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Card, Input, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { EventService } from '@/services/event-service';
+import { StorageService } from '@/src/shared/services/storage-service';
 import { EventType, Animator } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BrandColors, NeutralColors } from '@/constants/theme';
 
 export default function CreateEventScreen() {
   const { user } = useAuth();
@@ -26,8 +30,56 @@ export default function CreateEventScreen() {
     imageUrl: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const iconColor = useThemeColor({}, 'icon');
+  const cardColor = useThemeColor({}, 'card');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+
+  const pickImage = async () => {
+    try {
+      // Demander la permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos');
+        return;
+      }
+
+      // Ouvrir le sélecteur d'images
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erreur sélection image:', error);
+      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    if (!user?.id) return;
+
+    try {
+      setIsUploadingImage(true);
+      const imageUrl = await StorageService.uploadEventImage(uri, user.id);
+      setFormData({ ...formData, imageUrl });
+    } catch (error) {
+      console.error('Erreur upload image:', error);
+      Alert.alert('Erreur', 'Impossible d\'uploader l\'image');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    setFormData({ ...formData, imageUrl: '' });
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -267,13 +319,42 @@ export default function CreateEventScreen() {
               icon={<Ionicons name="people-outline" size={20} color={iconColor} />}
             />
 
-            <Input
-              label="URL de l'image (optionnel)"
-              placeholder="https://..."
-              value={formData.imageUrl}
-              onChangeText={(text) => setFormData({ ...formData, imageUrl: text })}
-              icon={<Ionicons name="image-outline" size={20} color={iconColor} />}
-            />
+            {/* Image de fond */}
+            <View style={styles.imageSection}>
+              <ThemedText style={styles.imageLabel}>Image de fond (optionnel)</ThemedText>
+              {formData.imageUrl ? (
+                <View style={styles.imagePreviewContainer}>
+                  <Image
+                    source={{ uri: formData.imageUrl }}
+                    style={styles.imagePreview}
+                    contentFit="cover"
+                  />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={removeImage}
+                  >
+                    <Ionicons name="close-circle" size={28} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.imagePicker, { backgroundColor: cardColor, borderColor: NeutralColors.gray[300] }]}
+                  onPress={pickImage}
+                  disabled={isUploadingImage}
+                >
+                  {isUploadingImage ? (
+                    <ActivityIndicator size="large" color={BrandColors.primary[500]} />
+                  ) : (
+                    <>
+                      <Ionicons name="image-outline" size={40} color={textSecondary} />
+                      <ThemedText style={[styles.imagePickerText, { color: textSecondary }]}>
+                        Appuyer pour ajouter une photo
+                      </ThemedText>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
 
             <View style={styles.checkboxRow}>
               <PrimaryButton
@@ -398,5 +479,44 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 12,
     marginTop: 4,
+  },
+  // Styles pour le sélecteur d'image
+  imageSection: {
+    marginBottom: 16,
+  },
+  imageLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  imagePicker: {
+    height: 150,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  imagePickerText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  imagePreviewContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 14,
   },
 });

@@ -4,6 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -15,7 +16,7 @@ import { ChallengeSubmissionService } from '@/services/challenge-submission-serv
 import { StorageService } from '@/services/storage-service';
 import { Challenge, ChallengeDifficulty, ChallengeStatus } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { NeutralColors } from '@/constants/theme';
+import { NeutralColors, BrandColors } from '@/constants/theme';
 
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
@@ -27,6 +28,7 @@ export default function ChallengeDetailScreen() {
   const [scoutComment, setScoutComment] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [scaleAnim] = useState(new RNAnimated.Value(0));
   const [fadeAnim] = useState(new RNAnimated.Value(0));
@@ -85,6 +87,27 @@ export default function ChallengeDetailScreen() {
       }
     } catch (error) {
       console.error('Erreur lors de la sélection de l\'image:', error);
+    }
+  };
+
+  const handleStartChallenge = async () => {
+    if (!challenge || !user?.id) return;
+
+    try {
+      setIsStarting(true);
+      await ChallengeSubmissionService.startChallenge(challenge.id, user.id);
+      // Recharger la soumission
+      const submissionData = await ChallengeSubmissionService.getSubmissionByChallengeAndScout(
+        challenge.id,
+        user.id
+      );
+      setSubmission(submissionData);
+      Alert.alert('Défi commencé !', 'Tu as commencé ce défi. Bonne chance !');
+    } catch (error: any) {
+      console.error('Erreur lors du démarrage du défi:', error);
+      Alert.alert('Erreur', error.message || 'Impossible de commencer le défi');
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -183,6 +206,7 @@ export default function ChallengeDetailScreen() {
 
   const getStatusLabel = (status: ChallengeStatus): string => {
     const labels: Record<ChallengeStatus, string> = {
+      [ChallengeStatus.STARTED]: 'En cours',
       [ChallengeStatus.PENDING_VALIDATION]: 'En attente',
       [ChallengeStatus.COMPLETED]: 'Validé',
       [ChallengeStatus.EXPIRED]: 'Rejeté',
@@ -238,7 +262,8 @@ export default function ChallengeDetailScreen() {
           </View>
         </Card>
 
-        {submission ? (
+        {/* Cas 1: Défi complété, en attente ou rejeté */}
+        {submission && submission.status !== ChallengeStatus.STARTED ? (
           <Card style={styles.submissionCard}>
             <ThemedText type="subtitle" style={styles.submissionTitle}>
               Votre soumission
@@ -282,10 +307,22 @@ export default function ChallengeDetailScreen() {
               </View>
             )}
           </Card>
-        ) : (
+        ) : submission && submission.status === ChallengeStatus.STARTED ? (
+          /* Cas 2: Défi commencé - afficher le formulaire de soumission */
           <Card style={styles.submitCard}>
+            <View style={styles.startedBadgeContainer}>
+              <Badge variant="info">
+                En cours
+              </Badge>
+              {submission.startedAt && (
+                <ThemedText style={[styles.startedDate, { color: textSecondary }]}>
+                  Commencé le {new Date(submission.startedAt).toLocaleDateString('fr-FR')}
+                </ThemedText>
+              )}
+            </View>
+
             <ThemedText type="subtitle" style={styles.submitTitle}>
-              Soumettre le défi
+              Soumettre ta preuve
             </ThemedText>
 
             {selectedImage ? (
@@ -332,11 +369,83 @@ export default function ChallengeDetailScreen() {
             </View>
 
             <PrimaryButton
-              title={isSubmitting ? 'Soumission...' : 'Soumettre le défi'}
+              title={isSubmitting ? 'Soumission...' : 'Soumettre ma preuve'}
               onPress={handleSubmit}
               disabled={isSubmitting || !scoutComment.trim()}
               style={styles.submitButton}
             />
+          </Card>
+        ) : (
+          /* Cas 3: Pas de soumission - afficher le bouton Commencer */
+          <Card style={styles.startCard}>
+            <View style={styles.startCardHeader}>
+              <Ionicons name="flag-outline" size={32} color={BrandColors.primary[500]} />
+              <ThemedText type="subtitle" style={styles.startCardTitle}>
+                Prêt à relever le défi ?
+              </ThemedText>
+            </View>
+
+            <ThemedText style={[styles.startCardDescription, { color: textSecondary }]}>
+              Clique sur le bouton ci-dessous pour commencer ce défi. Tu pourras ensuite soumettre ta preuve quand tu l'auras accompli.
+            </ThemedText>
+
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={handleStartChallenge}
+              disabled={isStarting}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={isStarting ? ['#9CA3AF', '#9CA3AF'] : [BrandColors.primary[500], BrandColors.primary[700]]}
+                style={styles.startButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {isStarting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="play" size={24} color="#FFFFFF" />
+                )}
+                <ThemedText style={styles.startButtonText}>
+                  {isStarting ? 'Démarrage...' : 'Commencer le défi'}
+                </ThemedText>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.startCardDivider} />
+
+            <ThemedText style={[styles.startCardNote, { color: textSecondary }]}>
+              Ou soumettre directement ta preuve :
+            </ThemedText>
+
+            <TouchableOpacity
+              style={[styles.directSubmitButton, { borderColor: BrandColors.accent[500] }]}
+              onPress={async () => {
+                // Commencer le défi dans Firestore puis afficher le formulaire
+                if (!challenge || !user?.id) return;
+                try {
+                  setIsStarting(true);
+                  await ChallengeSubmissionService.startChallenge(challenge.id, user.id);
+                  const submissionData = await ChallengeSubmissionService.getSubmissionByChallengeAndScout(
+                    challenge.id,
+                    user.id
+                  );
+                  setSubmission(submissionData);
+                } catch (error: any) {
+                  console.error('Erreur:', error);
+                  Alert.alert('Erreur', error.message || 'Impossible de commencer le défi');
+                } finally {
+                  setIsStarting(false);
+                }
+              }}
+              disabled={isStarting}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="camera-outline" size={20} color={BrandColors.accent[500]} />
+              <ThemedText style={[styles.directSubmitText, { color: BrandColors.accent[500] }]}>
+                Soumettre directement
+              </ThemedText>
+            </TouchableOpacity>
           </Card>
         )}
       </ScrollView>
@@ -617,6 +726,75 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#f59e0b',
+  },
+  // Styles pour le bouton Commencer
+  startCard: {
+    padding: 24,
+  },
+  startCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  startCardTitle: {
+    flex: 1,
+  },
+  startCardDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  startButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  startButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  startCardDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 20,
+  },
+  startCardNote: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  directSubmitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  directSubmitText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Styles pour défi commencé
+  startedBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  startedDate: {
+    fontSize: 13,
   },
 });
 

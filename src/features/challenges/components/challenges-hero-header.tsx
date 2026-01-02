@@ -248,11 +248,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginTop: 8,
   },
   pointsValue: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '600',
     color: '#FFFFFF',
+    lineHeight: 34,
   },
   pointsLabel: {
     fontSize: 18,
@@ -334,7 +336,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingTop: 14,
+    paddingBottom: 12,
     paddingHorizontal: 12,
     alignItems: 'center',
   },
@@ -345,8 +348,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   statEmoji: {

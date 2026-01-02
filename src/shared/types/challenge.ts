@@ -4,6 +4,7 @@
 
 export enum ChallengeStatus {
   ACTIVE = 'active',
+  STARTED = 'started', // Scout a commencé le défi
   COMPLETED = 'completed',
   PENDING_VALIDATION = 'pending_validation',
   EXPIRED = 'expired',
@@ -33,10 +34,12 @@ export interface ChallengeSubmission {
   id: string;
   challengeId: string;
   scoutId: string;
-  proofImageUrl: string;
-  submittedAt: Date;
+  proofImageUrl?: string; // Photo de preuve optionnelle
+  startedAt?: Date; // Date où le scout a commencé le défi
+  submittedAt?: Date; // Date de soumission (optionnel si juste commencé)
   status: ChallengeStatus;
   validatedBy?: string; // ID du parent qui valide
   validatedAt?: Date;
   comment?: string;
+  scoutComment?: string; // Commentaire du scout
 }

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ScrollView, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -17,6 +18,7 @@ import { LeaderboardPodium } from '@/src/features/challenges/components/leaderbo
 import { LeaderboardList } from '@/src/features/challenges/components/leaderboard-list';
 import { BadgesGrid } from '@/src/features/challenges/components/badges-grid';
 import { CompletedChallengesSection } from '@/src/features/challenges/components/completed-challenges-section';
+import { StartedChallengesSection } from '@/src/features/challenges/components/started-challenges-section';
 import { LevelProgressModal } from '@/src/features/challenges/components/level-progress-modal';
 import { useLeaderboard } from '@/src/features/challenges/hooks';
 import { LeaderboardService } from '@/services/leaderboard-service';
@@ -28,7 +30,7 @@ export default function ChallengesScreen() {
   const { user } = useAuth();
   const scout = user as Scout;
   const { challenges, loading, error } = useChallenges();
-  const { submissions, completedCount, isCompleted, refetch: refetchProgress } = useAllChallengeProgress();
+  const { submissions, completedCount, startedCount, isCompleted, isStarted, refetch: refetchProgress } = useAllChallengeProgress();
   const {
     podiumUsers,
     otherUsers,
@@ -46,6 +48,13 @@ export default function ChallengesScreen() {
   const [showLevelModal, setShowLevelModal] = useState(false);
 
   const tintColor = useThemeColor({}, 'tint');
+
+  // Recharger les soumissions quand l'écran reprend le focus
+  useFocusEffect(
+    useCallback(() => {
+      refetchProgress();
+    }, [refetchProgress])
+  );
 
   // Fetch user rank
   useEffect(() => {
@@ -77,11 +86,8 @@ export default function ChallengesScreen() {
 
   // Calculate counts for each filter
   const filterCounts = useMemo(() => {
-    const inProgressChallenges = challenges.filter(c => {
-      const pending = isPendingValidation(c.id);
-      const completed = isCompleted(c.id);
-      return pending || (!completed && !pending);
-    });
+    // "En cours" = défis avec statut STARTED (commencés mais pas encore soumis)
+    const inProgressCount = challenges.filter(c => isStarted(c.id)).length;
 
     const newChallenges = challenges.filter(c =>
       isNewChallenge(c) && !isCompleted(c.id)
@@ -89,16 +95,17 @@ export default function ChallengesScreen() {
 
     return {
       all: challenges.length,
-      in_progress: inProgressChallenges.filter(c => !isCompleted(c.id)).length,
+      in_progress: inProgressCount,
       new: newChallenges.length,
     };
-  }, [challenges, submissions, completedCount]);
+  }, [challenges, submissions, completedCount, startedCount]);
 
   // Filter challenges based on active filter
   const filteredChallenges = useMemo(() => {
     switch (activeFilter) {
       case 'in_progress':
-        return challenges.filter(c => !isCompleted(c.id) && !isPendingValidation(c.id));
+        // Afficher uniquement les défis avec statut STARTED
+        return challenges.filter(c => isStarted(c.id));
       case 'new':
         return challenges.filter(c => isNewChallenge(c) && !isCompleted(c.id));
       case 'all':
@@ -107,15 +114,21 @@ export default function ChallengesScreen() {
     }
   }, [challenges, activeFilter, submissions]);
 
-  // Sort challenges: pending first, then by points
+  // Sort challenges: started first, then pending, then by points
   const sortedChallenges = useMemo(() => {
     return [...filteredChallenges].sort((a, b) => {
+      const aStarted = isStarted(a.id);
+      const bStarted = isStarted(b.id);
       const aPending = isPendingValidation(a.id);
       const bPending = isPendingValidation(b.id);
       const aCompleted = isCompleted(a.id);
       const bCompleted = isCompleted(b.id);
 
-      // Pending challenges first
+      // Started challenges first (en cours)
+      if (aStarted && !bStarted) return -1;
+      if (!aStarted && bStarted) return 1;
+
+      // Then pending challenges
       if (aPending && !bPending) return -1;
       if (!aPending && bPending) return 1;
 
@@ -223,6 +236,13 @@ export default function ChallengesScreen() {
   const renderChallengesContent = () => {
     return (
       <>
+        {/* Section Défis en cours */}
+        <StartedChallengesSection
+          challenges={challenges}
+          submissions={submissions}
+          onChallengePress={handleChallengeClick}
+        />
+
         {/* Filter Tabs */}
         <ChallengesFilterTabs
           activeFilter={activeFilter}
@@ -268,10 +288,11 @@ export default function ChallengesScreen() {
     );
   };
 
-  // Get challenge progress - 0 for not started, 100 for completed/pending
+  // Get challenge progress - 0 for not started, 50 for started, 100 for completed/pending
   const getChallengeProgress = (challenge: Challenge) => {
     if (isCompleted(challenge.id)) return 100;
     if (isPendingValidation(challenge.id)) return 100;
+    if (isStarted(challenge.id)) return 50;
     return 0;
   };
 
@@ -373,6 +394,8 @@ function ChallengeModal({
     submission,
     isCompleted,
     isPending,
+    isStarted,
+    canStart,
     canSubmit,
   } = useChallengeProgress(challenge.id);
 
@@ -382,10 +405,11 @@ function ChallengeModal({
   const successBackground = useThemeColor({}, 'successBackground');
   const warningBackground = useThemeColor({}, 'warningBackground');
   const infoBackground = useThemeColor({}, 'infoBackground');
+  const startedBackground = useThemeColor({}, 'infoBackground');
   const tintColor = useThemeColor({}, 'tint');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
-  const handleTakePhoto = () => {
+  const handleGoToChallenge = () => {
     onClose();
     router.push(`/(scout)/challenges/${challenge.id}`);
   };
@@ -469,6 +493,12 @@ function ChallengeModal({
                 <ThemedText color="warning" style={styles.statusBadgeText}>En attente de validation</ThemedText>
               </View>
             )}
+            {isStarted && (
+              <View style={[styles.statusBadge, { backgroundColor: startedBackground }]}>
+                <Ionicons name="play-circle" size={18} color={tintColor} />
+                <ThemedText style={[styles.statusBadgeText, { color: tintColor }]}>En cours</ThemedText>
+              </View>
+            )}
 
             {/* Description */}
             <View style={styles.modalSection}>
@@ -497,8 +527,8 @@ function ChallengeModal({
               </View>
             )}
 
-            {/* Photo notice */}
-            {canSubmit && (
+            {/* Photo notice - seulement si défi commencé */}
+            {isStarted && (
               <View style={[styles.photoNotice, { backgroundColor: infoBackground }]}>
                 <View style={[styles.photoNoticeIcon, { backgroundColor: cardColor }]}>
                   <Ionicons name="camera" size={20} color={tintColor} />
@@ -509,15 +539,28 @@ function ChallengeModal({
               </View>
             )}
 
-            {/* Button */}
-            {canSubmit && (
+            {/* Button - Commencer le défi (si pas de soumission) */}
+            {canStart && !isStarted && (
+              <TouchableOpacity
+                style={[styles.takePhotoButton, { backgroundColor: BrandColors.primary[500] }]}
+                onPress={handleGoToChallenge}
+              >
+                <Ionicons name="play" size={24} color="#FFFFFF" />
+                <ThemedText style={styles.takePhotoButtonText}>
+                  Commencer le défi
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+
+            {/* Button - Soumettre ma preuve (si défi commencé) */}
+            {isStarted && (
               <TouchableOpacity
                 style={[styles.takePhotoButton, { backgroundColor: BrandColors.accent[500] }]}
-                onPress={handleTakePhoto}
+                onPress={handleGoToChallenge}
               >
                 <Ionicons name="camera" size={24} color="#FFFFFF" />
                 <ThemedText style={styles.takePhotoButtonText}>
-                  Relever le défi
+                  Soumettre ma preuve
                 </ThemedText>
               </TouchableOpacity>
             )}
@@ -525,7 +568,7 @@ function ChallengeModal({
             {isCompleted && submission && (
               <View style={[styles.completedInfo, { backgroundColor: successBackground }]}>
                 <ThemedText color="success" style={styles.completedInfoText}>
-                  Complété le {formatDate(submission.validatedAt || submission.submittedAt)}
+                  Complété le {formatDate(submission.validatedAt || submission.submittedAt || new Date())}
                 </ThemedText>
               </View>
             )}

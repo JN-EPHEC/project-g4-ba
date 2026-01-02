@@ -18,6 +18,7 @@ interface Author {
   profilePicture?: string;
   totemAnimal?: string;
   totemEmoji?: string;
+  role?: string;
 }
 
 interface CommentsSectionProps {
@@ -80,6 +81,7 @@ export function CommentsSection({
                   profilePicture: userData.profilePicture,
                   totemAnimal: (userData as any).totemAnimal,
                   totemEmoji: (userData as any).totemEmoji,
+                  role: userData.role,
                 };
               }
             } catch (error) {
@@ -127,10 +129,10 @@ export function CommentsSection({
     }
   };
 
-  const getAuthor = (authorId: string): { name: string; avatar?: string } => {
+  const getAuthor = (authorId: string): { name: string; avatar?: string; isAnimator: boolean } => {
     // Chercher d'abord dans les auteurs passés en props, puis dans les auteurs locaux
     const author = authors[authorId] || localAuthors[authorId];
-    if (!author) return { name: 'Utilisateur' };
+    if (!author) return { name: 'Utilisateur', isAnimator: false };
 
     // Récupérer l'avatar
     const avatar = author.profilePicture || author.avatarUrl;
@@ -143,7 +145,9 @@ export function CommentsSection({
       name = author.displayName || 'Utilisateur';
     }
 
-    return { name, avatar };
+    const isAnimator = author.role === 'animator';
+
+    return { name, avatar, isAnimator };
   };
 
   if (loading) {
@@ -172,6 +176,7 @@ export function CommentsSection({
                 content={comment.content}
                 createdAt={comment.createdAt}
                 isOwnComment={isOwnComment}
+                isAuthorAnimator={authorInfo.isAnimator}
                 canDelete={canDelete}
                 onDelete={() => handleDelete(comment.id)}
               />

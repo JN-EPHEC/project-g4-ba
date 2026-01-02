@@ -44,6 +44,9 @@ export function ChallengesMainTabs({ activeTab, onTabChange }: ChallengesMainTab
                 { color: isActive ? BrandColors.primary[700] : textSecondary },
                 isActive && { fontWeight: '700' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               {tab.label}
             </ThemedText>

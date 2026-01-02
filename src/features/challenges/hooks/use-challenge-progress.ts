@@ -9,6 +9,7 @@ export function useChallengeProgress(challengeId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     loadSubmission();
@@ -35,7 +36,35 @@ export function useChallengeProgress(challengeId: string) {
     }
   };
 
-  const submitChallenge = async (proofImageUrl: string) => {
+  /**
+   * Commence le défi (crée une soumission avec status STARTED)
+   */
+  const startChallenge = async () => {
+    if (!user?.id || !challengeId) return;
+
+    try {
+      setStarting(true);
+      setError(null);
+
+      const newSubmission = await ChallengeSubmissionService.startChallenge(
+        challengeId,
+        user.id
+      );
+
+      setSubmission(newSubmission);
+    } catch (err: any) {
+      console.error('Erreur lors du démarrage du défi:', err);
+      setError(err.message || 'Impossible de commencer le défi');
+      throw err;
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  /**
+   * Soumet le défi avec une preuve
+   */
+  const submitChallenge = async (scoutComment: string, proofImageUrl?: string) => {
     if (!user?.id || !challengeId) return;
 
     try {
@@ -45,6 +74,7 @@ export function useChallengeProgress(challengeId: string) {
       const newSubmission = await ChallengeSubmissionService.submitChallenge(
         challengeId,
         user.id,
+        scoutComment,
         proofImageUrl
       );
 
@@ -60,16 +90,27 @@ export function useChallengeProgress(challengeId: string) {
 
   const isCompleted = submission?.status === ChallengeStatus.COMPLETED;
   const isPending = submission?.status === ChallengeStatus.PENDING_VALIDATION;
-  const canSubmit = !submission || submission.status === ChallengeStatus.EXPIRED;
+  const isStarted = submission?.status === ChallengeStatus.STARTED;
+  const isExpired = submission?.status === ChallengeStatus.EXPIRED;
+
+  // Peut commencer si pas de soumission ou si précédemment rejeté
+  const canStart = !submission || isExpired;
+  // Peut soumettre si commencé ou si pas de soumission/expiré
+  const canSubmit = isStarted || canStart;
 
   return {
     submission,
     loading,
     error,
     submitting,
+    starting,
+    startChallenge,
     submitChallenge,
     isCompleted,
     isPending,
+    isStarted,
+    isExpired,
+    canStart,
     canSubmit,
     refetch: loadSubmission,
   };

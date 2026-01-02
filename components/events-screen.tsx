@@ -199,7 +199,7 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <ThemedText style={styles.title}>Événements</ThemedText>
+            <ThemedText type="title" style={styles.title}>Événements</ThemedText>
             <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
               {events.length} événement{events.length !== 1 ? 's' : ''} à venir
             </ThemedText>
@@ -396,6 +396,7 @@ function EventCardWithAttendance({
         participantCount={participantCount}
         maxParticipants={event.maxParticipants}
         isRegistered={isRegistered}
+        imageUrl={event.imageUrl}
         onPress={() => {
           console.log(`Event ${event.title} clicked`);
         }}
@@ -425,10 +426,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 80,
+    padding: Spacing.lg,
+    paddingTop: 60,
     paddingBottom: 100,
-    direction: 'ltr',
   },
   headerRow: {
     flexDirection: 'row',
@@ -438,12 +438,9 @@ const styles = StyleSheet.create({
     direction: 'ltr',
   },
   title: {
-    fontSize: 34,
+    marginBottom: Spacing.sm,
+    fontSize: 28,
     fontWeight: '700',
-    letterSpacing: -0.5,
-    marginBottom: 4,
-    writingDirection: 'ltr',
-    textAlign: 'left',
   },
   subtitle: {
     fontSize: 15,

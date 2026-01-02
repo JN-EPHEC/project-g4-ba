@@ -14,6 +14,7 @@ interface CommentItemProps {
   content: string;
   createdAt: Date;
   isOwnComment: boolean;
+  isAuthorAnimator?: boolean;
   canDelete: boolean;
   onDelete?: () => void;
 }
@@ -24,6 +25,7 @@ export function CommentItem({
   content,
   createdAt,
   isOwnComment,
+  isAuthorAnimator = false,
   canDelete,
   onDelete,
 }: CommentItemProps) {
@@ -51,8 +53,11 @@ export function CommentItem({
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.header}>
-          <ThemedText style={styles.authorName}>
+          <ThemedText style={[styles.authorName, isAuthorAnimator && { color: BrandColors.accent[600] }]}>
             {authorName}
+            {isAuthorAnimator && (
+              <ThemedText style={styles.animatorBadge}> · Animateur</ThemedText>
+            )}
             {isOwnComment && (
               <ThemedText style={styles.youBadge}> (vous)</ThemedText>
             )}
@@ -120,6 +125,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '400',
     color: BrandColors.primary[500],
+  },
+  animatorBadge: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: BrandColors.accent[500],
   },
   timestamp: {
     fontSize: 11,

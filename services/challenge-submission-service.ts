@@ -22,6 +22,17 @@ export class ChallengeSubmissionService {
   private static readonly COLLECTION_NAME = 'challengeSubmissions';
 
   /**
+   * Helper pour convertir un champ date (Timestamp Firestore ou Date)
+   */
+  private static toDate(value: any): Date | undefined {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    if (typeof value?.toDate === 'function') return value.toDate();
+    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    return undefined;
+  }
+
+  /**
    * Convertit un document Firestore en soumission
    */
   private static convertSubmission(data: DocumentData): ChallengeSubmission {
@@ -30,23 +41,22 @@ export class ChallengeSubmissionService {
       challengeId: data.challengeId,
       scoutId: data.scoutId,
       proofImageUrl: data.proofImageUrl,
-      submittedAt: data.submittedAt?.toDate() || new Date(),
+      startedAt: this.toDate(data.startedAt),
+      submittedAt: this.toDate(data.submittedAt),
       status: data.status as ChallengeStatus,
       validatedBy: data.validatedBy,
-      validatedAt: data.validatedAt?.toDate(),
+      validatedAt: this.toDate(data.validatedAt),
       comment: data.comment,
       scoutComment: data.scoutComment,
     };
   }
 
   /**
-   * Soumet un défi avec une preuve photo et un commentaire optionnel
+   * Commence un défi (crée une soumission avec status STARTED)
    */
-  static async submitChallenge(
+  static async startChallenge(
     challengeId: string,
-    scoutId: string,
-    proofImageUrl: string,
-    scoutComment?: string
+    scoutId: string
   ): Promise<ChallengeSubmission> {
     try {
       // Vérifier que le scout existe
@@ -55,26 +65,114 @@ export class ChallengeSubmissionService {
         throw new Error('L\'utilisateur n\'existe pas ou n\'est pas un scout');
       }
 
-      // Vérifier qu'il n'y a pas déjà une soumission en attente
+      // Vérifier qu'il n'y a pas déjà une soumission
       const existingSubmission = await this.getSubmissionByChallengeAndScout(
         challengeId,
         scoutId
       );
-      if (existingSubmission && existingSubmission.status === ChallengeStatus.PENDING_VALIDATION) {
-        throw new Error('Vous avez déjà soumis ce défi et il est en attente de validation');
+      if (existingSubmission) {
+        if (existingSubmission.status === ChallengeStatus.STARTED) {
+          throw new Error('Tu as déjà commencé ce défi');
+        }
+        if (existingSubmission.status === ChallengeStatus.PENDING_VALIDATION) {
+          throw new Error('Tu as déjà soumis ce défi et il est en attente de validation');
+        }
+        if (existingSubmission.status === ChallengeStatus.COMPLETED) {
+          throw new Error('Tu as déjà complété ce défi');
+        }
       }
 
+      const now = Timestamp.fromDate(new Date());
       const submissionData: Record<string, unknown> = {
         challengeId,
         scoutId,
-        proofImageUrl,
-        submittedAt: Timestamp.fromDate(new Date()),
+        startedAt: now,
+        status: ChallengeStatus.STARTED,
+      };
+
+      const submissionRef = doc(collection(db, this.COLLECTION_NAME));
+      await setDoc(submissionRef, submissionData);
+
+      return this.convertSubmission({ id: submissionRef.id, ...submissionData });
+    } catch (error) {
+      console.error('Erreur lors du démarrage du défi:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Soumet un défi avec une preuve photo optionnelle et un commentaire obligatoire
+   * Peut être utilisé pour une nouvelle soumission ou pour compléter un défi déjà commencé
+   */
+  static async submitChallenge(
+    challengeId: string,
+    scoutId: string,
+    scoutComment: string,
+    proofImageUrl?: string
+  ): Promise<ChallengeSubmission> {
+    try {
+      // Vérifier que le commentaire est fourni
+      if (!scoutComment || !scoutComment.trim()) {
+        throw new Error('Un commentaire est requis pour soumettre le défi');
+      }
+
+      // Vérifier que le scout existe
+      const scout = await UserService.getUserById(scoutId);
+      if (!scout || scout.role !== UserRole.SCOUT) {
+        throw new Error('L\'utilisateur n\'existe pas ou n\'est pas un scout');
+      }
+
+      // Vérifier s'il y a déjà une soumission
+      const existingSubmission = await this.getSubmissionByChallengeAndScout(
+        challengeId,
+        scoutId
+      );
+
+      if (existingSubmission) {
+        if (existingSubmission.status === ChallengeStatus.PENDING_VALIDATION) {
+          throw new Error('Tu as déjà soumis ce défi et il est en attente de validation');
+        }
+        if (existingSubmission.status === ChallengeStatus.COMPLETED) {
+          throw new Error('Tu as déjà complété ce défi');
+        }
+
+        // Si le défi a été commencé, on met à jour la soumission existante
+        if (existingSubmission.status === ChallengeStatus.STARTED) {
+          const submissionRef = doc(db, this.COLLECTION_NAME, existingSubmission.id);
+          const updateData: Record<string, unknown> = {
+            scoutComment: scoutComment.trim(),
+            submittedAt: Timestamp.fromDate(new Date()),
+            status: ChallengeStatus.PENDING_VALIDATION,
+          };
+
+          if (proofImageUrl) {
+            updateData.proofImageUrl = proofImageUrl;
+          }
+
+          await updateDoc(submissionRef, updateData);
+
+          return this.convertSubmission({
+            ...existingSubmission,
+            ...updateData,
+            id: existingSubmission.id,
+          });
+        }
+      }
+
+      // Nouvelle soumission (défi pas encore commencé ou précédemment rejeté)
+      const now = Timestamp.fromDate(new Date());
+      const submissionData: Record<string, unknown> = {
+        challengeId,
+        scoutId,
+        scoutComment: scoutComment.trim(),
+        startedAt: now, // Commence et soumet en même temps
+        submittedAt: now,
         status: ChallengeStatus.PENDING_VALIDATION,
       };
 
-      // Ajouter le commentaire du scout s'il est fourni
-      if (scoutComment && scoutComment.trim()) {
-        submissionData.scoutComment = scoutComment.trim();
+      // Ajouter la photo seulement si fournie
+      if (proofImageUrl) {
+        submissionData.proofImageUrl = proofImageUrl;
       }
 
       const submissionRef = doc(collection(db, this.COLLECTION_NAME));
@@ -335,6 +433,56 @@ export class ChallengeSubmissionService {
       return filteredSubmissions;
     } catch (error) {
       console.error('Erreur lors de la récupération des soumissions traitées:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les défis commencés (status STARTED) d'une unité
+   * Pour les animateurs
+   */
+  static async getStartedSubmissions(
+    unitId?: string
+  ): Promise<ChallengeSubmission[]> {
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('status', '==', ChallengeStatus.STARTED)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const submissions = querySnapshot.docs.map((doc) =>
+        this.convertSubmission({ id: doc.id, ...doc.data() })
+      );
+
+      // Si unitId est fourni, filtrer par unité du scout
+      if (unitId) {
+        const filteredSubmissions = [];
+        for (const submission of submissions) {
+          const scout = await UserService.getUserById(submission.scoutId) as Scout;
+          if (scout && scout.unitId === unitId) {
+            filteredSubmissions.push(submission);
+          }
+        }
+        // Trier par date de début (plus récent en premier)
+        filteredSubmissions.sort((a, b) => {
+          const dateA = a.startedAt ? a.startedAt.getTime() : 0;
+          const dateB = b.startedAt ? b.startedAt.getTime() : 0;
+          return dateB - dateA;
+        });
+        return filteredSubmissions;
+      }
+
+      // Trier par date de début (plus récent en premier)
+      submissions.sort((a, b) => {
+        const dateA = a.startedAt ? a.startedAt.getTime() : 0;
+        const dateB = b.startedAt ? b.startedAt.getTime() : 0;
+        return dateB - dateA;
+      });
+
+      return submissions;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des défis commencés:', error);
       throw error;
     }
   }

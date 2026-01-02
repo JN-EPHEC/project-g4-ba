@@ -7,7 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
 import { RankBadge } from '@/components/rank-badge';
 import { useAuth } from '@/context/auth-context';
-import { ChallengeSubmissionService } from '@/src/features/challenges/services/challenge-submission-service';
+import { ChallengeSubmissionService } from '@/services/challenge-submission-service';
 import { ChallengeService } from '@/services/challenge-service';
 import { UserService } from '@/services/user-service';
 import { Animator, ChallengeSubmission, Challenge, Scout } from '@/types';
@@ -183,16 +183,18 @@ export default function ValidateChallengesScreen() {
         )}
 
         {/* Date de soumission */}
-        <View style={styles.dateInfo}>
-          <Ionicons name="time-outline" size={14} color={iconColor} />
-          <ThemedText style={styles.dateText}>
-            Soumis le {submission.submittedAt.toLocaleDateString('fr-FR')} à{' '}
-            {submission.submittedAt.toLocaleTimeString('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </ThemedText>
-        </View>
+        {submission.submittedAt && (
+          <View style={styles.dateInfo}>
+            <Ionicons name="time-outline" size={14} color={iconColor} />
+            <ThemedText style={styles.dateText}>
+              Soumis le {submission.submittedAt.toLocaleDateString('fr-FR')} à{' '}
+              {submission.submittedAt.toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </ThemedText>
+          </View>
+        )}
 
         {/* Commentaire du scout */}
         {submission.scoutComment && (

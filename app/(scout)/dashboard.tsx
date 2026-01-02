@@ -18,11 +18,15 @@ import { LeaderboardService, LeaderboardEntry } from '@/services/leaderboard-ser
 import { ChannelService } from '@/src/shared/services/channel-service';
 import { UserService } from '@/services/user-service';
 import { HealthService } from '@/services/health-service';
+import { ChallengeSubmissionService } from '@/services/challenge-submission-service';
+import { ChallengeService } from '@/services/challenge-service';
+import { ChallengeStatus } from '@/types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { BrandColors, NeutralColors } from '@/constants/theme';
 import { getCountdownLabel, getCountdownColor } from '@/src/shared/utils/date-utils';
 import { getUserTotemEmoji, getDisplayName } from '@/src/shared/utils/totem-utils';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 // Import des widgets existants
 import {
@@ -44,10 +48,16 @@ export default function ScoutDashboardScreen() {
   const router = useRouter();
   const { events } = useEvents();
   const { challenges } = useChallenges();
-  const { completedCount } = useAllChallengeProgress();
+  const { completedCount, isStarted, startedCount } = useAllChallengeProgress();
 
   const scout = user as Scout;
   const { currentLevel } = useScoutLevel({ points: scout?.points || 0 });
+
+  // Couleurs dynamiques pour le thème
+  const textColor = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const cardColor = useThemeColor({}, 'card');
+  const cardBorderColor = useThemeColor({}, 'cardBorder');
 
   // State pour le classement et messages
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -55,6 +65,7 @@ export default function ScoutDashboardScreen() {
   const [recentChannels, setRecentChannels] = useState<RecentChannel[]>([]);
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [newMembers, setNewMembers] = useState<{ id: string; firstName: string; lastName: string; validatedAt: Date }[]>([]);
+  const [validatedChallenges, setValidatedChallenges] = useState<{ id: string; challengeId: string; title: string; points: number; validatedAt: Date }[]>([]);
 
   // State pour la fiche santé
   const [healthRecord, setHealthRecord] = useState<HealthRecord | null>(null);
@@ -73,7 +84,7 @@ export default function ScoutDashboardScreen() {
     return createdAt > lastNewsViewedAt;
   });
 
-  const totalNewItems = newChallenges.length + newEvents.length + newMembers.length;
+  const totalNewItems = newChallenges.length + newEvents.length + newMembers.length + validatedChallenges.length;
 
   // Fonction pour marquer les nouveautés comme vues
   const markNewsAsViewed = async () => {
@@ -131,6 +142,13 @@ export default function ScoutDashboardScreen() {
       loadNewMembers();
     }
   }, [scout?.unitId, scout?.id]);
+
+  // Charger les défis validés récemment
+  useEffect(() => {
+    if (scout?.id) {
+      loadValidatedChallenges();
+    }
+  }, [scout?.id, lastNewsViewedAt]);
 
   // Charger la fiche santé (et recharger quand l'écran revient au focus)
   const loadHealthRecord = useCallback(async () => {
@@ -225,9 +243,48 @@ export default function ScoutDashboardScreen() {
     }
   };
 
+  // Charger les défis validés récemment (pour ce scout)
+  const loadValidatedChallenges = async () => {
+    if (!scout?.id) return;
+    try {
+      // Récupérer toutes les soumissions du scout
+      const submissions = await ChallengeSubmissionService.getSubmissionsByScout(scout.id);
+
+      // Filtrer les soumissions validées après lastNewsViewedAt
+      const recentlyValidated = submissions.filter(s =>
+        s.status === ChallengeStatus.COMPLETED &&
+        s.validatedAt &&
+        s.validatedAt > lastNewsViewedAt
+      );
+
+      // Récupérer les infos des défis correspondants
+      const validatedWithDetails: { id: string; challengeId: string; title: string; points: number; validatedAt: Date }[] = [];
+
+      for (const submission of recentlyValidated) {
+        const challenge = await ChallengeService.getChallengeById(submission.challengeId);
+        if (challenge && submission.validatedAt) {
+          validatedWithDetails.push({
+            id: submission.id,
+            challengeId: submission.challengeId,
+            title: challenge.title,
+            points: challenge.points,
+            validatedAt: submission.validatedAt,
+          });
+        }
+      }
+
+      // Trier par date (plus récent en premier)
+      validatedWithDetails.sort((a, b) => b.validatedAt.getTime() - a.validatedAt.getTime());
+      setValidatedChallenges(validatedWithDetails.slice(0, 5));
+    } catch (error) {
+      console.error('Erreur chargement défis validés:', error);
+    }
+  };
+
   // Données
   const upcomingEvents = events.slice(0, 2);
-  const activeChallenges = challenges.slice(0, 3);
+  // Filtrer uniquement les défis que le scout a manuellement commencés (status STARTED)
+  const startedChallenges = challenges.filter(c => isStarted(c.id)).slice(0, 3);
 
   const stats = [
     { value: scout?.points || 0, label: 'Points', isAccent: true },
@@ -412,7 +469,7 @@ export default function ScoutDashboardScreen() {
           {/* ==================== PROCHAINS ÉVÉNEMENTS ==================== */}
           <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>Prochains événements</ThemedText>
+              <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Prochains événements</ThemedText>
               <TouchableOpacity
                 style={styles.seeAllButtonGreen}
                 onPress={() => router.push('/(scout)/events')}
@@ -423,8 +480,8 @@ export default function ScoutDashboardScreen() {
             </View>
 
             {upcomingEvents.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <ThemedText style={styles.emptyText}>
+              <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
+                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
                   Aucun événement à venir
                 </ThemedText>
               </View>
@@ -442,7 +499,7 @@ export default function ScoutDashboardScreen() {
                   return (
                     <TouchableOpacity
                       key={event.id}
-                      style={styles.eventCard}
+                      style={[styles.eventCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}
                       onPress={() => router.push('/(scout)/events')}
                       activeOpacity={0.7}
                     >
@@ -452,7 +509,7 @@ export default function ScoutDashboardScreen() {
                       </View>
                       <View style={styles.eventContent}>
                         <View style={styles.eventTitleRow}>
-                          <ThemedText style={styles.eventTitle} numberOfLines={1}>
+                          <ThemedText style={[styles.eventTitle, { color: textColor }]} numberOfLines={1}>
                             {event.title}
                           </ThemedText>
                           <View style={[styles.countdownBadge, { backgroundColor: `${countdownColor}15` }]}>
@@ -462,19 +519,19 @@ export default function ScoutDashboardScreen() {
                           </View>
                         </View>
                         <View style={styles.eventDetail}>
-                          <Ionicons name="time-outline" size={12} color={NeutralColors.gray[500]} />
-                          <ThemedText style={styles.eventDetailText}>
+                          <Ionicons name="time-outline" size={12} color={textSecondary} />
+                          <ThemedText style={[styles.eventDetailText, { color: textSecondary }]}>
                             {startTime} - {endTime}
                           </ThemedText>
                         </View>
                         <View style={styles.eventDetail}>
-                          <Ionicons name="location-outline" size={12} color={NeutralColors.gray[500]} />
-                          <ThemedText style={styles.eventDetailText} numberOfLines={1}>
+                          <Ionicons name="location-outline" size={12} color={textSecondary} />
+                          <ThemedText style={[styles.eventDetailText, { color: textSecondary }]} numberOfLines={1}>
                             {event.location}
                           </ThemedText>
                         </View>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color={NeutralColors.gray[400]} />
+                      <Ionicons name="chevron-forward" size={20} color={textSecondary} />
                     </TouchableOpacity>
                   );
                 })}
@@ -485,7 +542,7 @@ export default function ScoutDashboardScreen() {
           {/* ==================== DÉFIS EN COURS ==================== */}
           <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>Défis en cours</ThemedText>
+              <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Défis en cours</ThemedText>
               <TouchableOpacity
                 style={styles.seeAllButtonOrange}
                 onPress={() => router.push('/(scout)/challenges')}
@@ -495,15 +552,15 @@ export default function ScoutDashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            {activeChallenges.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <ThemedText style={styles.emptyText}>
-                  Aucun défi en cours
+            {startedChallenges.length === 0 ? (
+              <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
+                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
+                  Tu n'as pas encore commencé de défi
                 </ThemedText>
               </View>
             ) : (
               <View style={styles.challengesList}>
-                {activeChallenges.map((challenge) => {
+                {startedChallenges.map((challenge) => {
                   const daysRemaining = challenge.endDate
                     ? Math.max(0, Math.ceil((new Date(challenge.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
                     : null;
@@ -511,7 +568,7 @@ export default function ScoutDashboardScreen() {
                   return (
                     <TouchableOpacity
                       key={challenge.id}
-                      style={styles.challengeCard}
+                      style={[styles.challengeCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}
                       onPress={() => router.push(`/(scout)/challenges/${challenge.id}`)}
                       activeOpacity={0.7}
                     >
@@ -522,27 +579,27 @@ export default function ScoutDashboardScreen() {
                       </View>
                       <View style={styles.challengeContent}>
                         <View style={styles.challengeHeader}>
-                          <ThemedText style={styles.challengeTitle} numberOfLines={1}>
+                          <ThemedText style={[styles.challengeTitle, { color: textColor }]} numberOfLines={1}>
                             {challenge.title}
                           </ThemedText>
                           {daysRemaining !== null && (
-                            <ThemedText style={styles.challengeDays}>
+                            <ThemedText style={[styles.challengeDays, { color: textSecondary }]}>
                               {daysRemaining}j restant{daysRemaining > 1 ? 's' : ''}
                             </ThemedText>
                           )}
                         </View>
-                        <ThemedText style={styles.challengeDescription} numberOfLines={2}>
+                        <ThemedText style={[styles.challengeDescription, { color: textSecondary }]} numberOfLines={2}>
                           {challenge.description}
                         </ThemedText>
-                        <View style={styles.progressContainer}>
-                          <View style={styles.progressBar}>
-                            <View style={[styles.progressFill, { width: '0%' }]} />
+                        <View style={styles.challengeFooter}>
+                          <View style={styles.startedBadge}>
+                            <Ionicons name="play-circle" size={14} color={BrandColors.primary[500]} />
+                            <ThemedText style={styles.startedBadgeText}>En cours</ThemedText>
                           </View>
-                          <ThemedText style={styles.progressText}>0%</ThemedText>
+                          <ThemedText style={styles.challengePoints}>
+                            ⭐ {challenge.points} pts
+                          </ThemedText>
                         </View>
-                        <ThemedText style={styles.challengePoints}>
-                          ⭐ {challenge.points} pts
-                        </ThemedText>
                       </View>
                     </TouchableOpacity>
                   );
@@ -554,7 +611,7 @@ export default function ScoutDashboardScreen() {
           {/* ==================== MINI CLASSEMENT ==================== */}
           <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>🏆 Classement</ThemedText>
+              <ThemedText style={[styles.sectionTitle, { color: textColor }]}>🏆 Classement</ThemedText>
               <TouchableOpacity
                 onPress={() => router.push('/(scout)/leaderboard')}
               >
@@ -565,9 +622,9 @@ export default function ScoutDashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.leaderboardCard}>
+            <View style={[styles.leaderboardCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
               {leaderboard.length === 0 ? (
-                <ThemedText style={styles.emptyText}>Chargement...</ThemedText>
+                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>Chargement...</ThemedText>
               ) : (
                 leaderboard.map((entry, index) => {
                   const medals = ['🥇', '🥈', '🥉'];
@@ -579,7 +636,7 @@ export default function ScoutDashboardScreen() {
                       style={[
                         styles.leaderboardEntry,
                         isCurrentUser && styles.leaderboardEntryHighlight,
-                        index < leaderboard.length - 1 && styles.leaderboardEntryBorder
+                        index < leaderboard.length - 1 && [styles.leaderboardEntryBorder, { borderBottomColor: cardBorderColor }]
                       ]}
                     >
                       <ThemedText style={styles.leaderboardMedal}>
@@ -596,6 +653,7 @@ export default function ScoutDashboardScreen() {
                       <View style={styles.leaderboardInfo}>
                         <ThemedText style={[
                           styles.leaderboardName,
+                          { color: textColor },
                           isCurrentUser && styles.leaderboardNameHighlight
                         ]}>
                           {entry.scout.firstName || 'Scout'} {isCurrentUser && '(toi)'}
@@ -614,7 +672,7 @@ export default function ScoutDashboardScreen() {
           {/* ==================== MESSAGES RÉCENTS ==================== */}
           <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>💬 Messages récents</ThemedText>
+              <ThemedText style={[styles.sectionTitle, { color: textColor }]}>💬 Messages récents</ThemedText>
               <TouchableOpacity
                 onPress={() => router.push('/(scout)/messages')}
               >
@@ -625,16 +683,16 @@ export default function ScoutDashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.messagesCard}>
+            <View style={[styles.messagesCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
               {recentChannels.length === 0 ? (
-                <ThemedText style={[styles.emptyText, { padding: 16 }]}>Aucun message récent</ThemedText>
+                <ThemedText style={[styles.emptyText, { padding: 16, color: textSecondary }]}>Aucun message récent</ThemedText>
               ) : (
                 recentChannels.map((channel, index) => (
                   <TouchableOpacity
                     key={channel.id}
                     style={[
                       styles.messageEntry,
-                      index < recentChannels.length - 1 && styles.messageEntryBorder
+                      index < recentChannels.length - 1 && [styles.messageEntryBorder, { borderBottomColor: cardBorderColor }]
                     ]}
                     onPress={() => router.push('/(scout)/messages')}
                     activeOpacity={0.7}
@@ -644,14 +702,14 @@ export default function ScoutDashboardScreen() {
                     </View>
                     <View style={styles.messageContent}>
                       <View style={styles.messageHeader}>
-                        <ThemedText style={styles.channelName}>{channel.name}</ThemedText>
+                        <ThemedText style={[styles.channelName, { color: textColor }]}>{channel.name}</ThemedText>
                         {channel.unread && <View style={styles.unreadDot} />}
                       </View>
-                      <ThemedText style={styles.lastMessage} numberOfLines={1}>
+                      <ThemedText style={[styles.lastMessage, { color: textSecondary }]} numberOfLines={1}>
                         {channel.lastMessage}
                       </ThemedText>
                     </View>
-                    <ThemedText style={styles.messageTime}>
+                    <ThemedText style={[styles.messageTime, { color: textSecondary }]}>
                       {getRelativeTime(channel.lastMessageAt)}
                     </ThemedText>
                   </TouchableOpacity>
@@ -678,19 +736,19 @@ export default function ScoutDashboardScreen() {
         onRequestClose={closeNewsModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
             {/* Header */}
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, { borderBottomColor: cardBorderColor }]}>
               <View style={styles.modalTitleRow}>
-                <ThemedText style={styles.modalTitle}>✨ Nouveautés</ThemedText>
+                <ThemedText style={[styles.modalTitle, { color: textColor }]}>✨ Nouveautés</ThemedText>
                 <TouchableOpacity
                   onPress={closeNewsModal}
-                  style={styles.modalCloseButton}
+                  style={[styles.modalCloseButton, { backgroundColor: cardBorderColor }]}
                 >
-                  <Ionicons name="close" size={24} color={NeutralColors.gray[500]} />
+                  <Ionicons name="close" size={24} color={textSecondary} />
                 </TouchableOpacity>
               </View>
-              <ThemedText style={styles.modalSubtitle}>
+              <ThemedText style={[styles.modalSubtitle, { color: textSecondary }]}>
                 {totalNewItems > 0
                   ? `${totalNewItems} nouvelle${totalNewItems > 1 ? 's' : ''} depuis ta dernière visite`
                   : 'Aucune nouvelle depuis ta dernière visite'}
@@ -701,11 +759,11 @@ export default function ScoutDashboardScreen() {
               {/* Nouveaux défis */}
               {newChallenges.length > 0 && (
                 <View style={styles.newsSection}>
-                  <ThemedText style={styles.newsSectionTitle}>🎯 Nouveaux défis</ThemedText>
+                  <ThemedText style={[styles.newsSectionTitle, { color: textColor }]}>🎯 Nouveaux défis</ThemedText>
                   {newChallenges.slice(0, 3).map((challenge) => (
                     <TouchableOpacity
                       key={challenge.id}
-                      style={styles.newsItem}
+                      style={[styles.newsItem, { backgroundColor: cardBorderColor }]}
                       onPress={() => {
                         closeNewsModal();
                         router.push(`/(scout)/challenges/${challenge.id}`);
@@ -715,14 +773,14 @@ export default function ScoutDashboardScreen() {
                         <ThemedText style={styles.newsEmoji}>🎯</ThemedText>
                       </View>
                       <View style={styles.newsContent}>
-                        <ThemedText style={styles.newsTitle} numberOfLines={1}>
+                        <ThemedText style={[styles.newsTitle, { color: textColor }]} numberOfLines={1}>
                           {challenge.title}
                         </ThemedText>
-                        <ThemedText style={styles.newsDescription} numberOfLines={1}>
+                        <ThemedText style={[styles.newsDescription, { color: textSecondary }]} numberOfLines={1}>
                           {challenge.points} pts • {challenge.difficulty === 'easy' ? 'Facile' : challenge.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
                         </ThemedText>
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color={NeutralColors.gray[400]} />
+                      <Ionicons name="chevron-forward" size={18} color={textSecondary} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -731,7 +789,7 @@ export default function ScoutDashboardScreen() {
               {/* Nouveaux événements */}
               {newEvents.length > 0 && (
                 <View style={styles.newsSection}>
-                  <ThemedText style={styles.newsSectionTitle}>📅 Nouveaux événements</ThemedText>
+                  <ThemedText style={[styles.newsSectionTitle, { color: textColor }]}>📅 Nouveaux événements</ThemedText>
                   {newEvents.slice(0, 3).map((event) => {
                     const eventDate = new Date(event.startDate);
                     const formattedDate = eventDate.toLocaleDateString('fr-FR', {
@@ -741,7 +799,7 @@ export default function ScoutDashboardScreen() {
                     return (
                       <TouchableOpacity
                         key={event.id}
-                        style={styles.newsItem}
+                        style={[styles.newsItem, { backgroundColor: cardBorderColor }]}
                         onPress={() => {
                           closeNewsModal();
                           router.push('/(scout)/events');
@@ -751,37 +809,67 @@ export default function ScoutDashboardScreen() {
                           <ThemedText style={styles.newsEmoji}>📅</ThemedText>
                         </View>
                         <View style={styles.newsContent}>
-                          <ThemedText style={styles.newsTitle} numberOfLines={1}>
+                          <ThemedText style={[styles.newsTitle, { color: textColor }]} numberOfLines={1}>
                             {event.title}
                           </ThemedText>
-                          <ThemedText style={styles.newsDescription} numberOfLines={1}>
+                          <ThemedText style={[styles.newsDescription, { color: textSecondary }]} numberOfLines={1}>
                             {formattedDate} • {event.location}
                           </ThemedText>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color={NeutralColors.gray[400]} />
+                        <Ionicons name="chevron-forward" size={18} color={textSecondary} />
                       </TouchableOpacity>
                     );
                   })}
                 </View>
               )}
 
+              {/* Défis validés */}
+              {validatedChallenges.length > 0 && (
+                <View style={styles.newsSection}>
+                  <ThemedText style={[styles.newsSectionTitle, { color: textColor }]}>🏆 Défis validés</ThemedText>
+                  {validatedChallenges.slice(0, 3).map((validated) => (
+                    <TouchableOpacity
+                      key={validated.id}
+                      style={[styles.newsItem, { backgroundColor: cardBorderColor }]}
+                      onPress={() => {
+                        closeNewsModal();
+                        router.push(`/(scout)/challenges/${validated.challengeId}`);
+                      }}
+                    >
+                      <View style={[styles.newsIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+                        <ThemedText style={styles.newsEmoji}>✅</ThemedText>
+                      </View>
+                      <View style={styles.newsContent}>
+                        <ThemedText style={[styles.newsTitle, { color: textColor }]} numberOfLines={1}>
+                          {validated.title}
+                        </ThemedText>
+                        <ThemedText style={[styles.newsDescription, { color: textSecondary }]} numberOfLines={1}>
+                          +{validated.points} pts gagnés !
+                        </ThemedText>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={textSecondary} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               {/* Nouveaux membres */}
               {newMembers.length > 0 && (
                 <View style={styles.newsSection}>
-                  <ThemedText style={styles.newsSectionTitle}>👋 Nouveaux membres</ThemedText>
+                  <ThemedText style={[styles.newsSectionTitle, { color: textColor }]}>👋 Nouveaux membres</ThemedText>
                   {newMembers.slice(0, 3).map((member) => (
                     <View
                       key={member.id}
-                      style={styles.newsItem}
+                      style={[styles.newsItem, { backgroundColor: cardBorderColor }]}
                     >
                       <View style={[styles.newsIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
                         <ThemedText style={styles.newsEmoji}>🎉</ThemedText>
                       </View>
                       <View style={styles.newsContent}>
-                        <ThemedText style={styles.newsTitle} numberOfLines={1}>
+                        <ThemedText style={[styles.newsTitle, { color: textColor }]} numberOfLines={1}>
                           {member.firstName} {member.lastName}
                         </ThemedText>
-                        <ThemedText style={styles.newsDescription} numberOfLines={1}>
+                        <ThemedText style={[styles.newsDescription, { color: textSecondary }]} numberOfLines={1}>
                           A rejoint WeCamp !
                         </ThemedText>
                       </View>
@@ -791,13 +879,13 @@ export default function ScoutDashboardScreen() {
               )}
 
               {/* Message si pas de nouveautés */}
-              {newChallenges.length === 0 && newEvents.length === 0 && newMembers.length === 0 && (
+              {newChallenges.length === 0 && newEvents.length === 0 && newMembers.length === 0 && validatedChallenges.length === 0 && (
                 <View style={styles.emptyNewsState}>
                   <ThemedText style={styles.emptyNewsEmoji}>🌲</ThemedText>
-                  <ThemedText style={styles.emptyNewsText}>
+                  <ThemedText style={[styles.emptyNewsText, { color: textColor }]}>
                     Pas de nouveautés pour le moment
                   </ThemedText>
-                  <ThemedText style={styles.emptyNewsSubtext}>
+                  <ThemedText style={[styles.emptyNewsSubtext, { color: textSecondary }]}>
                     Reviens bientôt pour découvrir les prochaines activités !
                   </ThemedText>
                 </View>
@@ -1095,6 +1183,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: BrandColors.accent[500],
+  },
+  challengeFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  startedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: `${BrandColors.primary[500]}15`,
+  },
+  startedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: BrandColors.primary[500],
   },
 
   // ==================== EVENTS ====================

@@ -7,12 +7,15 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/context/auth-context';
 import { ChallengeKPIService, ChallengeKPI, ChallengeStats } from '@/src/features/challenges/services/challenge-kpi-service';
+import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
+import { StartedByScoutsSection } from '@/src/features/challenges/components/started-by-scouts-section';
 import { Animator } from '@/types';
 import { BrandColors, NeutralColors } from '@/constants/theme';
 
 export default function ChallengesKPIScreen() {
   const { user } = useAuth();
   const animator = user as Animator;
+  const { challenges } = useChallenges();
   const [globalStats, setGlobalStats] = useState<ChallengeKPI | null>(null);
   const [challengeStats, setChallengeStats] = useState<ChallengeStats[]>([]);
   const [popularChallenges, setPopularChallenges] = useState<ChallengeStats[]>([]);
@@ -151,6 +154,12 @@ export default function ChallengesKPIScreen() {
             </View>
           </View>
         )}
+
+        {/* Started Challenges by Scouts */}
+        <StartedByScoutsSection
+          challenges={challenges}
+          onChallengePress={(challenge) => router.push(`/(animator)/challenges/${challenge.id}`)}
+        />
 
         {/* Popular Challenges */}
         {popularChallenges.length > 0 && (
