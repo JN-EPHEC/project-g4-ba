@@ -172,6 +172,12 @@ export default function AnimatorLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="partners"
+        options={{
+          href: null, // Accessible depuis Défis > Rewards
+        }}
+      />
     </Tabs>
   );
 }

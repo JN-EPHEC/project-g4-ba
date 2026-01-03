@@ -26,6 +26,9 @@ export default function WelcomeScreen() {
         case UserRole.ANIMATOR:
           router.replace('/(animator)/dashboard');
           break;
+        case UserRole.WECAMP_ADMIN:
+          router.replace('/(wecamp)/dashboard');
+          break;
       }
     }
   }, [user, isLoading]);
@@ -38,6 +41,11 @@ export default function WelcomeScreen() {
   // "J'ai déjà un compte" → directement vers la connexion
   const handleLogin = () => {
     router.push('/(auth)/auth');
+  };
+
+  // Admin WeCamp → connexion admin
+  const handleAdmin = () => {
+    router.push('/(auth)/admin-login');
   };
 
   // Afficher un loader pendant la vérification de l'authentification
@@ -151,6 +159,16 @@ export default function WelcomeScreen() {
             activeOpacity={0.7}
           >
             <Text style={styles.loginLinkText}>J'ai déjà un compte</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.duration(600).delay(1300)}>
+          <TouchableOpacity
+            style={styles.adminLink}
+            onPress={handleAdmin}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.adminLinkText}>Admin</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -287,5 +305,15 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 16,
     fontWeight: '500',
+  },
+  adminLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginTop: 8,
+  },
+  adminLinkText: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 14,
+    fontWeight: '400',
   },
 });

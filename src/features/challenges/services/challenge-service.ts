@@ -63,18 +63,22 @@ export class ChallengeService {
     imageUrl?: string
   ): Promise<Challenge> {
     try {
-      const challengeData = {
+      const challengeData: Record<string, any> = {
         title,
         description,
         points,
         difficulty,
         unitId: unitId || null,
-        imageUrl,
         startDate: Timestamp.fromDate(startDate),
         endDate: Timestamp.fromDate(endDate),
         createdBy,
         createdAt: Timestamp.fromDate(new Date()),
       };
+
+      // Ajouter imageUrl seulement si défini
+      if (imageUrl) {
+        challengeData.imageUrl = imageUrl;
+      }
 
       const challengeRef = doc(collection(db, this.COLLECTION_NAME));
       await setDoc(challengeRef, challengeData);

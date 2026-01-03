@@ -1,119 +1,13 @@
 rules_version = '2';
 
 // Règles de sécurité Firebase Storage pour WeCamp
+// TEMPORAIRE: Règles simplifiées pour le débogage
 service firebase.storage {
   match /b/{bucket}/o {
-
-    // Fonction pour vérifier si l'utilisateur est authentifié
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Fonction pour vérifier si l'utilisateur est propriétaire de la ressource
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Fonction pour vérifier la taille du fichier (max 5MB)
-    function isValidSize() {
-      return request.resource.size < 5 * 1024 * 1024;
-    }
-
-    // Fonction pour vérifier que c'est une image
-    function isImage() {
-      return request.resource.contentType.matches('image/.*');
-    }
-
-    // Règles pour les avatars utilisateurs
-    match /avatars/{userId}/{allPaths=**} {
-      // Lecture: Tout le monde peut lire les avatars
-      allow read: if true;
-
-      // Écriture: Seulement le propriétaire peut uploader/modifier son avatar
-      allow write: if isAuthenticated()
-                   && isOwner(userId)
-                   && isValidSize()
-                   && isImage();
-    }
-
-    // Règles pour les images de totem générées par IA
-    match /totems/{userId}/{allPaths=**} {
-      // Lecture: Tout le monde peut lire les totems
-      allow read: if true;
-
-      // Écriture: Le propriétaire ou le service (Cloud Function)
-      allow write: if isAuthenticated()
-                   && isOwner(userId)
-                   && isValidSize()
-                   && isImage();
-    }
-
-    // Règles pour les photos de défis
-    match /challenges/{challengeId}/submissions/{submissionId}/{allPaths=**} {
-      // Lecture: Tout le monde authentifié peut lire
-      allow read: if isAuthenticated();
-
-      // Écriture: Seulement les utilisateurs authentifiés peuvent uploader
-      allow write: if isAuthenticated()
-                   && isValidSize()
-                   && isImage();
-    }
-
-    // Règles pour les photos d'albums
-    match /albums/{albumId}/photos/{photoId}/{allPaths=**} {
-      // Lecture: Tout le monde authentifié peut lire
-      allow read: if isAuthenticated();
-
-      // Écriture: Seulement les utilisateurs authentifiés peuvent uploader
-      allow write: if isAuthenticated()
-                   && isValidSize()
-                   && isImage();
-    }
-
-    // Règles pour les photos de posts communautaires
-    match /posts/{postId}/photos/{photoId}/{allPaths=**} {
-      // Lecture: Tout le monde authentifié peut lire
-      allow read: if isAuthenticated();
-
-      // Écriture: Seulement les utilisateurs authentifiés peuvent uploader
-      allow write: if isAuthenticated()
-                   && isValidSize()
-                   && isImage();
-    }
-
-    // Règles pour les documents PDF
-    match /documents/{documentId}/{fileName} {
-      // Lecture: Tout le monde authentifié peut lire
-      allow read: if isAuthenticated();
-
-      // Écriture: Seulement les animateurs peuvent uploader des documents
-      // Note: On ne peut pas vérifier le rôle directement dans Storage rules
-      // Il faut vérifier cela côté application
-      allow write: if isAuthenticated()
-                   && request.resource.size < 10 * 1024 * 1024  // Max 10MB pour PDF
-                   && request.resource.contentType == 'application/pdf';
-    }
-
-    // Règles pour le Drive (stockage de fichiers)
-    match /drive/{unitId}/{folderId}/{allPaths=**} {
-      // Lecture: Tout le monde authentifié peut lire
-      allow read: if isAuthenticated();
-
-      // Écriture: Utilisateurs authentifiés peuvent uploader (max 20MB)
-      allow write: if isAuthenticated()
-                   && request.resource.size < 20 * 1024 * 1024;
-    }
-
-    // Règles pour les pièces jointes des posts/messages
-    match /units/{unitId}/feed/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated()
-                   && request.resource.size < 10 * 1024 * 1024;
-    }
-
-    // Par défaut, bloquer tout le reste
+    // Autoriser tout pour les utilisateurs authentifiés (temporaire)
     match /{allPaths=**} {
-      allow read, write: if false;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.resource.size < 20 * 1024 * 1024;
     }
   }
 }

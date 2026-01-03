@@ -11,3 +11,4 @@ export * from './unit';
 export * from './health';
 export * from './badge';
 export * from './level';
+export * from './partners';

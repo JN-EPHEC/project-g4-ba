@@ -23,6 +23,7 @@ interface ActiveChallengeCardProps {
   category?: ChallengeCategory;
   points: number;
   deadline: string;
+  isWeCampChallenge?: boolean;
   onPress?: () => void;
 }
 
@@ -32,6 +33,7 @@ export function ActiveChallengeCard({
   category,
   points,
   deadline,
+  isWeCampChallenge = false,
   onPress,
 }: ActiveChallengeCardProps) {
   const cardColor = useThemeColor({}, 'card');
@@ -46,6 +48,13 @@ export function ActiveChallengeCard({
       onPress={onPress}
       activeOpacity={0.7}
     >
+      {/* WeCamp Badge */}
+      {isWeCampChallenge && (
+        <View style={styles.wecampBadge}>
+          <ThemedText style={styles.wecampBadgeText}>WECAMP</ThemedText>
+        </View>
+      )}
+
       {/* Header: Icon + Title + Deadline */}
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: catColors.bg }]}>
@@ -91,6 +100,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+    position: 'relative',
+  },
+  wecampBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: BrandColors.accent[100],
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    zIndex: 1,
+  },
+  wecampBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: BrandColors.accent[600],
+    letterSpacing: 0.5,
   },
   header: {
     flexDirection: 'row',

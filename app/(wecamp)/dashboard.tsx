@@ -1,0 +1,2191 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+  TextInput,
+  Text,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useAuth } from '@/context/auth-context';
+import { ChallengeService } from '@/src/features/challenges/services/challenge-service';
+import { AdminStatsService, GlobalStats, ChallengeStats, UnitStats } from '@/services/admin-stats-service';
+import { PartnerService } from '@/services/partner-service';
+import { Challenge } from '@/types';
+import { Partner, PartnerOffer, Redemption } from '@/types/partners';
+
+// Design System
+const colors = {
+  primary: '#2D5A45',
+  primaryLight: '#3d7a5a',
+  accent: '#E07B4C',
+  accentLight: '#FEF3EE',
+  neutral: '#8B7E74',
+  neutralLight: '#C4BBB3',
+  dark: '#1A2E28',
+  mist: '#E8EDE9',
+  canvas: '#FDFCFB',
+  cardBg: '#FFFFFF',
+  danger: '#DC3545',
+  dangerLight: '#FDEAEA',
+  success: '#28A745',
+  successLight: '#E8F5E9',
+  warning: '#F5A623',
+  warningLight: '#FEF7E6',
+  blue: '#4A90D9',
+  blueLight: '#EBF4FF',
+  purple: '#7B1FA2',
+  purpleLight: '#F3E5F5',
+  gold: '#FFD700',
+  silver: '#C0C0C0',
+  bronze: '#CD7F32',
+};
+
+const spacing = {
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 24,
+  xl: 32,
+};
+
+type TabType = 'dashboard' | 'defis' | 'unites' | 'classement' | 'partenaires';
+
+interface TabInfo {
+  key: TabType;
+  label: string;
+  icon: string;
+}
+
+// Activity types
+interface Activity {
+  id: number;
+  text: string;
+  time: string;
+  icon: string;
+  type: 'info' | 'warning' | 'success';
+}
+
+export default function WeCampDashboard() {
+  const { logout } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [activeChallengeFilter, setActiveChallengeFilter] = useState('tous');
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [challengeStats, setChallengeStats] = useState<ChallengeStats[]>([]);
+  const [unitRanking, setUnitRanking] = useState<UnitStats[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Partners state
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [allOffers, setAllOffers] = useState<(PartnerOffer & { partner: Partner })[]>([]);
+  const [partnerSearchQuery, setPartnerSearchQuery] = useState('');
+  const [activePartnerTab, setActivePartnerTab] = useState<'partenaires' | 'offres'>('partenaires');
+  const [showPartnerForm, setShowPartnerForm] = useState(false);
+  const [showOfferForm, setShowOfferForm] = useState(false);
+  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
+  const [editingOffer, setEditingOffer] = useState<(PartnerOffer & { partner: Partner }) | null>(null);
+
+  // Partner form state
+  const [partnerForm, setPartnerForm] = useState({
+    name: '',
+    logo: '🏪',
+    category: 'alimentation' as Partner['category'],
+    description: '',
+    website: '',
+  });
+
+  // Offer form state
+  const [offerForm, setOfferForm] = useState({
+    partnerId: '',
+    title: '',
+    description: '',
+    discountType: 'percentage' as 'percentage' | 'fixed',
+    discountValue: '',
+    pointsCost: '',
+    validityDays: '30',
+    maxRedemptions: '',
+  });
+
+  // Navigation tabs
+  const tabs: TabInfo[] = [
+    { key: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { key: 'defis', label: 'Défis', icon: '🎯' },
+    { key: 'unites', label: 'Unités', icon: '🏕️' },
+    { key: 'classement', label: 'Classement', icon: '🏆' },
+    { key: 'partenaires', label: 'Partenaires', icon: '🎁' },
+  ];
+
+  // Recent activity (will be replaced with real data)
+  const recentActivity: Activity[] = [
+    { id: 1, text: 'Nouvelle unité créée', time: 'Il y a 2h', icon: '🏕️', type: 'info' },
+    { id: 2, text: 'Signalement: contenu inapproprié', time: 'Il y a 3h', icon: '⚠️', type: 'warning' },
+    { id: 3, text: 'Une unité atteint niveau Or', time: 'Il y a 5h', icon: '🏆', type: 'success' },
+    { id: 4, text: 'Défi très populaire', time: 'Il y a 1j', icon: '📈', type: 'info' },
+  ];
+
+  const loadData = useCallback(async () => {
+    try {
+      const [challengesData, stats, cStats, ranking, partnersData, offersData] = await Promise.all([
+        ChallengeService.getChallenges(),
+        AdminStatsService.getGlobalStats(),
+        AdminStatsService.getChallengeStats(),
+        AdminStatsService.getUnitRanking(),
+        PartnerService.getPartners(),
+        PartnerService.getAllActiveOffers(),
+      ]);
+      setChallenges(challengesData);
+      setGlobalStats(stats);
+      setChallengeStats(cStats);
+      setUnitRanking(ranking);
+      setPartners(partnersData);
+      setAllOffers(offersData);
+    } catch (error) {
+      console.error('Erreur chargement données:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
+
+  const handleLogout = () => {
+    Alert.alert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Déconnexion',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/(auth)/login');
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteChallenge = (challengeId: string, title: string) => {
+    Alert.alert(
+      'Supprimer le défi',
+      `Voulez-vous vraiment supprimer "${title}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(challengeId);
+            try {
+              await ChallengeService.deleteChallenge(challengeId);
+              setChallenges((prev) => prev.filter((c) => c.id !== challengeId));
+            } catch (error: any) {
+              Alert.alert('Erreur', error?.message || 'Impossible de supprimer le défi');
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getDifficultyStyle = (difficulty: string) => {
+    switch (difficulty) {
+      case 'easy':
+        return { bg: colors.successLight, color: colors.success, label: 'Facile' };
+      case 'medium':
+        return { bg: colors.warningLight, color: colors.warning, label: 'Moyen' };
+      case 'hard':
+        return { bg: colors.dangerLight, color: colors.danger, label: 'Difficile' };
+      default:
+        return { bg: colors.mist, color: colors.neutral, label: difficulty };
+    }
+  };
+
+  const getLevelColor = (level: string) => {
+    const levelColors: Record<string, string> = {
+      'Or': colors.gold,
+      'Argent': colors.silver,
+      'Bronze': colors.bronze,
+    };
+    return levelColors[level] || colors.neutral;
+  };
+
+  const getUnitLevel = (points: number): string => {
+    if (points >= 10000) return 'Or';
+    if (points >= 5000) return 'Argent';
+    return 'Bronze';
+  };
+
+  const filteredUnits = unitRanking.filter((unit) =>
+    unit.unitName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const top3Units = unitRanking.slice(0, 3);
+
+  // ==================== RENDER DASHBOARD ====================
+  const renderDashboard = () => (
+    <View style={styles.section}>
+      {/* Global Stats */}
+      <View style={styles.statsGrid}>
+        <View style={[styles.statCard, { backgroundColor: `${colors.primary}10` }]}>
+          <View style={styles.statCardHeader}>
+            <Text style={styles.statIcon}>🏕️</Text>
+            <Text style={styles.statLabel}>Unités</Text>
+          </View>
+          <Text style={[styles.statValue, { color: colors.primary }]}>
+            {globalStats?.totalUnits || 0}
+          </Text>
+          <Text style={styles.statTrend}>Total enregistrées</Text>
+        </View>
+
+        <View style={[styles.statCard, { backgroundColor: `${colors.blue}10` }]}>
+          <View style={styles.statCardHeader}>
+            <Text style={styles.statIcon}>👥</Text>
+            <Text style={styles.statLabel}>Scouts</Text>
+          </View>
+          <Text style={[styles.statValue, { color: colors.blue }]}>
+            {globalStats?.totalScouts || 0}
+          </Text>
+          <Text style={styles.statTrend}>Membres actifs</Text>
+        </View>
+
+        <View style={[styles.statCard, { backgroundColor: `${colors.accent}10` }]}>
+          <View style={styles.statCardHeader}>
+            <Text style={styles.statIcon}>🎯</Text>
+            <Text style={styles.statLabel}>Défis actifs</Text>
+          </View>
+          <Text style={[styles.statValue, { color: colors.accent }]}>
+            {challenges.length}
+          </Text>
+          <Text style={styles.statTrend}>Disponibles</Text>
+        </View>
+
+        <View style={[styles.statCard, { backgroundColor: `${colors.success}10` }]}>
+          <View style={styles.statCardHeader}>
+            <Text style={styles.statIcon}>✅</Text>
+            <Text style={styles.statLabel}>Complétés</Text>
+          </View>
+          <Text style={[styles.statValue, { color: colors.success }]}>
+            {globalStats?.totalChallengesCompleted || 0}
+          </Text>
+          <Text style={styles.statTrend}>Défis terminés</Text>
+        </View>
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.quickActionsRow}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => router.push('/(wecamp)/create-challenge')}
+        >
+          <Text style={styles.primaryButtonIcon}>🎯</Text>
+          <Text style={styles.primaryButtonText}>Nouveau défi</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonIcon}>📊</Text>
+          <Text style={styles.secondaryButtonText}>Exporter</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Recent Activity */}
+      <Text style={styles.sectionTitle}>Activité récente</Text>
+      <View style={styles.activityCard}>
+        {challengeStats.length === 0 ? (
+          recentActivity.map((activity, index) => (
+            <View
+              key={activity.id}
+              style={[
+                styles.activityItem,
+                index < recentActivity.length - 1 && styles.activityItemBorder,
+              ]}
+            >
+              <Text style={styles.activityIcon}>{activity.icon}</Text>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>{activity.text}</Text>
+                <Text style={styles.activityTime}>{activity.time}</Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          challengeStats.slice(0, 4).map((stat, index) => (
+            <View
+              key={stat.challengeId}
+              style={[
+                styles.activityItem,
+                index < Math.min(challengeStats.length, 4) - 1 && styles.activityItemBorder,
+              ]}
+            >
+              <Text style={styles.activityIcon}>{stat.emoji}</Text>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>{stat.title}</Text>
+                <Text style={styles.activityTime}>
+                  {stat.totalParticipants} participants · {stat.completed} complétés
+                </Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+    </View>
+  );
+
+  // ==================== RENDER DEFIS ====================
+  const renderDefis = () => (
+    <View style={styles.section}>
+      {/* Create Button */}
+      <TouchableOpacity
+        style={styles.createChallengeButton}
+        onPress={() => router.push('/(wecamp)/create-challenge')}
+      >
+        <Ionicons name="add" size={20} color="#FFFFFF" />
+        <Text style={styles.createChallengeButtonText}>Créer un défi global</Text>
+      </TouchableOpacity>
+
+      {/* Stats */}
+      <View style={styles.defisStatsRow}>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.primary }]}>
+            {challenges.length}
+          </Text>
+          <Text style={styles.defisStatLabel}>Actifs</Text>
+        </View>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.warning }]}>
+            0
+          </Text>
+          <Text style={styles.defisStatLabel}>Brouillons</Text>
+        </View>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.neutral }]}>
+            0
+          </Text>
+          <Text style={styles.defisStatLabel}>Archivés</Text>
+        </View>
+      </View>
+
+      {/* Filters */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtersScroll}
+        contentContainerStyle={styles.filtersContent}
+      >
+        {['tous', 'actifs', 'brouillons', 'archivés'].map((filter) => (
+          <TouchableOpacity
+            key={filter}
+            style={[
+              styles.filterChip,
+              activeChallengeFilter === filter && styles.filterChipActive,
+            ]}
+            onPress={() => setActiveChallengeFilter(filter)}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                activeChallengeFilter === filter && styles.filterChipTextActive,
+              ]}
+            >
+              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Challenges List */}
+      {challenges.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="trophy-outline" size={48} color={colors.neutral} />
+          <Text style={styles.emptyStateText}>Aucun défi créé</Text>
+        </View>
+      ) : (
+        challenges.map((challenge) => {
+          const stats = challengeStats.find((s) => s.challengeId === challenge.id);
+          const diffStyle = getDifficultyStyle(challenge.difficulty);
+
+          return (
+            <View key={challenge.id} style={styles.challengeCard}>
+              <View style={styles.challengeHeader}>
+                <View style={styles.challengeIconContainer}>
+                  <Text style={styles.challengeIcon}>{challenge.emoji || '🎯'}</Text>
+                </View>
+                <View style={styles.challengeInfo}>
+                  <View style={styles.challengeTitleRow}>
+                    <Text style={styles.challengeTitle} numberOfLines={1}>
+                      {challenge.title}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteChallenge(challenge.id, challenge.title)}
+                      disabled={deletingId === challenge.id}
+                    >
+                      {deletingId === challenge.id ? (
+                        <ActivityIndicator size="small" color={colors.neutral} />
+                      ) : (
+                        <Ionicons name="ellipsis-horizontal" size={20} color={colors.neutral} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.challengeTags}>
+                    <View style={[styles.difficultyTag, { backgroundColor: diffStyle.bg }]}>
+                      <Text style={[styles.difficultyTagText, { color: diffStyle.color }]}>
+                        {diffStyle.label}
+                      </Text>
+                    </View>
+                    <Text style={styles.pointsText}>+{challenge.points} pts</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Challenge Stats */}
+              <View style={styles.challengeStats}>
+                <View style={styles.challengeStatItem}>
+                  <Text style={[styles.challengeStatValue, { color: colors.primary }]}>
+                    {unitRanking.length}
+                  </Text>
+                  <Text style={styles.challengeStatLabel}>unités</Text>
+                </View>
+                <View style={styles.challengeStatItem}>
+                  <Text style={[styles.challengeStatValue, { color: colors.blue }]}>
+                    {stats?.totalParticipants || 0}
+                  </Text>
+                  <Text style={styles.challengeStatLabel}>participants</Text>
+                </View>
+                <View style={styles.challengeStatItem}>
+                  <Text style={[styles.challengeStatValue, { color: colors.success }]}>
+                    {stats?.completed || 0}
+                  </Text>
+                  <Text style={styles.challengeStatLabel}>complétés</Text>
+                </View>
+              </View>
+
+              {/* Edit Button */}
+              <TouchableOpacity
+                style={styles.editChallengeButton}
+                onPress={() => router.push(`/(wecamp)/edit-challenge?id=${challenge.id}`)}
+              >
+                <Ionicons name="pencil" size={14} color={colors.primary} />
+                <Text style={styles.editChallengeText}>Modifier</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+
+  // ==================== RENDER UNITES ====================
+  const renderUnites = () => (
+    <View style={styles.section}>
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={18} color={colors.neutral} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher une unité..."
+          placeholderTextColor={colors.neutralLight}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      {/* Stats */}
+      <View style={styles.unitesStatsRow}>
+        <View style={styles.unitesStatItem}>
+          <Text style={[styles.unitesStatValue, { color: colors.success }]}>
+            {unitRanking.filter((u) => u.totalMembers > 0).length}
+          </Text>
+          <Text style={styles.unitesStatLabel}>Actives</Text>
+        </View>
+        <View style={styles.unitesStatItem}>
+          <Text style={[styles.unitesStatValue, { color: colors.warning }]}>
+            0
+          </Text>
+          <Text style={styles.unitesStatLabel}>En alerte</Text>
+        </View>
+        <View style={styles.unitesStatItem}>
+          <Text style={[styles.unitesStatValue, { color: colors.danger }]}>
+            {unitRanking.filter((u) => u.totalMembers === 0).length}
+          </Text>
+          <Text style={styles.unitesStatLabel}>Inactives</Text>
+        </View>
+      </View>
+
+      {/* Units List */}
+      {filteredUnits.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="flag-outline" size={48} color={colors.neutral} />
+          <Text style={styles.emptyStateText}>Aucune unité trouvée</Text>
+        </View>
+      ) : (
+        filteredUnits.map((unit) => {
+          const level = getUnitLevel(unit.totalPoints);
+          const levelColor = getLevelColor(level);
+          const isActive = unit.totalMembers > 0;
+
+          return (
+            <View
+              key={unit.unitId}
+              style={[
+                styles.unitCard,
+                { borderLeftColor: isActive ? colors.success : colors.danger },
+              ]}
+            >
+              <View style={styles.unitHeader}>
+                <View style={styles.unitInfo}>
+                  <View style={styles.unitTitleRow}>
+                    <Text style={styles.unitName} numberOfLines={1}>
+                      {unit.unitName}
+                    </Text>
+                    <View style={[styles.levelBadge, { backgroundColor: `${levelColor}30` }]}>
+                      <Text style={[styles.levelBadgeText, { color: levelColor }]}>
+                        {level}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.unitCategory}>
+                    {unit.category} · Récemment active
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.viewUnitButton}>
+                  <Text style={styles.viewUnitButtonText}>Voir</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.unitStats}>
+                <View style={styles.unitStatItem}>
+                  <Text style={styles.unitStatEmoji}>👥</Text>
+                  <Text style={styles.unitStatValue}>{unit.totalScouts}</Text>
+                  <Text style={styles.unitStatLabel}>scouts</Text>
+                </View>
+                <View style={styles.unitStatItem}>
+                  <Text style={styles.unitStatEmoji}>🎖️</Text>
+                  <Text style={styles.unitStatValue}>{unit.totalAnimators}</Text>
+                  <Text style={styles.unitStatLabel}>anim.</Text>
+                </View>
+                <View style={styles.unitStatItem}>
+                  <Text style={styles.unitStatEmoji}>⭐</Text>
+                  <Text style={[styles.unitStatValue, { color: colors.accent }]}>
+                    {unit.totalPoints.toLocaleString()}
+                  </Text>
+                  <Text style={styles.unitStatLabel}>pts</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+
+  // ==================== RENDER CLASSEMENT ====================
+  const renderClassement = () => (
+    <View style={styles.section}>
+      {/* Period Filter */}
+      <View style={styles.periodFilter}>
+        {['Semaine', 'Mois', 'Année', 'Tout'].map((period, i) => (
+          <TouchableOpacity
+            key={period}
+            style={[styles.periodButton, i === 1 && styles.periodButtonActive]}
+          >
+            <Text style={[styles.periodButtonText, i === 1 && styles.periodButtonTextActive]}>
+              {period}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Podium */}
+      {top3Units.length >= 3 && top3Units.some((u) => u.totalPoints > 0) && (
+        <LinearGradient
+          colors={[colors.primary, colors.primaryLight]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.podiumContainer}
+        >
+          {/* 2nd Place */}
+          <View style={styles.podiumItem}>
+            <View style={[styles.podiumMedal, styles.podiumMedalSilver]}>
+              <Text style={styles.podiumMedalEmoji}>🥈</Text>
+            </View>
+            <Text style={styles.podiumName} numberOfLines={1}>
+              {top3Units[1]?.unitName || '-'}
+            </Text>
+            <Text style={styles.podiumPoints}>
+              {(top3Units[1]?.totalPoints || 0).toLocaleString()} pts
+            </Text>
+            <View style={[styles.podiumBar, styles.podiumBarSilver]} />
+          </View>
+
+          {/* 1st Place */}
+          <View style={styles.podiumItem}>
+            <View style={[styles.podiumMedal, styles.podiumMedalGold]}>
+              <Text style={styles.podiumMedalEmoji}>🥇</Text>
+            </View>
+            <Text style={[styles.podiumName, styles.podiumNameFirst]} numberOfLines={1}>
+              {top3Units[0]?.unitName || '-'}
+            </Text>
+            <Text style={[styles.podiumPoints, styles.podiumPointsFirst]}>
+              {(top3Units[0]?.totalPoints || 0).toLocaleString()} pts
+            </Text>
+            <View style={[styles.podiumBar, styles.podiumBarGold]} />
+          </View>
+
+          {/* 3rd Place */}
+          <View style={styles.podiumItem}>
+            <View style={[styles.podiumMedal, styles.podiumMedalBronze]}>
+              <Text style={styles.podiumMedalEmoji}>🥉</Text>
+            </View>
+            <Text style={styles.podiumName} numberOfLines={1}>
+              {top3Units[2]?.unitName || '-'}
+            </Text>
+            <Text style={styles.podiumPoints}>
+              {(top3Units[2]?.totalPoints || 0).toLocaleString()} pts
+            </Text>
+            <View style={[styles.podiumBar, styles.podiumBarBronze]} />
+          </View>
+        </LinearGradient>
+      )}
+
+      {/* Full Leaderboard */}
+      <View style={styles.leaderboardCard}>
+        {unitRanking.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="podium-outline" size={48} color={colors.neutral} />
+            <Text style={styles.emptyStateText}>Aucune unité</Text>
+          </View>
+        ) : (
+          unitRanking.map((unit, index) => {
+            const isTop3 = index < 3 && unit.totalPoints > 0;
+            const badges = ['🥇', '🥈', '🥉'];
+            const bgColors = [`${colors.gold}15`, `${colors.silver}15`, `${colors.bronze}15`];
+
+            return (
+              <View
+                key={unit.unitId}
+                style={[
+                  styles.leaderboardItem,
+                  index < unitRanking.length - 1 && styles.leaderboardItemBorder,
+                  isTop3 && { backgroundColor: bgColors[index] },
+                ]}
+              >
+                <View style={styles.leaderboardRank}>
+                  {isTop3 ? (
+                    <Text style={styles.leaderboardBadge}>{badges[index]}</Text>
+                  ) : (
+                    <Text style={styles.leaderboardNumber}>#{index + 1}</Text>
+                  )}
+                </View>
+                <View style={styles.leaderboardInfo}>
+                  <Text style={styles.leaderboardName}>{unit.unitName}</Text>
+                  <Text style={styles.leaderboardCategory}>
+                    {unit.category} · {unit.totalMembers} membres
+                  </Text>
+                </View>
+                <View style={styles.leaderboardPoints}>
+                  <Text style={styles.leaderboardPointsValue}>
+                    {unit.totalPoints.toLocaleString()} pts
+                  </Text>
+                  {unit.totalChallengesCompleted > 0 && (
+                    <Text style={styles.leaderboardTrend}>
+                      +{unit.totalChallengesCompleted} défis
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })
+        )}
+      </View>
+    </View>
+  );
+
+  // ==================== RENDER PARTENAIRES ====================
+  const filteredPartners = partners.filter((p) =>
+    p.name.toLowerCase().includes(partnerSearchQuery.toLowerCase())
+  );
+
+  const filteredOffers = allOffers.filter((o) =>
+    o.title.toLowerCase().includes(partnerSearchQuery.toLowerCase()) ||
+    o.partner.name.toLowerCase().includes(partnerSearchQuery.toLowerCase())
+  );
+
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      alimentation: 'Alimentation',
+      sport: 'Sport',
+      outdoor: 'Outdoor',
+      bricolage: 'Bricolage',
+      culture: 'Culture',
+      autre: 'Autre',
+    };
+    return labels[category] || category;
+  };
+
+  const getCategoryEmoji = (category: string) => {
+    const emojis: Record<string, string> = {
+      alimentation: '🛒',
+      sport: '⚽',
+      outdoor: '🏕️',
+      bricolage: '🔨',
+      culture: '🎭',
+      autre: '📦',
+    };
+    return emojis[category] || '📦';
+  };
+
+  const handleSeedPartners = async () => {
+    Alert.alert(
+      'Initialiser partenaires test',
+      'Cela va créer 4 partenaires et leurs offres de test. Continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Créer',
+          onPress: async () => {
+            await PartnerService.seedTestPartners();
+            await loadData();
+            Alert.alert('Succès', 'Partenaires de test créés !');
+          },
+        },
+      ]
+    );
+  };
+
+  const resetPartnerForm = () => {
+    setPartnerForm({
+      name: '',
+      logo: '🏪',
+      category: 'alimentation',
+      description: '',
+      website: '',
+    });
+    setEditingPartner(null);
+  };
+
+  const resetOfferForm = () => {
+    setOfferForm({
+      partnerId: partners.length > 0 ? partners[0].id : '',
+      title: '',
+      description: '',
+      discountType: 'percentage',
+      discountValue: '',
+      pointsCost: '',
+      validityDays: '30',
+      maxRedemptions: '',
+    });
+    setEditingOffer(null);
+  };
+
+  const renderPartenaires = () => (
+    <View style={styles.section}>
+      {/* Sub-tabs */}
+      <View style={styles.partnerSubTabs}>
+        <TouchableOpacity
+          style={[
+            styles.partnerSubTab,
+            activePartnerTab === 'partenaires' && styles.partnerSubTabActive,
+          ]}
+          onPress={() => setActivePartnerTab('partenaires')}
+        >
+          <Text
+            style={[
+              styles.partnerSubTabText,
+              activePartnerTab === 'partenaires' && styles.partnerSubTabTextActive,
+            ]}
+          >
+            Partenaires ({partners.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.partnerSubTab,
+            activePartnerTab === 'offres' && styles.partnerSubTabActive,
+          ]}
+          onPress={() => setActivePartnerTab('offres')}
+        >
+          <Text
+            style={[
+              styles.partnerSubTabText,
+              activePartnerTab === 'offres' && styles.partnerSubTabTextActive,
+            ]}
+          >
+            Offres ({allOffers.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={18} color={colors.neutral} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={activePartnerTab === 'partenaires' ? 'Rechercher un partenaire...' : 'Rechercher une offre...'}
+          placeholderTextColor={colors.neutralLight}
+          value={partnerSearchQuery}
+          onChangeText={setPartnerSearchQuery}
+        />
+      </View>
+
+      {/* Stats Row */}
+      <View style={styles.defisStatsRow}>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.primary }]}>
+            {partners.length}
+          </Text>
+          <Text style={styles.defisStatLabel}>Partenaires</Text>
+        </View>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.accent }]}>
+            {allOffers.length}
+          </Text>
+          <Text style={styles.defisStatLabel}>Offres actives</Text>
+        </View>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.success }]}>
+            0
+          </Text>
+          <Text style={styles.defisStatLabel}>Échanges</Text>
+        </View>
+      </View>
+
+      {/* Action Buttons */}
+      <View style={styles.quickActionsRow}>
+        {activePartnerTab === 'partenaires' ? (
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => {
+              resetPartnerForm();
+              setShowPartnerForm(true);
+            }}
+          >
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Nouveau partenaire</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => {
+              resetOfferForm();
+              setShowOfferForm(true);
+            }}
+          >
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Nouvelle offre</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleSeedPartners}>
+          <Text style={styles.secondaryButtonIcon}>🧪</Text>
+          <Text style={styles.secondaryButtonText}>Test data</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Partner Form Modal */}
+      {showPartnerForm && (
+        <View style={styles.formCard}>
+          <View style={styles.formHeader}>
+            <Text style={styles.formTitle}>
+              {editingPartner ? 'Modifier partenaire' : 'Nouveau partenaire'}
+            </Text>
+            <TouchableOpacity onPress={() => setShowPartnerForm(false)}>
+              <Ionicons name="close" size={24} color={colors.neutral} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Nom</Text>
+            <TextInput
+              style={styles.formInput}
+              value={partnerForm.name}
+              onChangeText={(text) => setPartnerForm({ ...partnerForm, name: text })}
+              placeholder="Ex: Décathlon"
+            />
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Logo (emoji)</Text>
+            <TextInput
+              style={[styles.formInput, { width: 80, textAlign: 'center', fontSize: 24 }]}
+              value={partnerForm.logo}
+              onChangeText={(text) => setPartnerForm({ ...partnerForm, logo: text })}
+            />
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Catégorie</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.categoryChips}>
+                {['alimentation', 'sport', 'outdoor', 'bricolage', 'culture', 'autre'].map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.categoryChip,
+                      partnerForm.category === cat && styles.categoryChipActive,
+                    ]}
+                    onPress={() => setPartnerForm({ ...partnerForm, category: cat as Partner['category'] })}
+                  >
+                    <Text style={styles.categoryChipEmoji}>{getCategoryEmoji(cat)}</Text>
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        partnerForm.category === cat && styles.categoryChipTextActive,
+                      ]}
+                    >
+                      {getCategoryLabel(cat)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Description</Text>
+            <TextInput
+              style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+              value={partnerForm.description}
+              onChangeText={(text) => setPartnerForm({ ...partnerForm, description: text })}
+              placeholder="Description du partenaire..."
+              multiline
+            />
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Site web (optionnel)</Text>
+            <TextInput
+              style={styles.formInput}
+              value={partnerForm.website}
+              onChangeText={(text) => setPartnerForm({ ...partnerForm, website: text })}
+              placeholder="https://..."
+              keyboardType="url"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.primaryButton, { marginTop: spacing.md }]}
+            onPress={() => {
+              Alert.alert('Info', 'Fonctionnalité de création à implémenter avec Firebase Admin');
+              setShowPartnerForm(false);
+            }}
+          >
+            <Text style={styles.primaryButtonText}>
+              {editingPartner ? 'Enregistrer' : 'Créer le partenaire'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Offer Form Modal */}
+      {showOfferForm && (
+        <View style={styles.formCard}>
+          <View style={styles.formHeader}>
+            <Text style={styles.formTitle}>
+              {editingOffer ? 'Modifier offre' : 'Nouvelle offre'}
+            </Text>
+            <TouchableOpacity onPress={() => setShowOfferForm(false)}>
+              <Ionicons name="close" size={24} color={colors.neutral} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Partenaire</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.categoryChips}>
+                {partners.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[
+                      styles.categoryChip,
+                      offerForm.partnerId === p.id && styles.categoryChipActive,
+                    ]}
+                    onPress={() => setOfferForm({ ...offerForm, partnerId: p.id })}
+                  >
+                    <Text style={styles.categoryChipEmoji}>{p.logo}</Text>
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        offerForm.partnerId === p.id && styles.categoryChipTextActive,
+                      ]}
+                    >
+                      {p.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Titre de l'offre</Text>
+            <TextInput
+              style={styles.formInput}
+              value={offerForm.title}
+              onChangeText={(text) => setOfferForm({ ...offerForm, title: text })}
+              placeholder="Ex: 10% sur tout le magasin"
+            />
+          </View>
+
+          <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Type de réduction</Text>
+            <View style={styles.discountTypeRow}>
+              <TouchableOpacity
+                style={[
+                  styles.discountTypeButton,
+                  offerForm.discountType === 'percentage' && styles.discountTypeButtonActive,
+                ]}
+                onPress={() => setOfferForm({ ...offerForm, discountType: 'percentage' })}
+              >
+                <Text
+                  style={[
+                    styles.discountTypeText,
+                    offerForm.discountType === 'percentage' && styles.discountTypeTextActive,
+                  ]}
+                >
+                  Pourcentage (%)
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.discountTypeButton,
+                  offerForm.discountType === 'fixed' && styles.discountTypeButtonActive,
+                ]}
+                onPress={() => setOfferForm({ ...offerForm, discountType: 'fixed' })}
+              >
+                <Text
+                  style={[
+                    styles.discountTypeText,
+                    offerForm.discountType === 'fixed' && styles.discountTypeTextActive,
+                  ]}
+                >
+                  Montant fixe (€)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.formRowInline}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.formLabel}>Valeur</Text>
+              <TextInput
+                style={styles.formInput}
+                value={offerForm.discountValue}
+                onChangeText={(text) => setOfferForm({ ...offerForm, discountValue: text })}
+                placeholder={offerForm.discountType === 'percentage' ? '10' : '20'}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.formLabel}>Coût (points)</Text>
+              <TextInput
+                style={styles.formInput}
+                value={offerForm.pointsCost}
+                onChangeText={(text) => setOfferForm({ ...offerForm, pointsCost: text })}
+                placeholder="500"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formRowInline}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.formLabel}>Validité (jours)</Text>
+              <TextInput
+                style={styles.formInput}
+                value={offerForm.validityDays}
+                onChangeText={(text) => setOfferForm({ ...offerForm, validityDays: text })}
+                placeholder="30"
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.formLabel}>Max échanges</Text>
+              <TextInput
+                style={styles.formInput}
+                value={offerForm.maxRedemptions}
+                onChangeText={(text) => setOfferForm({ ...offerForm, maxRedemptions: text })}
+                placeholder="Illimité"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.primaryButton, { marginTop: spacing.md }]}
+            onPress={() => {
+              Alert.alert('Info', 'Fonctionnalité de création à implémenter avec Firebase Admin');
+              setShowOfferForm(false);
+            }}
+          >
+            <Text style={styles.primaryButtonText}>
+              {editingOffer ? 'Enregistrer' : 'Créer l\'offre'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Partners List */}
+      {activePartnerTab === 'partenaires' && (
+        <>
+          {filteredPartners.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="storefront-outline" size={48} color={colors.neutral} />
+              <Text style={styles.emptyStateText}>Aucun partenaire</Text>
+              <Text style={[styles.emptyStateText, { fontSize: 12 }]}>
+                Cliquez sur "Test data" pour créer des partenaires de démo
+              </Text>
+            </View>
+          ) : (
+            filteredPartners.map((partner) => {
+              const partnerOffers = allOffers.filter((o) => o.partnerId === partner.id);
+
+              return (
+                <View key={partner.id} style={styles.partnerCard}>
+                  <View style={styles.partnerHeader}>
+                    <View style={styles.partnerLogoContainer}>
+                      <Text style={styles.partnerLogo}>{partner.logo}</Text>
+                    </View>
+                    <View style={styles.partnerInfo}>
+                      <Text style={styles.partnerName}>{partner.name}</Text>
+                      <View style={styles.partnerMeta}>
+                        <View style={[styles.categoryTag, { backgroundColor: `${colors.primary}15` }]}>
+                          <Text style={[styles.categoryTagText, { color: colors.primary }]}>
+                            {getCategoryEmoji(partner.category)} {getCategoryLabel(partner.category)}
+                          </Text>
+                        </View>
+                        <Text style={styles.partnerOfferCount}>
+                          {partnerOffers.length} offre{partnerOffers.length !== 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity style={styles.partnerEditButton}>
+                      <Ionicons name="ellipsis-vertical" size={20} color={colors.neutral} />
+                    </TouchableOpacity>
+                  </View>
+                  {partner.description && (
+                    <Text style={styles.partnerDescription} numberOfLines={2}>
+                      {partner.description}
+                    </Text>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </>
+      )}
+
+      {/* Offers List */}
+      {activePartnerTab === 'offres' && (
+        <>
+          {filteredOffers.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="pricetag-outline" size={48} color={colors.neutral} />
+              <Text style={styles.emptyStateText}>Aucune offre</Text>
+            </View>
+          ) : (
+            filteredOffers.map((offer) => (
+              <View key={offer.id} style={styles.offerCard}>
+                <View style={styles.offerHeader}>
+                  <View style={styles.offerPartnerBadge}>
+                    <Text style={styles.offerPartnerLogo}>{offer.partner.logo}</Text>
+                    <Text style={styles.offerPartnerName}>{offer.partner.name}</Text>
+                  </View>
+                  <View style={[styles.offerDiscount, { backgroundColor: colors.accentLight }]}>
+                    <Text style={[styles.offerDiscountText, { color: colors.accent }]}>
+                      -{offer.discountValue}{offer.discountType === 'percentage' ? '%' : '€'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.offerTitle}>{offer.title}</Text>
+                <View style={styles.offerMeta}>
+                  <View style={styles.offerMetaItem}>
+                    <Ionicons name="star" size={14} color={colors.accent} />
+                    <Text style={styles.offerMetaText}>{offer.pointsCost} pts</Text>
+                  </View>
+                  <View style={styles.offerMetaItem}>
+                    <Ionicons name="time" size={14} color={colors.neutral} />
+                    <Text style={styles.offerMetaText}>{offer.validityDays} jours</Text>
+                  </View>
+                  <View style={styles.offerMetaItem}>
+                    <Ionicons name="swap-horizontal" size={14} color={colors.neutral} />
+                    <Text style={styles.offerMetaText}>
+                      {offer.currentRedemptions}{offer.maxRedemptions ? `/${offer.maxRedemptions}` : ''}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+        </>
+      )}
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>WeCamp Admin</Text>
+            <Text style={styles.headerSubtitle}>Panneau d'administration</Text>
+          </View>
+          <TouchableOpacity onPress={handleLogout} style={styles.avatarButton}>
+            <Text style={styles.avatarText}>AD</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsContainer}
+        >
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Text style={styles.tabIcon}>{tab.icon}</Text>
+              <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Content */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <>
+            {activeTab === 'dashboard' && renderDashboard()}
+            {activeTab === 'defis' && renderDefis()}
+            {activeTab === 'unites' && renderUnites()}
+            {activeTab === 'classement' && renderClassement()}
+            {activeTab === 'partenaires' && renderPartenaires()}
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+
+  // Header
+  header: {
+    backgroundColor: colors.canvas,
+    paddingTop: spacing.md,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: colors.neutral,
+    marginTop: 2,
+  },
+  avatarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  // Tabs
+  tabsContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    gap: spacing.xs,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.cardBg,
+    marginRight: spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+  },
+  tabIcon: {
+    fontSize: 14,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.neutral,
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // Scroll
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: 100,
+  },
+  loadingContainer: {
+    padding: 60,
+    alignItems: 'center',
+  },
+
+  section: {
+    gap: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.dark,
+    marginTop: spacing.sm,
+  },
+
+  // Dashboard Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  statCard: {
+    width: '48%',
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.mist,
+  },
+  statCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  statIcon: {
+    fontSize: 20,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.neutral,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statTrend: {
+    fontSize: 11,
+    color: colors.success,
+  },
+
+  // Quick Actions
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  primaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+  },
+  primaryButtonIcon: {
+    fontSize: 16,
+  },
+  primaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+  },
+  secondaryButtonIcon: {
+    fontSize: 16,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // Activity
+  activityCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    overflow: 'hidden',
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  activityItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.mist,
+  },
+  activityIcon: {
+    fontSize: 20,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityText: {
+    fontSize: 14,
+    color: colors.dark,
+  },
+  activityTime: {
+    fontSize: 12,
+    color: colors.neutralLight,
+    marginTop: 2,
+  },
+
+  // Défis
+  createChallengeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: 14,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  createChallengeButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  defisStatsRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.cardBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.mist,
+  },
+  defisStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: spacing.md,
+  },
+  defisStatValue: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  defisStatLabel: {
+    fontSize: 11,
+    color: colors.neutral,
+    marginTop: 2,
+  },
+  filtersScroll: {
+    marginVertical: spacing.xs,
+  },
+  filtersContent: {
+    gap: spacing.xs,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    backgroundColor: colors.cardBg,
+    marginRight: spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.neutral,
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    gap: 12,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.neutral,
+  },
+  challengeCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.mist,
+  },
+  challengeHeader: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
+  challengeIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  challengeIcon: {
+    fontSize: 24,
+  },
+  challengeInfo: {
+    flex: 1,
+  },
+  challengeTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  challengeTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.dark,
+    flex: 1,
+  },
+  challengeTags: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: 4,
+  },
+  difficultyTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  difficultyTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  pointsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  challengeStats: {
+    flexDirection: 'row',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.mist,
+    gap: spacing.lg,
+  },
+  challengeStatItem: {
+    alignItems: 'center',
+  },
+  challengeStatValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  challengeStatLabel: {
+    fontSize: 11,
+    color: colors.neutral,
+  },
+  editChallengeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: `${colors.primary}10`,
+  },
+  editChallengeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+
+  // Unités
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mist,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.dark,
+  },
+  unitesStatsRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.cardBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.mist,
+  },
+  unitesStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: spacing.sm,
+  },
+  unitesStatValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  unitesStatLabel: {
+    fontSize: 10,
+    color: colors.neutral,
+  },
+  unitCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    borderLeftWidth: 4,
+  },
+  unitHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  unitInfo: {
+    flex: 1,
+  },
+  unitTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  unitName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.dark,
+    flex: 1,
+  },
+  unitCategory: {
+    fontSize: 12,
+    color: colors.neutral,
+    marginTop: 2,
+  },
+  levelBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  levelBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  viewUnitButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    backgroundColor: colors.mist,
+  },
+  viewUnitButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.dark,
+  },
+  unitStats: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  unitStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  unitStatEmoji: {
+    fontSize: 13,
+  },
+  unitStatValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  unitStatLabel: {
+    fontSize: 13,
+    color: colors.neutral,
+  },
+
+  // Classement
+  periodFilter: {
+    flexDirection: 'row',
+    backgroundColor: colors.mist,
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  periodButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  periodButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.neutral,
+  },
+  periodButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  podiumContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    borderRadius: 20,
+    padding: spacing.lg,
+  },
+  podiumItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  podiumMedal: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  podiumMedalGold: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderWidth: 3,
+    borderColor: colors.gold,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  podiumMedalSilver: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  podiumMedalBronze: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  podiumMedalEmoji: {
+    fontSize: 28,
+  },
+  podiumName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  podiumNameFirst: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  podiumPoints: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: 8,
+  },
+  podiumPointsFirst: {
+    fontSize: 12,
+  },
+  podiumBar: {
+    width: '80%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  podiumBarGold: {
+    height: 80,
+    backgroundColor: colors.gold,
+  },
+  podiumBarSilver: {
+    height: 60,
+    backgroundColor: colors.silver,
+  },
+  podiumBarBronze: {
+    height: 45,
+    backgroundColor: colors.bronze,
+  },
+  leaderboardCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    overflow: 'hidden',
+  },
+  leaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+  },
+  leaderboardItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.mist,
+  },
+  leaderboardRank: {
+    width: 32,
+    alignItems: 'center',
+  },
+  leaderboardBadge: {
+    fontSize: 20,
+  },
+  leaderboardNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.neutral,
+  },
+  leaderboardInfo: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  leaderboardName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.dark,
+  },
+  leaderboardCategory: {
+    fontSize: 12,
+    color: colors.neutral,
+    marginTop: 2,
+  },
+  leaderboardPoints: {
+    alignItems: 'flex-end',
+  },
+  leaderboardPointsValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  leaderboardTrend: {
+    fontSize: 11,
+    color: colors.success,
+    marginTop: 2,
+  },
+
+  // Partenaires
+  partnerSubTabs: {
+    flexDirection: 'row',
+    backgroundColor: colors.mist,
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
+  },
+  partnerSubTab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  partnerSubTabActive: {
+    backgroundColor: colors.cardBg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  partnerSubTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.neutral,
+  },
+  partnerSubTabTextActive: {
+    color: colors.dark,
+  },
+  partnerCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.mist,
+  },
+  partnerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  partnerLogoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  partnerLogo: {
+    fontSize: 24,
+  },
+  partnerInfo: {
+    flex: 1,
+  },
+  partnerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.dark,
+    marginBottom: 4,
+  },
+  partnerMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  categoryTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  categoryTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  partnerOfferCount: {
+    fontSize: 12,
+    color: colors.neutral,
+  },
+  partnerEditButton: {
+    padding: spacing.xs,
+  },
+  partnerDescription: {
+    fontSize: 13,
+    color: colors.neutral,
+    marginTop: spacing.sm,
+    lineHeight: 18,
+  },
+  offerCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.mist,
+  },
+  offerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  offerPartnerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  offerPartnerLogo: {
+    fontSize: 18,
+  },
+  offerPartnerName: {
+    fontSize: 12,
+    color: colors.neutral,
+    fontWeight: '500',
+  },
+  offerDiscount: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  offerDiscountText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  offerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.dark,
+    marginBottom: spacing.sm,
+  },
+  offerMeta: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+  },
+  offerMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  offerMetaText: {
+    fontSize: 12,
+    color: colors.neutral,
+  },
+
+  // Form Styles
+  formCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    marginBottom: spacing.md,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  formRow: {
+    marginBottom: spacing.md,
+  },
+  formRowInline: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  formLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.neutral,
+    marginBottom: spacing.xs,
+  },
+  formInput: {
+    backgroundColor: colors.mist,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 14,
+    color: colors.dark,
+  },
+  categoryChips: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    backgroundColor: colors.mist,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primary,
+  },
+  categoryChipEmoji: {
+    fontSize: 14,
+  },
+  categoryChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.neutral,
+  },
+  categoryChipTextActive: {
+    color: '#FFFFFF',
+  },
+  discountTypeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  discountTypeButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: 10,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+  },
+  discountTypeButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  discountTypeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.neutral,
+  },
+  discountTypeTextActive: {
+    color: '#FFFFFF',
+  },
+});

@@ -11,7 +11,7 @@ import {
   type DocumentData
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
-import { AnyUser, UserRole, Scout, Parent, Animator } from '@/types';
+import { AnyUser, UserRole, Scout, Parent, Animator, WeCampAdmin } from '@/types';
 
 /**
  * Service pour gérer les utilisateurs dans Firestore
@@ -73,6 +73,13 @@ export class UserService {
           totemName: data.totemName,
           totemAnimal: data.totemAnimal,
         } as Animator;
+
+      case UserRole.WECAMP_ADMIN:
+      case 'wecamp_admin':
+        return {
+          ...baseUser,
+          role: UserRole.WECAMP_ADMIN,
+        } as WeCampAdmin;
 
       default:
         throw new Error(`Rôle invalide: ${data.role}`);

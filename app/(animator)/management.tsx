@@ -562,6 +562,21 @@ export default function ManagementScreen() {
           </Card>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => router.push('/(animator)/partners')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+              <Ionicons name="gift" size={28} color={BrandColors.accent[500]} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Récompenses</ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Échanger les points contre des avantages
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={() => router.push('/(animator)/scouts')}>
           <Card style={styles.actionCard}>
             <View style={styles.actionIcon}>

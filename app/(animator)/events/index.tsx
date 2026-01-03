@@ -8,6 +8,7 @@ export default function AnimatorEventsScreen() {
       userRole={UserRole.ANIMATOR}
       canCreate={true}
       canDelete={true}
+      canEdit={true}
     />
   );
 }

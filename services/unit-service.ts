@@ -34,6 +34,7 @@ export class UnitService {
       logoUrl: data.logoUrl,
       groupId: data.groupId,
       leaderId: data.leaderId,
+      accessCode: data.accessCode,
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
     };
@@ -94,6 +95,46 @@ export class UnitService {
 
       // Mettre à jour l'unité du leader
       await UserService.updateUser(leaderId, { unitId: unitRef.id });
+
+      return this.convertUnit({ id: unitRef.id, ...unitData });
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'unité:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Crée une nouvelle unité sans vérifier que le leader existe
+   * Utilisé lors de l'inscription d'un animateur qui crée son unité
+   */
+  static async createUnitWithoutValidation(
+    name: string,
+    category: UnitCategory,
+    groupId: string,
+    leaderId: string,
+    description?: string,
+    logoUrl?: string,
+    accessCode?: string
+  ): Promise<Unit> {
+    try {
+      const now = new Date();
+      const unitData: Record<string, any> = {
+        name,
+        category,
+        groupId,
+        leaderId,
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now),
+      };
+
+      // Ajouter les champs optionnels seulement s'ils sont définis
+      if (description) unitData.description = description;
+      if (logoUrl) unitData.logoUrl = logoUrl;
+      if (accessCode) unitData.accessCode = accessCode;
+
+      // Créer l'unité sans vérification du leader
+      const unitRef = doc(collection(db, this.UNITS_COLLECTION));
+      await setDoc(unitRef, unitData);
 
       return this.convertUnit({ id: unitRef.id, ...unitData });
     } catch (error) {

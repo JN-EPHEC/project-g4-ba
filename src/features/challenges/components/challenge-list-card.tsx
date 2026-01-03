@@ -34,6 +34,7 @@ interface ChallengeListCardProps {
   participants?: number;
   isCompleted?: boolean;
   isNew?: boolean;
+  isWeCampChallenge?: boolean;
   onPress?: () => void;
 }
 
@@ -47,6 +48,7 @@ export function ChallengeListCard({
   participants = 0,
   isCompleted = false,
   isNew = false,
+  isWeCampChallenge = false,
   onPress,
 }: ChallengeListCardProps) {
   const cardColor = useThemeColor({}, 'card');
@@ -81,6 +83,13 @@ export function ChallengeListCard({
       onPress={onPress}
       activeOpacity={0.7}
     >
+      {/* WeCamp Badge */}
+      {isWeCampChallenge && !isNew && !isCompleted && (
+        <View style={styles.wecampBadge}>
+          <ThemedText style={styles.wecampBadgeText}>WECAMP</ThemedText>
+        </View>
+      )}
+
       {/* New Badge */}
       {isNew && !isCompleted && (
         <View style={styles.newBadge}>
@@ -165,6 +174,22 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     position: 'relative',
+  },
+  wecampBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: BrandColors.accent[100],
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    zIndex: 1,
+  },
+  wecampBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: BrandColors.accent[600],
+    letterSpacing: 0.5,
   },
   newBadge: {
     position: 'absolute',

@@ -27,12 +27,18 @@ service cloud.firestore {
     }
 
     // Règles pour les défis
+    // - Admin WeCamp: peut tout faire
+    // - Animateur: peut créer et modifier uniquement les défis de son unité (pas les défis globaux WeCamp)
     match /challenges/{challengeId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
-      allow update, delete: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['animator', 'wecamp_admin'];
+      allow update, delete: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin' ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
+         resource.data.unitId != null &&
+         resource.data.unitId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId)
+      );
     }
 
     // Règles pour les soumissions de défis
@@ -46,6 +52,8 @@ service cloud.firestore {
     }
 
     // Règles pour les événements
+    // - Animateur: peut créer et modifier les événements
+    // - TODO: Remettre la restriction par unitId une fois les données corrigées
     match /events/{eventId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&

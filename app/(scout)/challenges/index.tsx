@@ -22,8 +22,10 @@ import { StartedChallengesSection } from '@/src/features/challenges/components/s
 import { LevelProgressModal } from '@/src/features/challenges/components/level-progress-modal';
 import { useLeaderboard } from '@/src/features/challenges/hooks';
 import { LeaderboardService } from '@/services/leaderboard-service';
+import { PartnerService } from '@/services/partner-service';
 import { Challenge, ChallengeDifficulty } from '@/types';
 import { Scout } from '@/types';
+import { Partner, PartnerOffer } from '@/types/partners';
 import { BrandColors } from '@/constants/theme';
 
 export default function ChallengesScreen() {
@@ -47,7 +49,15 @@ export default function ChallengesScreen() {
   const [userRank, setUserRank] = useState<number | null>(null);
   const [showLevelModal, setShowLevelModal] = useState(false);
 
+  // États pour les récompenses/partenariats
+  const [unitBalance, setUnitBalance] = useState<number>(0);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [offers, setOffers] = useState<(PartnerOffer & { partner: Partner })[]>([]);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
+
   const tintColor = useThemeColor({}, 'tint');
+  const rewardsCardColor = useThemeColor({}, 'card');
+  const rewardsCardBorderColor = useThemeColor({}, 'cardBorder');
 
   // Recharger les soumissions quand l'écran reprend le focus
   useFocusEffect(
@@ -55,6 +65,44 @@ export default function ChallengesScreen() {
       refetchProgress();
     }, [refetchProgress])
   );
+
+  // Charger les données des partenariats
+  const loadRewardsData = useCallback(async () => {
+    if (!scout?.unitId) return;
+
+    setRewardsLoading(true);
+    try {
+      const [balance, activeOffers, allPartners] = await Promise.all([
+        PartnerService.getUnitPointsBalance(scout.unitId),
+        PartnerService.getAllActiveOffers(),
+        PartnerService.getPartners(),
+      ]);
+
+      setUnitBalance(balance);
+      setOffers(activeOffers);
+      setPartners(allPartners);
+    } catch (error) {
+      console.error('Erreur chargement récompenses:', error);
+    } finally {
+      setRewardsLoading(false);
+    }
+  }, [scout?.unitId]);
+
+  // Charger les récompenses au focus
+  useFocusEffect(
+    useCallback(() => {
+      if (activeMainTab === 'rewards') {
+        loadRewardsData();
+      }
+    }, [activeMainTab, loadRewardsData])
+  );
+
+  // Charger aussi au changement d'onglet
+  useEffect(() => {
+    if (activeMainTab === 'rewards') {
+      loadRewardsData();
+    }
+  }, [activeMainTab, loadRewardsData]);
 
   // Fetch user rank
   useEffect(() => {
@@ -227,11 +275,203 @@ export default function ChallengesScreen() {
           />
         );
 
+      case 'rewards':
+        return renderRewardsContent();
+
       case 'challenges':
       default:
         return renderChallengesContent();
     }
   };
+
+  // Formatter la réduction
+  const formatDiscount = (offer: PartnerOffer) => {
+    if (offer.discountType === 'percentage') {
+      return `-${offer.discountValue}%`;
+    }
+    return `-${offer.discountValue}€`;
+  };
+
+  // Couleur selon le coût en points
+  const getDifficultyColor = (pointsCost: number) => {
+    if (pointsCost <= 500) return { bg: '#E8F5E9', color: '#28A745' };
+    if (pointsCost <= 800) return { bg: '#FEF7E6', color: '#F5A623' };
+    return { bg: '#FDEAEA', color: '#DC3545' };
+  };
+
+  // Rendu de l'onglet Récompenses
+  const renderRewardsContent = () => {
+    if (rewardsLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={tintColor} />
+          <ThemedText color="secondary" style={styles.loadingText}>
+            Chargement des récompenses...
+          </ThemedText>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        {/* Bannière d'information */}
+        <View style={[styles.rewardsBanner, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+          <View style={styles.rewardsBannerIcon}>
+            <Ionicons name="gift" size={24} color={BrandColors.accent[500]} />
+          </View>
+          <View style={styles.rewardsBannerContent}>
+            <ThemedText type="defaultSemiBold" style={styles.rewardsBannerTitle}>
+              Récompenses collectives
+            </ThemedText>
+            <ThemedText color="secondary" style={styles.rewardsBannerText}>
+              Tes points s'additionnent à ceux de ton unité pour débloquer des réductions chez nos partenaires !
+            </ThemedText>
+          </View>
+        </View>
+
+        {/* Solde de l'unité */}
+        <View style={[styles.unitBalanceCard, { backgroundColor: rewardsCardColor, borderColor: rewardsCardBorderColor }]}>
+          <View style={styles.unitBalanceHeader}>
+            <Ionicons name="star" size={28} color={BrandColors.accent[500]} />
+            <View style={styles.unitBalanceInfo}>
+              <ThemedText color="secondary" style={styles.unitBalanceLabel}>
+                Solde total de ton unité
+              </ThemedText>
+              <ThemedText type="title" style={[styles.unitBalanceValue, { color: BrandColors.accent[500] }]}>
+                {unitBalance.toLocaleString()} pts
+              </ThemedText>
+            </View>
+          </View>
+          <View style={[styles.unitBalanceContribution, { backgroundColor: `${BrandColors.primary[500]}10` }]}>
+            <Ionicons name="person" size={16} color={BrandColors.primary[500]} />
+            <ThemedText style={[styles.unitBalanceContributionText, { color: BrandColors.primary[600] }]}>
+              Ta contribution : {scout?.points || 0} pts
+            </ThemedText>
+          </View>
+        </View>
+
+        {/* Liste des partenaires */}
+        <View style={styles.rewardsSectionHeader}>
+          <ThemedText type="defaultSemiBold" style={styles.rewardsSectionTitle}>
+            Nos partenaires ({partners.length})
+          </ThemedText>
+        </View>
+
+        {partners.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <ThemedText style={styles.emptyIcon}>🤝</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+              Pas encore de partenaires
+            </ThemedText>
+            <ThemedText color="secondary" style={styles.emptyText}>
+              Les partenaires et leurs offres apparaîtront bientôt ici.
+            </ThemedText>
+          </View>
+        ) : (
+          <View style={styles.partnersGrid}>
+            {partners.map((partner) => (
+              <View
+                key={partner.id}
+                style={[styles.partnerCard, { backgroundColor: rewardsCardColor, borderColor: rewardsCardBorderColor }]}
+              >
+                <View style={styles.partnerLogo}>
+                  <ThemedText style={styles.partnerLogoText}>{partner.logo}</ThemedText>
+                </View>
+                <ThemedText type="defaultSemiBold" style={styles.partnerName}>
+                  {partner.name}
+                </ThemedText>
+                <ThemedText color="secondary" style={styles.partnerCategory}>
+                  {partner.category}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Liste des offres */}
+        {offers.length > 0 && (
+          <>
+            <View style={styles.rewardsSectionHeader}>
+              <ThemedText type="defaultSemiBold" style={styles.rewardsSectionTitle}>
+                Offres disponibles ({offers.length})
+              </ThemedText>
+            </View>
+
+            {offers.map((offer) => {
+              const canAfford = unitBalance >= offer.pointsCost;
+              const diffStyle = getDifficultyColor(offer.pointsCost);
+
+              return (
+                <View
+                  key={offer.id}
+                  style={[
+                    styles.offerCard,
+                    { backgroundColor: rewardsCardColor, borderColor: rewardsCardBorderColor },
+                    !canAfford && styles.offerCardDisabled,
+                  ]}
+                >
+                  <View style={styles.offerHeader}>
+                    <View style={styles.offerPartnerInfo}>
+                      <ThemedText style={styles.offerPartnerLogo}>{offer.partner.logo}</ThemedText>
+                      <ThemedText type="defaultSemiBold" style={styles.offerPartnerName}>
+                        {offer.partner.name}
+                      </ThemedText>
+                    </View>
+                    <View style={[styles.offerDiscountBadge, { backgroundColor: BrandColors.accent[500] }]}>
+                      <ThemedText style={styles.offerDiscountText}>
+                        {formatDiscount(offer)}
+                      </ThemedText>
+                    </View>
+                  </View>
+
+                  <ThemedText type="defaultSemiBold" style={styles.offerTitle}>
+                    {offer.title}
+                  </ThemedText>
+                  <ThemedText color="secondary" style={styles.offerDescription}>
+                    {offer.description}
+                  </ThemedText>
+
+                  <View style={styles.offerFooter}>
+                    <View style={[styles.offerCostBadge, { backgroundColor: diffStyle.bg }]}>
+                      <Ionicons name="star" size={12} color={diffStyle.color} />
+                      <ThemedText style={[styles.offerCostText, { color: diffStyle.color }]}>
+                        {offer.pointsCost} pts
+                      </ThemedText>
+                    </View>
+
+                    {canAfford ? (
+                      <View style={styles.offerAvailableBadge}>
+                        <Ionicons name="checkmark-circle" size={14} color="#28A745" />
+                        <ThemedText style={styles.offerAvailableText}>Disponible</ThemedText>
+                      </View>
+                    ) : (
+                      <ThemedText style={styles.offerMissingPoints}>
+                        Il manque {offer.pointsCost - unitBalance} pts
+                      </ThemedText>
+                    )}
+                  </View>
+
+                  {offer.minPurchase && (
+                    <ThemedText style={[styles.offerCondition, { color: BrandColors.accent[500] }]}>
+                      Dès {offer.minPurchase}€ d'achat
+                    </ThemedText>
+                  )}
+                </View>
+              );
+            })}
+
+            {/* Note pour les scouts */}
+            <View style={[styles.scoutNote, { backgroundColor: `${BrandColors.primary[500]}10` }]}>
+              <Ionicons name="information-circle" size={20} color={BrandColors.primary[500]} />
+              <ThemedText style={[styles.scoutNoteText, { color: BrandColors.primary[600] }]}>
+                Les échanges de points sont effectués par ton animateur. Continue à relever des défis pour augmenter le solde de ton unité !
+              </ThemedText>
+            </View>
+          </>
+        )}
+      </>
+    );
+  }
 
   const renderChallengesContent = () => {
     return (
@@ -824,5 +1064,211 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     fontWeight: '500',
+  },
+
+  // Rewards styles
+  rewardsBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  rewardsBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rewardsBannerContent: {
+    flex: 1,
+  },
+  rewardsBannerTitle: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  rewardsBannerText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  unitBalanceCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  unitBalanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  unitBalanceInfo: {
+    flex: 1,
+  },
+  unitBalanceLabel: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  unitBalanceValue: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  unitBalanceContribution: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+  },
+  unitBalanceContributionText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  rewardsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  rewardsSectionTitle: {
+    fontSize: 17,
+  },
+  partnersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
+  },
+  partnerCard: {
+    width: '47%',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  partnerLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  partnerLogoText: {
+    fontSize: 24,
+  },
+  partnerName: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  partnerCategory: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  offerCard: {
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  offerCardDisabled: {
+    opacity: 0.7,
+  },
+  offerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  offerPartnerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  offerPartnerLogo: {
+    fontSize: 20,
+  },
+  offerPartnerName: {
+    fontSize: 14,
+  },
+  offerDiscountBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  offerDiscountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  offerTitle: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  offerDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  offerFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  offerCostBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  offerCostText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  offerAvailableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  offerAvailableText: {
+    fontSize: 12,
+    color: '#28A745',
+    fontWeight: '500',
+  },
+  offerMissingPoints: {
+    fontSize: 12,
+    color: '#F5A623',
+    fontWeight: '500',
+  },
+  offerCondition: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  scoutNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  scoutNoteText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

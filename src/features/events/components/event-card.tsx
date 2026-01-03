@@ -28,12 +28,18 @@ interface EventCardProps {
   canDelete?: boolean;
   /** Callback appelé quand l'utilisateur veut supprimer l'événement */
   onDelete?: () => void;
+  /** Si true, affiche le bouton de modification */
+  canEdit?: boolean;
+  /** Callback appelé quand l'utilisateur veut modifier l'événement */
+  onEdit?: () => void;
   /** Liste des participants (optionnel) */
   participants?: Participant[];
   /** Callback pour voir les participants */
   onViewParticipants?: () => void;
   /** URL de l'image de fond */
   imageUrl?: string;
+  /** Nom de l'unité qui a créé l'événement */
+  unitName?: string;
 }
 
 // Nature theme event types
@@ -76,8 +82,11 @@ export function EventCard({
   onAttendancePress,
   canDelete,
   onDelete,
+  canEdit,
+  onEdit,
   onViewParticipants,
   imageUrl,
+  unitName,
 }: EventCardProps) {
   const config = EVENT_TYPE_CONFIG[type];
 
@@ -136,12 +145,13 @@ export function EventCard({
           imageStyle={styles.imageStyle}
         >
           <LinearGradient
-            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)']}
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.9)']}
+            locations={[0, 0.5, 1]}
             style={styles.imageGradient}
           >
-            {/* Header with Type Badge and Delete Button */}
+            {/* Header with Type Badge and Action Buttons */}
             <View style={styles.imageHeader}>
-              <View style={[styles.typeBadge, { backgroundColor: 'rgba(255,255,255,0.9)' }]}>
+              <View style={[styles.typeBadge, { backgroundColor: 'rgba(255,255,255,0.95)' }]}>
                 <Text style={styles.typeIcon}>{config.icon}</Text>
                 <Text style={[styles.typeLabel, { color: config.color }]}>
                   {config.label}
@@ -152,10 +162,19 @@ export function EventCard({
                   <Text style={styles.dateBadgeDay}>{day}</Text>
                   <Text style={styles.dateBadgeMonth}>{month.toUpperCase()}</Text>
                 </View>
+                {canEdit && onEdit && (
+                  <TouchableOpacity
+                    onPress={onEdit}
+                    style={[styles.actionButtonImage, { backgroundColor: 'rgba(255,255,255,0.95)' }]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="create-outline" size={18} color={BrandColors.primary[600]} />
+                  </TouchableOpacity>
+                )}
                 {canDelete && onDelete && (
                   <TouchableOpacity
                     onPress={handleDelete}
-                    style={[styles.deleteButton, { backgroundColor: 'rgba(255,59,48,0.9)' }]}
+                    style={[styles.actionButtonImage, { backgroundColor: 'rgba(255,59,48,0.95)' }]}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
@@ -169,6 +188,13 @@ export function EventCard({
               <Text style={styles.imageTitleText} numberOfLines={2}>
                 {title}
               </Text>
+
+              {unitName && (
+                <View style={styles.unitBadgeImage}>
+                  <Text style={styles.unitBadgeIcon}>🏕️</Text>
+                  <Text style={styles.unitBadgeTextImage}>{unitName}</Text>
+                </View>
+              )}
 
               <View style={styles.imageInfoRow}>
                 <View style={styles.infoChip}>
@@ -240,7 +266,7 @@ export function EventCard({
 
       {/* Content */}
       <View style={styles.content}>
-        {/* Header with Type Badge and Delete Button */}
+        {/* Header with Type Badge and Edit/Delete Buttons */}
         <View style={styles.cardHeader}>
           <View style={[styles.typeBadge, { backgroundColor: config.bgColor }]}>
             <Text style={styles.typeIcon}>{config.icon}</Text>
@@ -248,21 +274,40 @@ export function EventCard({
               {config.label}
             </Text>
           </View>
-          {canDelete && onDelete && (
-            <TouchableOpacity
-              onPress={handleDelete}
-              style={styles.deleteButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-            </TouchableOpacity>
-          )}
+          <View style={styles.headerActions}>
+            {canEdit && onEdit && (
+              <TouchableOpacity
+                onPress={onEdit}
+                style={styles.editButtonCard}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="create-outline" size={18} color={BrandColors.primary[600]} />
+              </TouchableOpacity>
+            )}
+            {canDelete && onDelete && (
+              <TouchableOpacity
+                onPress={handleDelete}
+                style={styles.deleteButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Title */}
         <Text style={[styles.title, { color: textColor }]} numberOfLines={2}>
           {title}
         </Text>
+
+        {/* Unit Name */}
+        {unitName && (
+          <View style={styles.unitBadge}>
+            <Text style={styles.unitBadgeIcon}>🏕️</Text>
+            <Text style={[styles.unitBadgeText, { color: textSecondary }]}>{unitName}</Text>
+          </View>
+        )}
 
         {/* Time and Location */}
         <View style={styles.infoRow}>
@@ -334,18 +379,18 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    height: 220,
+    height: 320,
   },
   imageBackground: {
-    flex: 1,
     width: '100%',
+    height: '100%',
   },
   imageStyle: {
     borderRadius: Radius.xl,
   },
   imageGradient: {
     flex: 1,
-    padding: Spacing.md,
+    padding: Spacing.lg,
     justifyContent: 'space-between',
   },
   imageHeader: {
@@ -356,7 +401,7 @@ const styles = StyleSheet.create({
   imageHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   dateBadgeSmall: {
     backgroundColor: 'rgba(255,255,255,0.95)',
@@ -364,9 +409,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   dateBadgeDay: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: BrandColors.primary[600],
   },
@@ -376,16 +426,26 @@ const styles = StyleSheet.create({
     color: BrandColors.primary[500],
     marginTop: -2,
   },
+  actionButtonImage: {
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   imageContent: {
     gap: Spacing.sm,
   },
   imageTitleText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
+    lineHeight: 28,
   },
   imageInfoRow: {
     flexDirection: 'row',
@@ -395,29 +455,39 @@ const styles = StyleSheet.create({
   infoChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: Radius.md,
     gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   infoChipIcon: {
-    fontSize: 12,
+    fontSize: 13,
   },
   infoChipText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
     color: NeutralColors.gray[700],
-    maxWidth: 120,
+    maxWidth: 140,
   },
   participantsChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: Radius.md,
     gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   fullBadgeSmall: {
     fontSize: 9,
@@ -429,11 +499,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: Spacing.xs,
   },
   attendanceButtonSmall: {
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   attendanceButtonTextSmall: {
     fontSize: 14,
@@ -487,10 +563,57 @@ const styles = StyleSheet.create({
     gap: 4,
     flexShrink: 0,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  editButton: {
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
+  },
+  editButtonCard: {
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
+    backgroundColor: `${BrandColors.primary[500]}20`,
+  },
   deleteButton: {
     padding: Spacing.sm,
     borderRadius: Radius.sm,
     backgroundColor: '#FF3B3020',
+  },
+  unitBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: Spacing.sm,
+  },
+  unitBadgeIcon: {
+    fontSize: 12,
+  },
+  unitBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  unitBadgeImage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.md,
+    gap: 4,
+    alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  unitBadgeTextImage: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: NeutralColors.gray[700],
   },
   typeIcon: {
     fontSize: 12,

@@ -18,6 +18,7 @@ export interface Unit {
   logoUrl?: string;
   groupId: string; // Groupe scout parent
   leaderId: string; // ID de l'animateur chef d'unité
+  accessCode?: string; // Code d'accès pour rejoindre l'unité
   createdAt: Date;
   updatedAt: Date;
 }

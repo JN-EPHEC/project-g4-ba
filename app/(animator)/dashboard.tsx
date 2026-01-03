@@ -25,6 +25,8 @@ import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-util
 import { WeatherService, WeatherForecast } from '@/src/shared/services/weather-service';
 import { BirthdayService, BirthdayInfo } from '@/src/shared/services/birthday-service';
 import { formatShortDate } from '@/src/shared/utils/date-utils';
+import { PartnerService } from '@/services/partner-service';
+import { PartnerOffer, Partner } from '@/types/partners';
 
 // Types pour le dashboard
 interface LeaderboardUser {
@@ -59,6 +61,8 @@ export default function AnimatorDashboardScreen() {
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [topScouts, setTopScouts] = useState<LeaderboardUser[]>([]);
   const [activeChallenges, setActiveChallenges] = useState<ActiveChallenge[]>([]);
+  const [unitBalance, setUnitBalance] = useState(0);
+  const [featuredOffers, setFeaturedOffers] = useState<(PartnerOffer & { partner: Partner })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
@@ -166,6 +170,20 @@ export default function AnimatorDashboardScreen() {
         })));
       } catch (error) {
         setChallengesCount(0);
+      }
+
+      // Charger les récompenses partenaires
+      if (animator?.unitId) {
+        try {
+          const [balance, offers] = await Promise.all([
+            PartnerService.getUnitPointsBalance(animator.unitId),
+            PartnerService.getAllActiveOffers(),
+          ]);
+          setUnitBalance(balance);
+          setFeaturedOffers(offers.slice(0, 3));
+        } catch (error) {
+          console.error('Erreur chargement récompenses:', error);
+        }
       }
 
     } catch (error) {
@@ -472,6 +490,72 @@ export default function AnimatorDashboardScreen() {
           <View style={styles.widgetsRow}>
             <WeatherWidgetCompact location="Belgique" />
             {animator?.unitId && <BirthdayWidgetCompact unitId={animator.unitId} />}
+          </View>
+        </Animated.View>
+
+        {/* Rewards Section */}
+        <Animated.View entering={FadeInUp.duration(400).delay(400)}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Récompenses</ThemedText>
+            <TouchableOpacity onPress={() => router.push('/(animator)/partners')} style={styles.seeAllButton}>
+              <ThemedText style={[styles.seeAllText, { color: BrandColors.accent[500] }]}>Voir les offres</ThemedText>
+              <Ionicons name="chevron-forward" size={16} color={BrandColors.accent[500]} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.rewardsCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+            {/* Balance Header */}
+            <View style={styles.rewardsHeader}>
+              <View style={styles.rewardsBalance}>
+                <ThemedText style={styles.rewardsEmoji}>🎁</ThemedText>
+                <View>
+                  <ThemedText style={[styles.rewardsBalanceLabel, { color: textSecondary }]}>Solde de l'unité</ThemedText>
+                  <ThemedText style={[styles.rewardsBalanceValue, { color: BrandColors.accent[500] }]}>
+                    {unitBalance.toLocaleString('fr-FR')} pts
+                  </ThemedText>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.rewardsHistoryButton, { backgroundColor: `${BrandColors.accent[500]}15` }]}
+                onPress={() => router.push('/(animator)/partners/history')}
+              >
+                <Ionicons name="time-outline" size={16} color={BrandColors.accent[500]} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Featured Offers */}
+            {featuredOffers.length > 0 ? (
+              <View style={styles.featuredOffers}>
+                {featuredOffers.map((offer) => (
+                  <TouchableOpacity
+                    key={offer.id}
+                    style={[styles.featuredOfferItem, { borderColor: cardBorder }]}
+                    onPress={() => router.push(`/(animator)/partners/offer/${offer.id}`)}
+                  >
+                    <ThemedText style={styles.featuredOfferLogo}>{offer.partner.logo}</ThemedText>
+                    <View style={styles.featuredOfferInfo}>
+                      <ThemedText style={[styles.featuredOfferTitle, { color: textColor }]} numberOfLines={1}>
+                        {offer.title}
+                      </ThemedText>
+                      <ThemedText style={[styles.featuredOfferPartner, { color: textSecondary }]}>
+                        {offer.partner.name}
+                      </ThemedText>
+                    </View>
+                    <View style={[styles.featuredOfferCost, { backgroundColor: `${BrandColors.primary[500]}10` }]}>
+                      <ThemedText style={[styles.featuredOfferCostText, { color: BrandColors.primary[600] }]}>
+                        {offer.pointsCost} pts
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.rewardsEmpty}>
+                <ThemedText style={[styles.rewardsEmptyText, { color: textSecondary }]}>
+                  Aucune offre disponible
+                </ThemedText>
+              </View>
+            )}
           </View>
         </Animated.View>
 
@@ -807,4 +891,23 @@ const styles = StyleSheet.create({
   birthdayDate: { fontSize: 12, marginBottom: Spacing.sm },
   birthdayBadge: { alignSelf: 'flex-start', paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.full },
   birthdayBadgeText: { fontSize: 11, fontWeight: '600', color: '#FFFFFF' },
+
+  // Rewards Section
+  rewardsCard: { marginHorizontal: Spacing.xl, borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg },
+  rewardsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg, direction: 'ltr' },
+  rewardsBalance: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, direction: 'ltr' },
+  rewardsEmoji: { fontSize: 28 },
+  rewardsBalanceLabel: { fontSize: 12, marginBottom: 2 },
+  rewardsBalanceValue: { fontSize: 20, fontWeight: '700' },
+  rewardsHistoryButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  featuredOffers: { gap: Spacing.sm },
+  featuredOfferItem: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1, gap: Spacing.md, direction: 'ltr' },
+  featuredOfferLogo: { fontSize: 24 },
+  featuredOfferInfo: { flex: 1 },
+  featuredOfferTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  featuredOfferPartner: { fontSize: 12 },
+  featuredOfferCost: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.md },
+  featuredOfferCostText: { fontSize: 12, fontWeight: '600' },
+  rewardsEmpty: { paddingVertical: Spacing.xl, alignItems: 'center' },
+  rewardsEmptyText: { fontSize: 14 },
 });

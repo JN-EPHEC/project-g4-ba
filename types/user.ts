@@ -5,6 +5,7 @@ export enum UserRole {
   SCOUT = 'scout',
   PARENT = 'parent',
   ANIMATOR = 'animator',
+  WECAMP_ADMIN = 'wecamp_admin',
 }
 
 /**
@@ -66,6 +67,13 @@ export interface Animator extends User {
 }
 
 /**
+ * Interface pour un Admin WeCamp
+ */
+export interface WeCampAdmin extends User {
+  role: UserRole.WECAMP_ADMIN;
+}
+
+/**
  * Type union pour tous les types d'utilisateurs
  */
-export type AnyUser = Scout | Parent | Animator;
+export type AnyUser = Scout | Parent | Animator | WeCampAdmin;

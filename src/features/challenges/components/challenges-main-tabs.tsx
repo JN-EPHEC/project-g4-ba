@@ -4,7 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
 
-export type MainTab = 'challenges' | 'achievements' | 'leaderboard' | 'badges';
+export type MainTab = 'challenges' | 'achievements' | 'leaderboard' | 'badges' | 'rewards';
 
 interface ChallengesMainTabsProps {
   activeTab: MainTab;
@@ -13,8 +13,8 @@ interface ChallengesMainTabsProps {
 
 const TABS: { key: MainTab; label: string }[] = [
   { key: 'challenges', label: 'Défis' },
-  { key: 'achievements', label: 'Réussites' },
-  { key: 'leaderboard', label: 'Classement' },
+  { key: 'rewards', label: 'Rewards' },
+  { key: 'leaderboard', label: 'Rang' },
   { key: 'badges', label: 'Badges' },
 ];
 

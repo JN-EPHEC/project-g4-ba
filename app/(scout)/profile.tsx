@@ -139,6 +139,15 @@ export default function ProfileScreen() {
               <ThemedText style={styles.infoLabel}>Points</ThemedText>
               <ThemedText style={styles.infoValue}>{scout?.points || 0}</ThemedText>
             </View>
+
+            {/* Info récompenses unité */}
+            <View style={[styles.rewardsInfo, { backgroundColor: `${BrandColors.accent[500]}10` }]}>
+              <Ionicons name="gift-outline" size={16} color={BrandColors.accent[500]} />
+              <ThemedText style={[styles.rewardsInfoText, { color: BrandColors.accent[600] }]}>
+                Tes points s'ajoutent au solde de ton unité pour débloquer des récompenses !
+              </ThemedText>
+            </View>
+
             {getAge() && (
               <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
                 <ThemedText style={styles.infoLabel}>Âge</ThemedText>
@@ -393,5 +402,19 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
+  },
+  rewardsInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: Radius.md,
+    marginTop: 4,
+  },
+  rewardsInfoText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -11,13 +11,24 @@ import { Card, Input, PrimaryButton, LocationInput } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { EventService } from '@/services/event-service';
 import { StorageService } from '@/src/shared/services/storage-service';
-import { EventType, Animator } from '@/types';
+import { EventType, Event } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors, NeutralColors } from '@/constants/theme';
 
-export default function CreateEventScreen() {
+// Convertir une Date en string YYYY-MM-DD
+const formatDateForInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export default function EditEventScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const animator = user as Animator;
+
+  const [event, setEvent] = useState<Event | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(true);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -32,20 +43,64 @@ export default function CreateEventScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
   const iconColor = useThemeColor({}, 'icon');
   const cardColor = useThemeColor({}, 'card');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
+  // Charger l'événement existant
+  useEffect(() => {
+    const loadEvent = async () => {
+      if (!id) {
+        router.back();
+        return;
+      }
+
+      try {
+        setLoadingEvent(true);
+        const eventData = await EventService.getEventById(id);
+
+        if (!eventData) {
+          Alert.alert('Erreur', 'Événement non trouvé');
+          router.back();
+          return;
+        }
+
+        // Note: La vérification des permissions est gérée par les règles Firestore
+        // Tout animateur peut modifier tout événement (règles simplifiées temporaires)
+
+        setEvent(eventData);
+        setFormData({
+          title: eventData.title,
+          description: eventData.description,
+          type: eventData.type,
+          location: eventData.location,
+          startDate: formatDateForInput(eventData.startDate),
+          endDate: formatDateForInput(eventData.endDate),
+          maxParticipants: eventData.maxParticipants?.toString() || '',
+          requiresParentConfirmation: eventData.requiresParentConfirmation,
+          imageUrl: eventData.imageUrl || '',
+        });
+      } catch (error) {
+        console.error('Erreur chargement événement:', error);
+        Alert.alert('Erreur', 'Impossible de charger l\'événement');
+        router.back();
+      } finally {
+        setLoadingEvent(false);
+      }
+    };
+
+    loadEvent();
+  }, [id]);
+
   const pickImage = async () => {
     try {
-      // Demander la permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos');
         return;
       }
 
-      // Ouvrir le sélecteur d'images
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -101,7 +156,7 @@ export default function CreateEventScreen() {
     } else {
       const start = new Date(formData.startDate);
       if (isNaN(start.getTime())) {
-        newErrors.startDate = 'Format de date invalide (utilisez YYYY-MM-DD)';
+        newErrors.startDate = 'Format de date invalide';
       }
     }
 
@@ -110,7 +165,7 @@ export default function CreateEventScreen() {
     } else {
       const end = new Date(formData.endDate);
       if (isNaN(end.getTime())) {
-        newErrors.endDate = 'Format de date invalide (utilisez YYYY-MM-DD)';
+        newErrors.endDate = 'Format de date invalide';
       }
     }
 
@@ -131,74 +186,63 @@ export default function CreateEventScreen() {
   };
 
   const handleSubmit = async () => {
-    console.log('🔵 handleSubmit appelé');
-    console.log('📝 FormData:', formData);
-    console.log('👤 User complet:', user);
-    console.log('👤 User.id:', user?.id);
-    console.log('👤 Animator complet:', animator);
-    console.log('🏢 UnitId:', animator?.unitId);
-
-    if (!validateForm()) {
-      console.log('❌ Validation échouée');
-      return;
-    }
-
-    if (!user?.id) {
-      console.log('❌ User manquant');
-      alert('❌ Erreur\n\nUtilisateur non connecté');
-      return;
-    }
-
-    // Vérifier si l'animateur a un unitId, sinon utiliser une valeur par défaut
-    const unitId = animator?.unitId || 'default-unit';
-
-    if (!animator?.unitId) {
-      console.warn('⚠️ Pas de unitId pour cet animateur, utilisation de "default-unit"');
-    }
+    if (!validateForm() || !id) return;
 
     try {
       setIsLoading(true);
-      console.log('⏳ Création de l\'événement en cours...');
-      console.log('📤 Paramètres envoyés:', {
+
+      // Construire l'objet de mise à jour sans les valeurs undefined
+      const updateData: Record<string, any> = {
         title: formData.title,
         description: formData.description,
         type: formData.type,
+        location: formData.location,
         startDate: new Date(formData.startDate),
         endDate: new Date(formData.endDate),
-        location: formData.location,
-        createdBy: user.id,
-        unitId: unitId,
         requiresParentConfirmation: formData.requiresParentConfirmation,
-        maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
-        imageUrl: formData.imageUrl || undefined
-      });
+      };
 
-      await EventService.createEvent(
-        formData.title,
-        formData.description,
-        formData.type,
-        new Date(formData.startDate),
-        new Date(formData.endDate),
-        formData.location,
-        user.id,
-        unitId,
-        formData.requiresParentConfirmation,
-        formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
-        formData.imageUrl || undefined
-      );
+      // Ajouter maxParticipants seulement si défini (sinon null pour supprimer)
+      if (formData.maxParticipants) {
+        updateData.maxParticipants = parseInt(formData.maxParticipants);
+      } else {
+        updateData.maxParticipants = null; // Utiliser null au lieu de undefined
+      }
 
-      console.log('✅ Événement créé avec succès');
+      // Ajouter imageUrl seulement si défini (sinon null)
+      if (formData.imageUrl) {
+        updateData.imageUrl = formData.imageUrl;
+      } else {
+        updateData.imageUrl = null;
+      }
 
-      // Utiliser alert() au lieu de Alert.alert() pour le web
-      alert('✅ Succès!\n\nL\'événement a été créé avec succès.');
-      router.back();
-    } catch (error) {
-      console.error('❌ Erreur lors de la création de l\'événement:', error);
-      alert(`❌ Erreur\n\nImpossible de créer l\'événement:\n${error}`);
+      console.log('📝 Mise à jour événement:', id);
+      console.log('📝 Données:', updateData);
+
+      await EventService.updateEvent(id, updateData);
+
+      alert('Événement modifié avec succès !');
+      router.replace('/(animator)/events');
+    } catch (error: any) {
+      console.error('❌ Erreur lors de la modification:', error);
+      console.error('❌ Code erreur:', error?.code);
+      console.error('❌ Message:', error?.message);
+      alert(`Impossible de modifier l'événement: ${error?.message || error}`);
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (loadingEvent) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={BrandColors.primary[500]} />
+          <ThemedText style={styles.loadingText}>Chargement de l'événement...</ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -207,9 +251,15 @@ export default function CreateEventScreen() {
         style={styles.keyboardView}
       >
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-          <ThemedText type="title" style={styles.title}>
-            Créer un événement
-          </ThemedText>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={iconColor} />
+            </TouchableOpacity>
+            <ThemedText type="title" style={styles.title}>
+              Modifier l'événement
+            </ThemedText>
+          </View>
 
           <Card style={styles.formCard}>
             <Input
@@ -245,6 +295,8 @@ export default function CreateEventScreen() {
                       ? 'Réunion'
                       : type === EventType.ACTIVITY
                       ? 'Activité'
+                      : type === EventType.TRAINING
+                      ? 'Formation'
                       : 'Autre'
                   }
                   onPress={() => setFormData({ ...formData, type })}
@@ -383,7 +435,7 @@ export default function CreateEventScreen() {
             activeOpacity={0.7}
           >
             <ThemedText style={styles.submitButtonText}>
-              {isLoading ? 'Création...' : 'Créer l\'événement'}
+              {isLoading ? 'Modification...' : 'Enregistrer les modifications'}
             </ThemedText>
           </TouchableOpacity>
         </ScrollView>
@@ -399,13 +451,31 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 15,
+  },
   scrollContent: {
     padding: 20,
     paddingTop: 60,
     paddingBottom: 100,
   },
-  title: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 24,
+    gap: 16,
+  },
+  backButton: {
+    padding: 8,
+  },
+  title: {
+    flex: 1,
   },
   formCard: {
     padding: 20,
@@ -453,7 +523,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
-    backgroundColor: '#3b82f6',
+    backgroundColor: BrandColors.primary[500],
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -479,7 +549,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
-  // Styles pour le sélecteur d'image
   imageSection: {
     marginBottom: 16,
   },

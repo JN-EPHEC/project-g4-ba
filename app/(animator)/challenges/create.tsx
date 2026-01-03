@@ -66,11 +66,13 @@ const formatDateForInput = (date: Date | null): string => {
 
 export default function CreateChallengeScreen() {
   const { user } = useAuth();
+  // Points fixes à 10 pour les défis animateurs
+  const FIXED_POINTS = 10;
+
   const [formData, setFormData] = useState({
     emoji: '🪢',
     title: '',
     description: '',
-    points: '50',
     difficulty: ChallengeDifficulty.EASY,
     category: ChallengeCategory.SPORT,
     startDate: null as Date | null,
@@ -98,10 +100,6 @@ export default function CreateChallengeScreen() {
       newErrors.title = 'Le titre est requis';
     }
 
-    if (!formData.points || parseInt(formData.points) <= 0) {
-      newErrors.points = 'Le nombre de points doit être supérieur à 0';
-    }
-
     if (!formData.startDate) {
       newErrors.startDate = 'La date de début est requise';
     }
@@ -127,7 +125,7 @@ export default function CreateChallengeScreen() {
       await ChallengeService.createChallenge(
         formData.title,
         formData.description,
-        parseInt(formData.points),
+        FIXED_POINTS, // Points fixes à 10
         formData.difficulty,
         formData.startDate,
         formData.endDate,
@@ -388,28 +386,24 @@ export default function CreateChallengeScreen() {
             </View>
           </View>
 
-          {/* Points & Difficulty Row */}
+          {/* Points info (fixes à 10) + Difficulty Row */}
           <View style={styles.row}>
             <View style={styles.halfSection}>
-              <ThemedText style={styles.sectionLabel}>
-                Points <ThemedText style={styles.required}>*</ThemedText>
-              </ThemedText>
+              <ThemedText style={styles.sectionLabel}>Points</ThemedText>
               <View
                 style={[
                   styles.pointsContainer,
-                  { backgroundColor: cardColor, borderColor: errors.points ? '#ef4444' : cardBorderColor },
+                  { backgroundColor: `${BrandColors.primary[500]}10`, borderColor: BrandColors.primary[200] },
                 ]}
               >
                 <ThemedText style={styles.pointsStar}>⭐</ThemedText>
-                <TextInput
-                  style={[styles.pointsInput, { color: textColor }]}
-                  placeholder="50"
-                  placeholderTextColor={textSecondary}
-                  value={formData.points}
-                  onChangeText={(text) => setFormData({ ...formData, points: text.replace(/[^0-9]/g, '') })}
-                  keyboardType="numeric"
-                />
+                <ThemedText style={[styles.pointsFixed, { color: BrandColors.primary[600] }]}>
+                  +{FIXED_POINTS} pts
+                </ThemedText>
               </View>
+              <ThemedText style={[styles.pointsHint, { color: textSecondary }]}>
+                Points fixes pour les défis d'unité
+              </ThemedText>
             </View>
 
             <View style={styles.halfSection}>
@@ -528,7 +522,7 @@ export default function CreateChallengeScreen() {
               </View>
               <View style={[styles.previewPointsBadge, { backgroundColor: '#fef3c7' }]}>
                 <ThemedText style={styles.previewPointsIcon}>⭐</ThemedText>
-                <ThemedText style={styles.previewPointsText}>+{formData.points || '0'}</ThemedText>
+                <ThemedText style={styles.previewPointsText}>+{FIXED_POINTS}</ThemedText>
               </View>
             </View>
           </View>
@@ -687,11 +681,14 @@ const styles = StyleSheet.create({
   pointsStar: {
     fontSize: 18,
   },
-  pointsInput: {
+  pointsFixed: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '600',
-    height: '100%',
+    fontWeight: '700',
+  },
+  pointsHint: {
+    fontSize: 11,
+    marginTop: 4,
   },
   difficultyRow: {
     flexDirection: 'row',

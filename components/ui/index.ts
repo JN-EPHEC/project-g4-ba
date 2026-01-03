@@ -8,6 +8,7 @@ export * from './icon-button';
 
 // Formulaires
 export * from './input';
+export * from './location-input';
 
 // Layout
 export * from './card';

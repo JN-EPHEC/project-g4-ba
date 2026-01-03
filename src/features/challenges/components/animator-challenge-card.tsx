@@ -29,6 +29,7 @@ interface AnimatorChallengeCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onArchive: () => void;
+  canEdit?: boolean; // false pour les défis WeCamp (admin)
 }
 
 export function AnimatorChallengeCard({
@@ -42,6 +43,7 @@ export function AnimatorChallengeCard({
   onEdit,
   onDelete,
   onArchive,
+  canEdit = true,
 }: AnimatorChallengeCardProps) {
   const [menuVisible, setMenuVisible] = useState(false);
   const cardColor = useThemeColor({}, 'card');
@@ -50,6 +52,9 @@ export function AnimatorChallengeCard({
 
   const categoryKey = challenge.category?.toLowerCase() || 'default';
   const catColors = CATEGORY_COLORS[categoryKey] || CATEGORY_COLORS.default;
+
+  // Détecter si c'est un défi WeCamp (admin)
+  const isWeCampChallenge = !challenge.unitId || challenge.createdBy === 'wecamp-admin';
 
   // Calcul du pourcentage de progression (basé sur les complétés)
   const progressPercent = totalScouts > 0 ? Math.round((completedCount / totalScouts) * 100) : 0;
@@ -68,7 +73,7 @@ export function AnimatorChallengeCard({
       onPress={onPress}
       activeOpacity={0.7}
     >
-      {/* Row 1: Emoji + Title + Menu */}
+      {/* Row 1: Emoji + Title + Badge WeCamp + Menu */}
       <View style={styles.headerRow}>
         <View style={[styles.emojiContainer, { backgroundColor: catColors.bg }]}>
           <ThemedText style={styles.emoji}>{challenge.emoji || '🎯'}</ThemedText>
@@ -76,13 +81,20 @@ export function AnimatorChallengeCard({
         <ThemedText style={styles.title} numberOfLines={1}>
           {challenge.title}
         </ThemedText>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => setMenuVisible(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color={textSecondary} />
-        </TouchableOpacity>
+        {isWeCampChallenge && (
+          <View style={styles.wecampBadge}>
+            <ThemedText style={styles.wecampBadgeText}>WeCamp</ThemedText>
+          </View>
+        )}
+        {canEdit && (
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setMenuVisible(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={textSecondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Row 2: Category Badge + Points */}
@@ -138,46 +150,48 @@ export function AnimatorChallengeCard({
         </View>
       </View>
 
-      {/* Menu Modal */}
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setMenuVisible(false)}
+      {/* Menu Modal - seulement si canEdit */}
+      {canEdit && (
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuVisible(false)}
         >
-          <View
-            style={[styles.menuContainer, { backgroundColor: cardColor }]}
-            onStartShouldSetResponder={() => true}
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setMenuVisible(false)}
           >
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleMenuAction(onEdit)}
+            <View
+              style={[styles.menuContainer, { backgroundColor: cardColor }]}
+              onStartShouldSetResponder={() => true}
             >
-              <Ionicons name="create-outline" size={20} color={BrandColors.primary[600]} />
-              <ThemedText style={styles.menuItemText}>Modifier</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleMenuAction(onArchive)}
-            >
-              <Ionicons name="archive-outline" size={20} color={NeutralColors.gray[600]} />
-              <ThemedText style={styles.menuItemText}>Archiver</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.menuItem, styles.menuItemDanger]}
-              onPress={() => handleMenuAction(onDelete)}
-            >
-              <Ionicons name="trash-outline" size={20} color="#DC2626" />
-              <ThemedText style={[styles.menuItemText, { color: '#DC2626' }]}>Supprimer</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleMenuAction(onEdit)}
+              >
+                <Ionicons name="create-outline" size={20} color={BrandColors.primary[600]} />
+                <ThemedText style={styles.menuItemText}>Modifier</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleMenuAction(onArchive)}
+              >
+                <Ionicons name="archive-outline" size={20} color={NeutralColors.gray[600]} />
+                <ThemedText style={styles.menuItemText}>Archiver</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.menuItem, styles.menuItemDanger]}
+                onPress={() => handleMenuAction(onDelete)}
+              >
+                <Ionicons name="trash-outline" size={20} color="#DC2626" />
+                <ThemedText style={[styles.menuItemText, { color: '#DC2626' }]}>Supprimer</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </TouchableOpacity>
   );
 }
@@ -217,6 +231,20 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 4,
+  },
+  wecampBadge: {
+    backgroundColor: BrandColors.accent[100],
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  wecampBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: BrandColors.accent[600],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   badgesRow: {
     flexDirection: 'row',

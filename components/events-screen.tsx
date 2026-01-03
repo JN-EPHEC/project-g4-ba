@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { EventCard } from '@/src/features/events/components/event-card';
@@ -20,7 +21,8 @@ import { useEvents } from '@/src/features/events/hooks/use-events';
 import { useEventAttendance } from '@/src/features/events/hooks/use-event-attendance';
 import { EventService } from '@/services/event-service';
 import { UserService } from '@/services/user-service';
-import { Event, UserRole } from '@/types';
+import { UnitService } from '@/services/unit-service';
+import { Event, UserRole, Unit } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
@@ -30,6 +32,7 @@ interface EventsScreenProps {
   userRole: UserRole;
   canCreate?: boolean;
   canDelete?: boolean;
+  canEdit?: boolean;
 }
 
 // Jours de la semaine en français
@@ -66,7 +69,7 @@ function isSameDay(date1: Date | null, date2: Date | null): boolean {
   );
 }
 
-export function EventsScreen({ userRole, canCreate = false, canDelete = false }: EventsScreenProps) {
+export function EventsScreen({ userRole, canCreate = false, canDelete = false, canEdit = false }: EventsScreenProps) {
   const { width } = useWindowDimensions();
   const { user } = useAuth();
   const { events, loading, error, refetch } = useEvents();
@@ -74,12 +77,42 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [unitsCache, setUnitsCache] = useState<Record<string, string>>({});
 
   // Theme colors
   const textColor = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
+
+  // Charger les noms des unités pour les événements
+  useEffect(() => {
+    const loadUnits = async () => {
+      const unitIds = [...new Set(events.map(e => e.unitId).filter(Boolean))];
+      const newCache: Record<string, string> = {};
+
+      for (const unitId of unitIds) {
+        if (!unitsCache[unitId]) {
+          try {
+            const unit = await UnitService.getUnitById(unitId);
+            if (unit) {
+              newCache[unitId] = unit.name;
+            }
+          } catch (error) {
+            console.error(`Error loading unit ${unitId}:`, error);
+          }
+        }
+      }
+
+      if (Object.keys(newCache).length > 0) {
+        setUnitsCache(prev => ({ ...prev, ...newCache }));
+      }
+    };
+
+    if (events.length > 0) {
+      loadUnits();
+    }
+  }, [events]);
 
   // Week days for the calendar (toujours basé sur aujourd'hui)
   const today = new Date();
@@ -315,7 +348,10 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false }:
                 numColumns={numColumns}
                 width={width}
                 canDelete={canDelete}
+                canEdit={canEdit && event.unitId === (user as any)?.unitId}
                 onDelete={() => handleDeleteEvent(event.id)}
+                onEdit={() => router.push(`/(animator)/events/${event.id}`)}
+                unitName={event.unitId ? unitsCache[event.unitId] : undefined}
               />
             ))}
           </View>
@@ -338,13 +374,19 @@ function EventCardWithAttendance({
   numColumns,
   width,
   canDelete,
+  canEdit,
   onDelete,
+  onEdit,
+  unitName,
 }: {
   event: Event;
   numColumns: number;
   width: number;
   canDelete?: boolean;
+  canEdit?: boolean;
   onDelete?: () => void;
+  onEdit?: () => void;
+  unitName?: string;
 }) {
   const { isRegistered, participantCount, attendances, toggleAttendance } = useEventAttendance(event.id);
   const [showParticipants, setShowParticipants] = useState(false);
@@ -402,8 +444,11 @@ function EventCardWithAttendance({
         }}
         onAttendancePress={toggleAttendance}
         canDelete={canDelete}
+        canEdit={canEdit}
         onDelete={onDelete}
+        onEdit={onEdit}
         onViewParticipants={handleViewParticipants}
+        unitName={unitName}
       />
 
       <ParticipantsModal

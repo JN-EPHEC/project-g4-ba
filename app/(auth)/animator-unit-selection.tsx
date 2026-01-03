@@ -42,9 +42,13 @@ const ACCESS_CODES: Record<string, string> = {
   'faucons': 'FAUCONS2025',
 };
 
+type UnitMode = 'choice' | 'join';
+
 export default function AnimatorUnitSelectionScreen() {
   const params = useLocalSearchParams();
   const { register, isLoading: authLoading } = useAuth();
+  const [mode, setMode] = useState<UnitMode>('choice');
+  const [selectedChoice, setSelectedChoice] = useState<'join' | 'create' | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,6 +197,25 @@ export default function AnimatorUnitSelectionScreen() {
     }
   };
 
+  const handleChoiceContinue = () => {
+    if (selectedChoice === 'join') {
+      setMode('join');
+    } else if (selectedChoice === 'create') {
+      // Naviguer vers l'écran de création d'unité
+      router.push({
+        pathname: '/(auth)/create-unit',
+        params: {
+          email: params.email as string,
+          password: params.password as string,
+          firstName: params.firstName as string,
+          lastName: params.lastName as string,
+          dateOfBirth: params.dateOfBirth as string,
+          role: params.role as string,
+        },
+      });
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -202,6 +225,123 @@ export default function AnimatorUnitSelectionScreen() {
     );
   }
 
+  // Écran de choix initial
+  if (mode === 'choice') {
+    return (
+      <View style={styles.container}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <ThemedText style={styles.iconEmoji}>⭐</ThemedText>
+            </View>
+            <ThemedText style={styles.title}>Rejoindre une unité</ThemedText>
+            <ThemedText style={styles.subtitle}>
+              Mon unité existe-t-elle déjà sur l'application ?
+            </ThemedText>
+          </View>
+
+          {/* Choice Cards */}
+          <View style={styles.choiceContainer}>
+            <Pressable
+              onPress={() => setSelectedChoice('join')}
+              style={[
+                styles.choiceCard,
+                selectedChoice === 'join' && styles.choiceCardSelected,
+              ]}
+            >
+              <View style={[styles.choiceIcon, { backgroundColor: `${colors.primary}15` }]}>
+                <Ionicons name="search" size={28} color={colors.primary} />
+              </View>
+              <View style={styles.choiceContent}>
+                <ThemedText style={styles.choiceTitle}>Mon unité existe déjà</ThemedText>
+                <ThemedText style={styles.choiceDescription}>
+                  Je veux rejoindre une unité existante sur l'application
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.checkmark,
+                  selectedChoice === 'join'
+                    ? { backgroundColor: colors.primary, borderWidth: 0 }
+                    : { borderColor: colors.mist, borderWidth: 2 },
+                ]}
+              >
+                {selectedChoice === 'join' && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+              </View>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setSelectedChoice('create')}
+              style={[
+                styles.choiceCard,
+                selectedChoice === 'create' && styles.choiceCardSelected,
+              ]}
+            >
+              <View style={[styles.choiceIcon, { backgroundColor: `${colors.accent}15` }]}>
+                <Ionicons name="add-circle" size={28} color={colors.accent} />
+              </View>
+              <View style={styles.choiceContent}>
+                <ThemedText style={styles.choiceTitle}>Mon unité n'existe pas encore</ThemedText>
+                <ThemedText style={styles.choiceDescription}>
+                  Je veux créer ma propre unité sur l'application
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.checkmark,
+                  selectedChoice === 'create'
+                    ? { backgroundColor: colors.accent, borderWidth: 0 }
+                    : { borderColor: colors.mist, borderWidth: 2 },
+                ]}
+              >
+                {selectedChoice === 'create' && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+              </View>
+            </Pressable>
+          </View>
+
+          {/* Spacer */}
+          <View style={styles.spacer} />
+
+          {/* Buttons */}
+          <View style={styles.buttonsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.continueButton,
+                !selectedChoice && styles.continueButtonDisabled,
+              ]}
+              onPress={handleChoiceContinue}
+              disabled={!selectedChoice}
+              activeOpacity={0.8}
+            >
+              <ThemedText
+                style={[
+                  styles.continueButtonText,
+                  !selectedChoice && styles.continueButtonTextDisabled,
+                ]}
+              >
+                Continuer
+              </ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={styles.backButtonText}>Retour</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Écran de sélection d'unité (mode === 'join')
   return (
     <View style={styles.container}>
       <ScrollView
@@ -212,11 +352,11 @@ export default function AnimatorUnitSelectionScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <ThemedText style={styles.iconEmoji}>⭐</ThemedText>
+            <ThemedText style={styles.iconEmoji}>🏕</ThemedText>
           </View>
-          <ThemedText style={styles.title}>Choisis ta fédération</ThemedText>
+          <ThemedText style={styles.title}>Choisis ton unité</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Sélectionne la fédération que tu animes
+            Sélectionne l'unité que tu animes
           </ThemedText>
         </View>
 
@@ -332,7 +472,11 @@ export default function AnimatorUnitSelectionScreen() {
 
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              setMode('choice');
+              setSelectedUnit(null);
+              setAccessCode('');
+            }}
             activeOpacity={0.7}
           >
             <ThemedText style={styles.backButtonText}>Retour</ThemedText>
@@ -395,6 +539,52 @@ const styles = StyleSheet.create({
     color: colors.neutral,
     textAlign: 'center',
     lineHeight: 22,
+  },
+
+  // Choice Cards
+  choiceContainer: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  choiceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 20,
+    gap: 16,
+    borderWidth: 2,
+    borderColor: colors.mist,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  choiceCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}08`,
+  },
+  choiceIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choiceContent: {
+    flex: 1,
+  },
+  choiceTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.dark,
+    marginBottom: 4,
+  },
+  choiceDescription: {
+    fontSize: 13,
+    color: colors.neutral,
+    lineHeight: 18,
   },
 
   // Federations
