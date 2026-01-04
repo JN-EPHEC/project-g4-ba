@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, Platform } from 'react-native';
+import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, Platform, Image, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
@@ -25,6 +25,21 @@ const STATUS_BAR_HEIGHT = Platform.select({
   default: 0,
 });
 
+// Couleurs pour l'onglet récompenses
+const rewardColors = {
+  primary: '#2D5A45',
+  accent: '#E07B4C',
+  accentLight: '#FEF3EE',
+  dark: '#1A2E28',
+  neutral: '#8B7E74',
+  neutralLight: '#C4BBB3',
+  mist: '#E8EDE9',
+  canvas: '#FDFCFB',
+  cardBg: '#FFFFFF',
+  success: '#28A745',
+  warning: '#F5A623',
+};
+
 type MainTab = 'defis' | 'recompenses';
 type AnimatorFilter = 'active' | 'completed' | 'archived';
 
@@ -33,11 +48,17 @@ export default function AnimatorChallengesScreen() {
   const animator = user as Animator;
   const { challenges, loading, error, refetch } = useChallenges();
 
+  // Onglet principal
+  const [mainTab, setMainTab] = useState<MainTab>('defis');
+
   useFocusEffect(
     useCallback(() => {
       refetch();
       loadUnitStats();
-    }, [])
+      if (mainTab === 'recompenses') {
+        loadRewardsData();
+      }
+    }, [mainTab])
   );
 
   const [activeFilter, setActiveFilter] = useState<AnimatorFilter>('active');
@@ -49,16 +70,11 @@ export default function AnimatorChallengesScreen() {
     inProgressCount: number;
   }>>({});
 
-  // Onglet principal (Défis / Récompenses)
-  const [mainTab, setMainTab] = useState<MainTab>('defis');
-
-  // États partenaires/récompenses
+  // États récompenses
   const [partners, setPartners] = useState<Partner[]>([]);
   const [offers, setOffers] = useState<(PartnerOffer & { partner: Partner })[]>([]);
   const [unitBalance, setUnitBalance] = useState(0);
   const [rewardsLoading, setRewardsLoading] = useState(false);
-  const [pendingRedemptions, setPendingRedemptions] = useState(0);
-  const [requestingOffer, setRequestingOffer] = useState<string | null>(null);
 
   const tintColor = useThemeColor({}, 'tint');
   const cardColor = useThemeColor({}, 'card');
@@ -87,67 +103,20 @@ export default function AnimatorChallengesScreen() {
 
     setRewardsLoading(true);
     try {
-      const [balance, activeOffers, allPartners, pendingCount] = await Promise.all([
-        PartnerService.getUnitPointsBalance(animator.unitId),
-        PartnerService.getAllActiveOffers(),
+      const [partnersData, offersData, balance] = await Promise.all([
         PartnerService.getPartners(),
-        PartnerService.getPendingRedemptionsCount(animator.unitId),
+        PartnerService.getAllActiveOffers(),
+        PartnerService.getUnitPointsBalance(animator.unitId),
       ]);
-
+      setPartners(partnersData);
+      setOffers(offersData);
       setUnitBalance(balance);
-      setOffers(activeOffers);
-      setPartners(allPartners);
-      setPendingRedemptions(pendingCount);
     } catch (error) {
       console.error('Erreur chargement récompenses:', error);
     } finally {
       setRewardsLoading(false);
     }
   }, [animator?.unitId]);
-
-  // Demander un échange (avec validation par 3 animateurs)
-  const handleRequestRedemption = async (offer: PartnerOffer & { partner: Partner }) => {
-    if (!animator?.unitId || !animator?.id) return;
-
-    const animatorName = `${animator.firstName} ${animator.lastName}`;
-
-    Alert.alert(
-      'Demander un échange',
-      `Voulez-vous demander l'échange "${offer.title}" pour ${offer.pointsCost} points ?\n\nCette demande devra être approuvée par 3 animateurs avant que les points ne soient déduits.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Demander',
-          onPress: async () => {
-            setRequestingOffer(offer.id);
-            try {
-              const result = await PartnerService.requestRedemption(
-                offer.id,
-                animator.id,
-                animatorName,
-                animator.unitId
-              );
-
-              if (result.success) {
-                Alert.alert(
-                  'Demande envoyée',
-                  'Votre demande a été créée. Elle doit être approuvée par 3 animateurs pour être validée.',
-                  [{ text: 'OK' }]
-                );
-                loadRewardsData(); // Recharger pour mettre à jour le compteur
-              } else {
-                Alert.alert('Erreur', result.error || 'Impossible de créer la demande');
-              }
-            } catch (error) {
-              Alert.alert('Erreur', 'Une erreur est survenue');
-            } finally {
-              setRequestingOffer(null);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   // Charger les récompenses quand on change d'onglet
   useEffect(() => {
@@ -186,9 +155,8 @@ export default function AnimatorChallengesScreen() {
     loadChallengeStats();
   }, [challenges, animator?.unitId]);
 
-  // Helpers pour filtrer
+  // Helpers pour filtrer les défis
   const isArchivedChallenge = (challenge: Challenge) => {
-    // Archivé manuellement par l'animateur
     return challenge.isArchived === true;
   };
 
@@ -235,7 +203,30 @@ export default function AnimatorChallengesScreen() {
     return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   };
 
-  // Actions
+  // Helpers récompenses
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'alimentation':
+        return '🛒';
+      case 'sport':
+        return '⚽';
+      case 'bricolage':
+        return '🔨';
+      case 'outdoor':
+        return '🏕️';
+      default:
+        return '🏪';
+    }
+  };
+
+  const formatDiscount = (offer: PartnerOffer) => {
+    if (offer.discountType === 'percentage') {
+      return `-${offer.discountValue}%`;
+    }
+    return `-${offer.discountValue}€`;
+  };
+
+  // Actions défis
   const handleEdit = (challenge: Challenge) => {
     router.push(`/(animator)/challenges/${challenge.id}` as any);
   };
@@ -523,148 +514,121 @@ export default function AnimatorChallengesScreen() {
           <>
             {rewardsLoading ? (
               <View style={styles.rewardsLoadingContainer}>
-                <ActivityIndicator size="large" color={BrandColors.accent[500]} />
-                <ThemedText color="secondary">Chargement des récompenses...</ThemedText>
+                <ActivityIndicator size="large" color={rewardColors.primary} />
               </View>
             ) : (
               <>
-                {/* Bandeau demandes en attente */}
-                {pendingRedemptions > 0 && (
-                  <TouchableOpacity
-                    style={styles.pendingRedemptionsBanner}
-                    onPress={() => router.push('/(animator)/partners/pending-approvals')}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.pendingRedemptionsIconContainer}>
-                      <Ionicons name="hourglass" size={20} color={BrandColors.primary[600]} />
-                    </View>
-                    <View style={styles.pendingRedemptionsTextContainer}>
-                      <ThemedText style={styles.pendingRedemptionsTitle}>
-                        {pendingRedemptions} demande{pendingRedemptions > 1 ? 's' : ''} en attente
-                      </ThemedText>
-                      <ThemedText style={styles.pendingRedemptionsSubtitle}>
-                        Approbation requise de 3 animateurs
-                      </ThemedText>
-                    </View>
-                    <View style={styles.pendingRedemptionsBadge}>
-                      <ThemedText style={styles.pendingRedemptionsBadgeText}>{pendingRedemptions}</ThemedText>
-                    </View>
-                  </TouchableOpacity>
-                )}
-
-                {/* Solde de points de l'unité */}
-                <View style={[styles.balanceCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}>
+                {/* Balance Card */}
+                <View style={styles.balanceCard}>
                   <View style={styles.balanceHeader}>
-                    <View style={[styles.balanceIconContainer, { backgroundColor: BrandColors.accent[100] }]}>
-                      <Ionicons name="wallet" size={24} color={BrandColors.accent[600]} />
-                    </View>
-                    <View>
-                      <ThemedText style={styles.balanceTitle}>Solde de l'unité</ThemedText>
-                      <ThemedText style={[styles.balanceSubtitle, { color: textSecondary }]}>
-                        Points accumulés par vos scouts
-                      </ThemedText>
+                    <Text style={styles.balanceLabel}>Points de l'unité</Text>
+                    <View style={styles.balanceBadge}>
+                      <Ionicons name="star" size={16} color={rewardColors.accent} />
                     </View>
                   </View>
-                  <ThemedText style={[styles.balanceValue, { color: BrandColors.accent[600] }]}>
-                    {unitBalance.toLocaleString()} pts
-                  </ThemedText>
-                  <ThemedText style={[styles.balanceHint, { color: textSecondary }]}>
-                    Échangez ces points contre des offres partenaires
-                  </ThemedText>
+                  <Text style={styles.balanceValue}>{unitBalance.toLocaleString()}</Text>
+                  <Text style={styles.balanceSubtitle}>
+                    Points disponibles pour des récompenses
+                  </Text>
                 </View>
 
-                {/* Info validation */}
-                <View style={[styles.validationInfoBanner, { backgroundColor: `${BrandColors.primary[500]}10` }]}>
-                  <Ionicons name="shield-checkmark" size={18} color={BrandColors.primary[500]} />
-                  <ThemedText style={[styles.validationInfoText, { color: BrandColors.primary[600] }]}>
-                    Chaque échange nécessite l'approbation de 3 animateurs avant déduction des points.
-                  </ThemedText>
-                </View>
-
-                {/* Partenaires */}
-                {partners.length > 0 && (
-                  <>
-                    <ThemedText style={styles.sectionTitle}>Nos partenaires</ThemedText>
-                    <View style={styles.partnersGrid}>
-                      {partners.map(partner => (
-                        <View
-                          key={partner.id}
-                          style={[styles.partnerCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}
-                        >
-                          <ThemedText style={styles.partnerLogo}>{partner.logo}</ThemedText>
-                          <ThemedText style={styles.partnerName}>{partner.name}</ThemedText>
-                          <ThemedText style={[styles.partnerCategory, { color: textSecondary }]}>
-                            {partner.category}
-                          </ThemedText>
+                {/* Offres populaires */}
+                <Text style={styles.rewardSectionTitle}>🔥 Offres populaires</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.offersScroll}
+                >
+                  {offers.slice(0, 4).map((offer) => (
+                    <TouchableOpacity
+                      key={offer.id}
+                      style={styles.offerCard}
+                      onPress={() => router.push(`/(animator)/partners/offer/${offer.id}`)}
+                    >
+                      <View style={styles.offerHeader}>
+                        {offer.partner.logo?.startsWith('http') ? (
+                          <Image source={{ uri: offer.partner.logo }} style={styles.offerLogoImage} />
+                        ) : (
+                          <Text style={styles.offerLogo}>{offer.partner.logo}</Text>
+                        )}
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>{formatDiscount(offer)}</Text>
                         </View>
-                      ))}
-                    </View>
-                  </>
-                )}
-
-                {/* Offres disponibles */}
-                <ThemedText style={styles.sectionTitle}>Offres disponibles</ThemedText>
-                {offers.length === 0 ? (
-                  <View style={styles.noOffersContainer}>
-                    <Ionicons name="gift-outline" size={48} color={textSecondary} />
-                    <ThemedText style={[styles.noOffersText, { color: textSecondary }]}>
-                      Aucune offre disponible pour le moment
-                    </ThemedText>
-                  </View>
-                ) : (
-                  <View style={styles.offersContainer}>
-                    {offers.map(offer => {
-                      const canRedeem = unitBalance >= offer.pointsCost;
-                      return (
-                        <View
-                          key={offer.id}
-                          style={[styles.offerCard, { backgroundColor: cardColor, borderColor: cardBorderColor }]}
-                        >
-                          <View style={styles.offerHeader}>
-                            <View style={styles.offerPartner}>
-                              <ThemedText style={styles.offerPartnerLogo}>{offer.partner.logo}</ThemedText>
-                              <ThemedText style={[styles.offerPartnerName, { color: textSecondary }]}>
-                                {offer.partner.name}
-                              </ThemedText>
-                            </View>
-                            <View style={[styles.offerCostBadge, { backgroundColor: BrandColors.accent[100] }]}>
-                              <ThemedText style={[styles.offerCostText, { color: BrandColors.accent[700] }]}>
-                                {offer.pointsCost} pts
-                              </ThemedText>
-                            </View>
-                          </View>
-                          <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
-                          <ThemedText style={[styles.offerDescription, { color: textSecondary }]}>
-                            {offer.description}
-                          </ThemedText>
-                          <View style={styles.offerFooter}>
-                            <ThemedText style={[styles.offerValidity, { color: textSecondary }]}>
-                              Valide {offer.validityDays} jours
-                            </ThemedText>
-                            <TouchableOpacity
-                              style={[
-                                styles.redeemButton,
-                                { backgroundColor: BrandColors.accent[500] },
-                                (!canRedeem || requestingOffer === offer.id) && styles.redeemButtonDisabled,
-                              ]}
-                              disabled={!canRedeem || requestingOffer === offer.id}
-                              onPress={() => handleRequestRedemption(offer)}
-                            >
-                              {requestingOffer === offer.id ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                              ) : (
-                                <>
-                                  <Ionicons name="hand-left" size={16} color="#FFFFFF" />
-                                  <ThemedText style={styles.redeemButtonText}>
-                                    {canRedeem ? 'Demander' : 'Points insuffisants'}
-                                  </ThemedText>
-                                </>
-                              )}
-                            </TouchableOpacity>
-                          </View>
+                      </View>
+                      <Text style={styles.offerPartner}>{offer.partner.name}</Text>
+                      <Text style={styles.offerTitle} numberOfLines={2}>
+                        {offer.title}
+                      </Text>
+                      <View style={styles.offerFooter}>
+                        <View style={styles.pointsCost}>
+                          <Ionicons name="star" size={14} color={rewardColors.accent} />
+                          <Text style={styles.pointsCostText}>{offer.pointsCost} pts</Text>
                         </View>
-                      );
-                    })}
+                        {unitBalance >= offer.pointsCost ? (
+                          <View style={[styles.statusBadge, { backgroundColor: `${rewardColors.success}15` }]}>
+                            <Text style={[styles.statusText, { color: rewardColors.success }]}>Disponible</Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.statusBadge, { backgroundColor: `${rewardColors.warning}15` }]}>
+                            <Text style={[styles.statusText, { color: rewardColors.warning }]}>
+                              -{offer.pointsCost - unitBalance} pts
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* Liste des partenaires */}
+                <Text style={styles.rewardSectionTitle}>🤝 Nos partenaires</Text>
+                {partners.map((partner) => {
+                  const partnerOffers = offers.filter((o) => o.partnerId === partner.id);
+                  const minPoints = partnerOffers.length > 0
+                    ? Math.min(...partnerOffers.map((o) => o.pointsCost))
+                    : 0;
+
+                  return (
+                    <TouchableOpacity
+                      key={partner.id}
+                      style={styles.partnerCard}
+                      onPress={() => router.push(`/(animator)/partners/${partner.id}`)}
+                    >
+                      <View style={styles.partnerLogo}>
+                        {partner.logo?.startsWith('http') ? (
+                          <Image source={{ uri: partner.logo }} style={styles.partnerLogoImage} />
+                        ) : (
+                          <Text style={styles.partnerLogoText}>{partner.logo}</Text>
+                        )}
+                      </View>
+                      <View style={styles.partnerInfo}>
+                        <Text style={styles.partnerName}>{partner.name}</Text>
+                        <Text style={styles.partnerDescription} numberOfLines={1}>
+                          {partner.description}
+                        </Text>
+                        <View style={styles.partnerMeta}>
+                          <Text style={styles.partnerCategory}>
+                            {getCategoryIcon(partner.category)} {partner.category}
+                          </Text>
+                          {partnerOffers.length > 0 && (
+                            <Text style={styles.partnerOffers}>
+                              {partnerOffers.length} offre{partnerOffers.length > 1 ? 's' : ''} • dès {minPoints} pts
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={rewardColors.neutralLight} />
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {partners.length === 0 && (
+                  <View style={styles.rewardEmptyState}>
+                    <Ionicons name="gift-outline" size={48} color={rewardColors.neutral} />
+                    <Text style={styles.rewardEmptyStateText}>Aucun partenaire disponible</Text>
+                    <Text style={styles.rewardEmptyStateSubtext}>
+                      Les partenariats arrivent bientôt !
+                    </Text>
                   </View>
                 )}
               </>
@@ -733,6 +697,9 @@ const styles = StyleSheet.create({
   statsButton: {
     padding: 8,
   },
+  historyButton: {
+    padding: 8,
+  },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -744,6 +711,37 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Main Tabs
+  mainTabs: {
+    flexDirection: 'row',
+    backgroundColor: NeutralColors.gray[100],
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 20,
+    gap: 4,
+  },
+  mainTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    gap: 8,
+  },
+  mainTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  mainTabText: {
     fontSize: 15,
     fontWeight: '600',
   },
@@ -862,253 +860,204 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  // Main Tabs (Défis / Récompenses)
-  mainTabs: {
-    flexDirection: 'row',
-    backgroundColor: NeutralColors.gray[100],
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 20,
-    gap: 4,
-  },
-  mainTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    gap: 8,
-  },
-  mainTabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  mainTabText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  historyButton: {
-    padding: 8,
-  },
-  // Rewards Content
+  // === REWARDS STYLES ===
   rewardsLoadingContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    gap: 16,
+    alignItems: 'center',
+    paddingVertical: 60,
   },
+  // Balance Card
   balanceCard: {
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: rewardColors.primary,
+    borderRadius: 20,
+    padding: 24,
     marginBottom: 24,
-    borderWidth: 1,
   },
   balanceHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    gap: 10,
+    marginBottom: 8,
   },
-  balanceIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  balanceLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  balanceBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  balanceTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+  balanceValue: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginVertical: 8,
   },
   balanceSubtitle: {
     fontSize: 13,
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.7)',
   },
-  balanceValue: {
-    fontSize: 36,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginVertical: 8,
-  },
-  balanceHint: {
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  // Partners Section
-  sectionTitle: {
+  // Section Title
+  rewardSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: rewardColors.dark,
     marginBottom: 16,
+    marginTop: 12,
   },
-  partnersGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  // Offers Scroll
+  offersScroll: {
+    paddingBottom: 16,
     gap: 12,
-    marginBottom: 24,
-  },
-  partnerCard: {
-    width: '47%',
-    borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  partnerLogo: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  partnerName: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  partnerCategory: {
-    fontSize: 12,
-    marginTop: 4,
-    textTransform: 'capitalize',
-  },
-  // Offers Section
-  offersContainer: {
-    gap: 12,
-    marginBottom: 24,
   },
   offerCard: {
-    borderRadius: 14,
+    width: 180,
+    backgroundColor: rewardColors.cardBg,
+    borderRadius: 16,
     padding: 16,
+    marginRight: 12,
     borderWidth: 1,
+    borderColor: rewardColors.mist,
   },
   offerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  offerLogo: {
+    fontSize: 32,
+  },
+  offerLogoImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
+  discountBadge: {
+    backgroundColor: rewardColors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  discountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   offerPartner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  offerPartnerLogo: {
-    fontSize: 24,
-  },
-  offerPartnerName: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  offerCostBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  offerCostText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    color: rewardColors.neutral,
+    marginBottom: 2,
   },
   offerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  offerDescription: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    fontWeight: '600',
+    color: rewardColors.dark,
     marginBottom: 12,
+    minHeight: 36,
   },
   offerFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  offerValidity: {
-    fontSize: 12,
-  },
-  redeemButton: {
+  pointsCost: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 6,
+    gap: 4,
   },
-  redeemButtonDisabled: {
-    opacity: 0.5,
-  },
-  redeemButtonText: {
-    color: '#FFFFFF',
+  pointsCostText: {
     fontSize: 13,
     fontWeight: '600',
+    color: rewardColors.accent,
   },
-  noOffersContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  noOffersText: {
-    fontSize: 15,
-    marginTop: 12,
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
-  // Pending Redemptions Banner
-  pendingRedemptionsBanner: {
+  // Partner Card
+  partnerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: BrandColors.primary[50],
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
+    backgroundColor: rewardColors.cardBg,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: rewardColors.mist,
   },
-  pendingRedemptionsIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+  partnerLogo: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: rewardColors.mist,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
-  pendingRedemptionsTextContainer: {
+  partnerLogoText: {
+    fontSize: 28,
+  },
+  partnerLogoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+  },
+  partnerInfo: {
     flex: 1,
   },
-  pendingRedemptionsTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: BrandColors.primary[700],
-  },
-  pendingRedemptionsSubtitle: {
-    fontSize: 13,
-    color: BrandColors.primary[500],
-    marginTop: 2,
-  },
-  pendingRedemptionsBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: BrandColors.primary[500],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pendingRedemptionsBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+  partnerName: {
+    fontSize: 16,
     fontWeight: '700',
+    color: rewardColors.dark,
+    marginBottom: 2,
   },
-  // Validation Info Banner
-  validationInfoBanner: {
+  partnerDescription: {
+    fontSize: 13,
+    color: rewardColors.neutral,
+    marginBottom: 8,
+  },
+  partnerMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 20,
+    gap: 12,
   },
-  validationInfoText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
+  partnerCategory: {
+    fontSize: 12,
+    color: rewardColors.neutralLight,
+    textTransform: 'capitalize',
+  },
+  partnerOffers: {
+    fontSize: 12,
+    color: rewardColors.primary,
+    fontWeight: '500',
+  },
+  // Empty State
+  rewardEmptyState: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: rewardColors.cardBg,
+    borderRadius: 16,
+    gap: 12,
+  },
+  rewardEmptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: rewardColors.dark,
+  },
+  rewardEmptyStateSubtext: {
+    fontSize: 14,
+    color: rewardColors.neutral,
+    textAlign: 'center',
   },
 });

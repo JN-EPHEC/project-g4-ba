@@ -343,20 +343,74 @@ export class PartnerService {
   }
 
   /**
-   * Nombre d'approbations requises pour valider un échange
+   * Nombre d'approbations requises pour valider un échange (non utilisé actuellement)
    */
   static readonly REQUIRED_APPROVALS = 3;
 
   /**
-   * Demande un échange de points (nécessite 3 approbations d'animateurs)
-   * Crée une demande en attente de validation
+   * Déduit des points de l'unité en les répartissant sur les scouts
+   * Les points sont déduits proportionnellement au solde de chaque scout
+   */
+  static async deductUnitPoints(unitId: string, pointsToDeduct: number): Promise<void> {
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('unitId', '==', unitId),
+        where('role', '==', 'scout')
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+
+      if (usersSnapshot.empty) {
+        throw new Error('Aucun scout trouvé dans cette unité');
+      }
+
+      // Calculer le total des points et trier par points décroissants
+      const scouts = usersSnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          points: doc.data().points || 0,
+        }))
+        .filter(s => s.points > 0)
+        .sort((a, b) => b.points - a.points);
+
+      if (scouts.length === 0) {
+        throw new Error('Aucun scout avec des points disponibles');
+      }
+
+      let remainingToDeduct = pointsToDeduct;
+
+      // Déduire les points en commençant par les scouts avec le plus de points
+      for (const scout of scouts) {
+        if (remainingToDeduct <= 0) break;
+
+        const deductFromThisScout = Math.min(scout.points, remainingToDeduct);
+        if (deductFromThisScout > 0) {
+          await updateDoc(doc(db, 'users', scout.id), {
+            points: scout.points - deductFromThisScout,
+          });
+          remainingToDeduct -= deductFromThisScout;
+        }
+      }
+
+      if (remainingToDeduct > 0) {
+        console.warn(`Impossible de déduire tous les points: ${remainingToDeduct} restants`);
+      }
+    } catch (error) {
+      console.error('Erreur deductUnitPoints:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Échange des points contre une offre et génère un bon d'achat immédiatement
+   * Les points sont déduits directement sans validation supplémentaire
    */
   static async requestRedemption(
     offerId: string,
     requestedBy: string,
     requesterName: string,
     unitId: string
-  ): Promise<{ success: boolean; redemption?: Redemption; error?: string }> {
+  ): Promise<{ success: boolean; redemption?: Redemption; code?: string; error?: string }> {
     try {
       // 1. Récupérer l'offre
       const offer = await this.getOfferById(offerId);
@@ -382,45 +436,50 @@ export class PartnerService {
         return { success: false, error: 'Cette offre a atteint sa limite d\'échanges' };
       }
 
-      // 4. Vérifier qu'il n'y a pas déjà une demande en attente pour cette offre
-      const pendingQuery = query(
-        collection(db, this.REDEMPTIONS_COLLECTION),
-        where('unitId', '==', unitId),
-        where('offerId', '==', offerId),
-        where('status', '==', 'pending_approval')
-      );
-      const pendingSnapshot = await getDocs(pendingQuery);
-      if (!pendingSnapshot.empty) {
-        return { success: false, error: 'Une demande est déjà en attente pour cette offre' };
-      }
+      // 4. Générer le code promo unique
+      const promoCode = this.generatePromoCode();
 
-      // 5. Créer la demande de rédemption (sans code, en attente d'approbation)
+      // 5. Calculer la date d'expiration
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + offer.validityDays);
+
+      // 6. Créer le bon d'achat (directement validé)
       const redemptionData = {
         offerId,
         partnerId: offer.partnerId,
         requestedBy,
-        requesterName, // Pour afficher le nom de qui a fait la demande
+        requesterName,
         unitId,
         pointsSpent: offer.pointsCost,
-        status: 'pending_approval' as RedemptionStatus,
-        approvals: [] as RedemptionApproval[],
-        requiredApprovals: this.REQUIRED_APPROVALS,
+        status: 'active' as RedemptionStatus, // Directement actif
+        code: promoCode,
+        expiresAt: Timestamp.fromDate(expiresAt),
         createdAt: Timestamp.now(),
       };
 
       const redemptionRef = await addDoc(collection(db, this.REDEMPTIONS_COLLECTION), redemptionData);
 
+      // 7. Déduire les points de l'unité
+      await this.deductUnitPoints(unitId, offer.pointsCost);
+
+      // 8. Incrémenter le compteur de rédemptions de l'offre
+      await updateDoc(doc(db, this.OFFERS_COLLECTION, offerId), {
+        currentRedemptions: (offer.currentRedemptions || 0) + 1,
+      });
+
       return {
         success: true,
+        code: promoCode,
         redemption: {
           id: redemptionRef.id,
           ...redemptionData,
+          expiresAt,
           createdAt: new Date(),
         } as unknown as Redemption,
       };
     } catch (error: any) {
       console.error('Erreur requestRedemption:', error);
-      return { success: false, error: error?.message || 'Erreur lors de la demande' };
+      return { success: false, error: error?.message || 'Erreur lors de l\'échange' };
     }
   }
 

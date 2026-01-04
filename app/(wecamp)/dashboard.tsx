@@ -94,6 +94,7 @@ export default function WeCampDashboard() {
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [editingOffer, setEditingOffer] = useState<(PartnerOffer & { partner: Partner }) | null>(null);
+  const [savingOffer, setSavingOffer] = useState(false);
 
   // Unit detail modal
   const [selectedUnit, setSelectedUnit] = useState<UnitStats | null>(null);
@@ -101,6 +102,12 @@ export default function WeCampDashboard() {
 
   // Partner context menu
   const [selectedPartnerForMenu, setSelectedPartnerForMenu] = useState<Partner | null>(null);
+
+  // Offer context menu
+  const [selectedOfferForMenu, setSelectedOfferForMenu] = useState<(PartnerOffer & { partner: Partner }) | null>(null);
+
+  // Challenge context menu
+  const [selectedChallengeForMenu, setSelectedChallengeForMenu] = useState<Challenge | null>(null);
 
   // Profile menu
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -189,20 +196,31 @@ export default function WeCampDashboard() {
     ]);
   };
 
-  const handleDeleteChallenge = (challengeId: string, title: string) => {
+  const handleEditChallenge = () => {
+    if (!selectedChallengeForMenu) return;
+    router.push(`/(wecamp)/edit-challenge?id=${selectedChallengeForMenu.id}`);
+    setSelectedChallengeForMenu(null);
+  };
+
+  const handleDeleteChallenge = () => {
+    if (!selectedChallengeForMenu) return;
+    const challenge = selectedChallengeForMenu;
+
     Alert.alert(
       'Supprimer le défi',
-      `Voulez-vous vraiment supprimer "${title}" ?`,
+      `Voulez-vous vraiment supprimer "${challenge.title}" ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Supprimer',
           style: 'destructive',
           onPress: async () => {
-            setDeletingId(challengeId);
+            setSelectedChallengeForMenu(null);
+            setDeletingId(challenge.id);
             try {
-              await ChallengeService.deleteChallenge(challengeId);
-              setChallenges((prev) => prev.filter((c) => c.id !== challengeId));
+              await ChallengeService.deleteChallenge(challenge.id);
+              setChallenges((prev) => prev.filter((c) => c.id !== challenge.id));
+              Alert.alert('Succès', 'Défi supprimé avec succès');
             } catch (error: any) {
               Alert.alert('Erreur', error?.message || 'Impossible de supprimer le défi');
             } finally {
@@ -314,6 +332,42 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
     }
   };
 
+  // Handle offer actions menu
+  const handleOfferMenu = (offer: PartnerOffer & { partner: Partner }) => {
+    setSelectedOfferForMenu(offer);
+  };
+
+  // Actions du menu offre
+  const handleEditOffer = () => {
+    if (!selectedOfferForMenu) return;
+    setOfferForm({
+      partnerId: selectedOfferForMenu.partnerId,
+      title: selectedOfferForMenu.title,
+      description: selectedOfferForMenu.description || '',
+      discountType: selectedOfferForMenu.discountType,
+      discountValue: String(selectedOfferForMenu.discountValue),
+      pointsCost: String(selectedOfferForMenu.pointsCost),
+      validityDays: String(selectedOfferForMenu.validityDays),
+      maxRedemptions: selectedOfferForMenu.maxRedemptions ? String(selectedOfferForMenu.maxRedemptions) : '',
+    });
+    setEditingOffer(selectedOfferForMenu);
+    setSelectedOfferForMenu(null);
+    setShowOfferForm(true);
+  };
+
+  const handleDeleteOffer = async () => {
+    if (!selectedOfferForMenu) return;
+    try {
+      await PartnerService.deleteOffer(selectedOfferForMenu.id);
+      setAllOffers(allOffers.filter(o => o.id !== selectedOfferForMenu.id));
+      setSelectedOfferForMenu(null);
+      Alert.alert('Succès', 'Offre supprimée avec succès');
+    } catch (error) {
+      console.error('Erreur suppression offre:', error);
+      Alert.alert('Erreur', 'Impossible de supprimer l\'offre');
+    }
+  };
+
   // Reset offer form
   const resetOfferForm = () => {
     setOfferForm({
@@ -331,23 +385,33 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
 
   // Save offer (create or update)
   const handleSaveOffer = async () => {
+    console.log('🔄 handleSaveOffer appelé');
+    console.log('📋 offerForm:', offerForm);
+
     // Validation
     if (!offerForm.partnerId) {
+      console.log('❌ Pas de partenaire sélectionné');
       Alert.alert('Erreur', 'Veuillez sélectionner un partenaire');
       return;
     }
     if (!offerForm.title.trim()) {
+      console.log('❌ Pas de titre');
       Alert.alert('Erreur', 'Veuillez entrer un titre pour l\'offre');
       return;
     }
     if (!offerForm.discountValue || isNaN(Number(offerForm.discountValue))) {
+      console.log('❌ Valeur de réduction invalide');
       Alert.alert('Erreur', 'Veuillez entrer une valeur de réduction valide');
       return;
     }
     if (!offerForm.pointsCost || isNaN(Number(offerForm.pointsCost))) {
+      console.log('❌ Coût en points invalide');
       Alert.alert('Erreur', 'Veuillez entrer un coût en points valide');
       return;
     }
+
+    setSavingOffer(true);
+    console.log('✅ Validation passée, création de l\'offre...');
 
     try {
       const offerData = {
@@ -361,8 +425,11 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
         maxRedemptions: offerForm.maxRedemptions ? Number(offerForm.maxRedemptions) : undefined,
       };
 
+      console.log('📤 offerData à envoyer:', offerData);
+
       if (editingOffer) {
         // Update existing offer
+        console.log('🔄 Mise à jour offre existante:', editingOffer.id);
         await PartnerService.updateOffer(editingOffer.id, offerData);
         // Update local state
         setAllOffers(allOffers.map(o =>
@@ -370,14 +437,18 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
             ? { ...o, ...offerData }
             : o
         ));
+        console.log('✅ Offre mise à jour');
         Alert.alert('Succès', 'Offre mise à jour avec succès');
       } else {
         // Create new offer
+        console.log('➕ Création nouvelle offre...');
         const newOffer = await PartnerService.createOffer(offerData);
+        console.log('✅ Offre créée:', newOffer);
         // Find partner for the offer
         const partner = partners.find(p => p.id === offerForm.partnerId);
         if (partner) {
           setAllOffers([...allOffers, { ...newOffer, partner }]);
+          console.log('✅ State mis à jour avec la nouvelle offre');
         }
         Alert.alert('Succès', 'Offre créée avec succès');
       }
@@ -385,8 +456,10 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
       setShowOfferForm(false);
       resetOfferForm();
     } catch (error) {
-      console.error('Erreur sauvegarde offre:', error);
+      console.error('❌ Erreur sauvegarde offre:', error);
       Alert.alert('Erreur', 'Impossible de sauvegarder l\'offre');
+    } finally {
+      setSavingOffer(false);
     }
   };
 
@@ -622,8 +695,9 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                       {challenge.title}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => handleDeleteChallenge(challenge.id, challenge.title)}
+                      onPress={() => setSelectedChallengeForMenu(challenge)}
                       disabled={deletingId === challenge.id}
+                      style={styles.challengeMenuButton}
                     >
                       {deletingId === challenge.id ? (
                         <ActivityIndicator size="small" color={colors.neutral} />
@@ -1346,6 +1420,18 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
           </View>
 
           <View style={styles.formRow}>
+            <Text style={styles.formLabel}>Description</Text>
+            <TextInput
+              style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+              value={offerForm.description}
+              onChangeText={(text) => setOfferForm({ ...offerForm, description: text })}
+              placeholder="Décrivez les conditions de l'offre..."
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          <View style={styles.formRow}>
             <Text style={styles.formLabel}>Type de réduction</Text>
             <View style={styles.discountTypeRow}>
               <TouchableOpacity
@@ -1430,12 +1516,17 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryButton, { marginTop: spacing.md }]}
+            style={[styles.primaryButton, { marginTop: spacing.md }, savingOffer && { opacity: 0.7 }]}
             onPress={handleSaveOffer}
+            disabled={savingOffer}
           >
-            <Text style={styles.primaryButtonText}>
-              {editingOffer ? 'Enregistrer' : 'Créer l\'offre'}
-            </Text>
+            {savingOffer ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {editingOffer ? 'Enregistrer' : 'Créer l\'offre'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -1514,16 +1605,35 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
               <View key={offer.id} style={styles.offerCard}>
                 <View style={styles.offerHeader}>
                   <View style={styles.offerPartnerBadge}>
-                    <Text style={styles.offerPartnerLogo}>{offer.partner.logo}</Text>
+                    {offer.partner.logo?.startsWith('http') ? (
+                      <Image
+                        source={{ uri: offer.partner.logo }}
+                        style={styles.offerPartnerLogoImage}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <Text style={styles.offerPartnerLogo}>{offer.partner.logo || '🏪'}</Text>
+                    )}
                     <Text style={styles.offerPartnerName}>{offer.partner.name}</Text>
                   </View>
-                  <View style={[styles.offerDiscount, { backgroundColor: colors.accentLight }]}>
-                    <Text style={[styles.offerDiscountText, { color: colors.accent }]}>
-                      -{offer.discountValue}{offer.discountType === 'percentage' ? '%' : '€'}
-                    </Text>
+                  <View style={styles.offerHeaderRight}>
+                    <View style={[styles.offerDiscount, { backgroundColor: colors.accentLight }]}>
+                      <Text style={[styles.offerDiscountText, { color: colors.accent }]}>
+                        -{offer.discountValue}{offer.discountType === 'percentage' ? '%' : '€'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.offerMenuButton}
+                      onPress={() => handleOfferMenu(offer)}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={18} color={colors.neutral} />
+                    </TouchableOpacity>
                   </View>
                 </View>
                 <Text style={styles.offerTitle}>{offer.title}</Text>
+                {offer.description && (
+                  <Text style={styles.offerDescription} numberOfLines={2}>{offer.description}</Text>
+                )}
                 <View style={styles.offerMeta}>
                   <View style={styles.offerMetaItem}>
                     <Ionicons name="star" size={14} color={colors.accent} />
@@ -1724,6 +1834,108 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                 <TouchableOpacity
                   style={[styles.menuItem, styles.menuCancelItem]}
                   onPress={() => setSelectedPartnerForMenu(null)}
+                >
+                  <Text style={styles.menuCancelText}>Annuler</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Offer Context Menu Modal */}
+      <Modal
+        visible={!!selectedOfferForMenu}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelectedOfferForMenu(null)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedOfferForMenu(null)}
+        >
+          <View style={styles.menuContent}>
+            {selectedOfferForMenu && (
+              <>
+                <View style={styles.menuHeader}>
+                  <Text style={styles.menuTitle}>{selectedOfferForMenu.title}</Text>
+                  <Text style={styles.menuSubtitle}>{selectedOfferForMenu.partner.name}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleEditOffer}
+                >
+                  <Ionicons name="create-outline" size={20} color={colors.primary} />
+                  <Text style={styles.menuItemText}>Modifier</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleDeleteOffer}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  <Text style={[styles.menuItemText, { color: colors.danger }]}>Supprimer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.menuCancelItem]}
+                  onPress={() => setSelectedOfferForMenu(null)}
+                >
+                  <Text style={styles.menuCancelText}>Annuler</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Challenge Context Menu Modal */}
+      <Modal
+        visible={!!selectedChallengeForMenu}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelectedChallengeForMenu(null)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedChallengeForMenu(null)}
+        >
+          <View style={styles.menuContent}>
+            {selectedChallengeForMenu && (
+              <>
+                <View style={styles.menuHeader}>
+                  <Text style={styles.menuTitle}>{selectedChallengeForMenu.title}</Text>
+                  <Text style={styles.menuSubtitle}>
+                    {selectedChallengeForMenu.points} points • {getDifficultyStyle(selectedChallengeForMenu.difficulty).label}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleEditChallenge}
+                >
+                  <Ionicons name="create-outline" size={20} color={colors.primary} />
+                  <Text style={styles.menuItemText}>Modifier</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleDeleteChallenge}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  <Text style={[styles.menuItemText, { color: colors.danger }]}>Supprimer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.menuCancelItem]}
+                  onPress={() => setSelectedChallengeForMenu(null)}
                 >
                   <Text style={styles.menuCancelText}>Annuler</Text>
                 </TouchableOpacity>
@@ -2558,6 +2770,11 @@ const styles = StyleSheet.create({
   offerPartnerLogo: {
     fontSize: 18,
   },
+  offerPartnerLogoImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+  },
   offerPartnerName: {
     fontSize: 12,
     color: colors.neutral,
@@ -2572,10 +2789,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  offerHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  offerMenuButton: {
+    padding: 4,
+  },
+  challengeMenuButton: {
+    padding: 4,
+  },
   offerTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.dark,
+    marginBottom: spacing.xs,
+  },
+  offerDescription: {
+    fontSize: 13,
+    color: colors.neutral,
     marginBottom: spacing.sm,
   },
   offerMeta: {
@@ -2784,6 +3017,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.dark,
     textAlign: 'center',
+  },
+  menuSubtitle: {
+    fontSize: 13,
+    color: colors.neutral,
+    textAlign: 'center',
+    marginTop: 4,
   },
   menuItem: {
     flexDirection: 'row',
