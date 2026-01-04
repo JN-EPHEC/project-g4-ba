@@ -146,25 +146,31 @@ export default function AnimatorUnitSelectionScreen() {
       return;
     }
 
-    // Vérifier que le code d'accès correspond à la catégorie de la fédération sélectionnée
+    // Vérifier le code d'accès
+    // 1. D'abord vérifier si l'unité a un code d'accès personnalisé
+    // 2. Sinon, utiliser le code par défaut de la fédération
     const categoryKey = getCategoryFromUnit(unit);
     console.log('🔍 Catégorie brute:', unit.category);
     console.log('🔍 Catégorie déduite:', categoryKey);
-    const expectedCode = ACCESS_CODES[categoryKey];
-    console.log('🔍 Code attendu:', expectedCode);
-    console.log('🔍 Code entré (uppercase):', accessCode.trim().toUpperCase());
+    console.log('🔍 Code personnalisé de l\'unité:', unit.accessCode);
 
-    if (!expectedCode) {
-      console.log('❌ Code non configuré pour cette fédération');
-      Alert.alert('Erreur', 'Code d\'accès non configuré pour cette fédération.');
-      return;
-    }
+    const enteredCode = accessCode.trim().toUpperCase();
+    const unitAccessCode = unit.accessCode?.toUpperCase();
+    const federationCode = ACCESS_CODES[categoryKey];
 
-    if (accessCode.trim().toUpperCase() !== expectedCode) {
+    console.log('🔍 Code entré:', enteredCode);
+    console.log('🔍 Code attendu (unité):', unitAccessCode);
+    console.log('🔍 Code attendu (fédération):', federationCode);
+
+    // Vérifier si le code correspond au code personnalisé de l'unité OU au code de la fédération
+    const isValidCode = (unitAccessCode && enteredCode === unitAccessCode) ||
+                        (federationCode && enteredCode === federationCode);
+
+    if (!isValidCode) {
       console.log('❌ Code invalide');
       Alert.alert(
         'Code invalide',
-        `Le code d'accès est incorrect pour ${unit.name}. Le code attendu est: ${expectedCode}`,
+        `Le code d'accès est incorrect pour ${unit.name}.`,
         [{ text: 'Réessayer', style: 'default' }]
       );
       return;
@@ -399,11 +405,9 @@ export default function AnimatorUnitSelectionScreen() {
                   {/* Info */}
                   <View style={styles.federationInfo}>
                     <ThemedText style={styles.federationName}>{unit.name}</ThemedText>
-                    {unit.description && (
-                      <ThemedText style={styles.federationDescription}>
-                        {unit.description}
-                      </ThemedText>
-                    )}
+                    <ThemedText style={styles.federationDescription}>
+                      {unit.category ? `Fédération des ${unit.category}` : unit.description || ''}
+                    </ThemedText>
                   </View>
 
                   {/* Checkmark */}
@@ -432,12 +436,12 @@ export default function AnimatorUnitSelectionScreen() {
             </View>
 
             <ThemedText style={styles.codeSectionDescription}>
-              Entre le code fourni par ta fédération pour confirmer que tu es animateur.
+              Entre le code d'accès de l'unité ou de ta fédération.
             </ThemedText>
 
             <TextInput
               style={styles.codeInput}
-              placeholder="Ex: GUIDES2025"
+              placeholder="Ex: SCOUTS2025 ou code de l'unité"
               placeholderTextColor="#6B7280"
               value={accessCode}
               onChangeText={(text) => setAccessCode(text.toUpperCase())}

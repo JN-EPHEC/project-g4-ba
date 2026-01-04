@@ -111,6 +111,88 @@ export class PartnerService {
   }
 
   /**
+   * Crée une nouvelle offre partenaire
+   */
+  static async createOffer(data: {
+    partnerId: string;
+    title: string;
+    description: string;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+    pointsCost: number;
+    validityDays: number;
+    maxRedemptions?: number;
+    minPurchase?: number;
+  }): Promise<PartnerOffer> {
+    try {
+      const offerData = {
+        partnerId: data.partnerId,
+        title: data.title,
+        description: data.description,
+        discountType: data.discountType,
+        discountValue: data.discountValue,
+        pointsCost: data.pointsCost,
+        validityDays: data.validityDays,
+        maxRedemptions: data.maxRedemptions || null,
+        minPurchase: data.minPurchase || null,
+        currentRedemptions: 0,
+        isActive: true,
+        createdAt: Timestamp.now(),
+      };
+
+      const docRef = await addDoc(collection(db, this.OFFERS_COLLECTION), offerData);
+
+      return {
+        id: docRef.id,
+        ...offerData,
+        createdAt: new Date(),
+      } as PartnerOffer;
+    } catch (error) {
+      console.error('Erreur createOffer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour une offre existante
+   */
+  static async updateOffer(
+    offerId: string,
+    data: Partial<{
+      title: string;
+      description: string;
+      discountType: 'percentage' | 'fixed';
+      discountValue: number;
+      pointsCost: number;
+      validityDays: number;
+      maxRedemptions: number | null;
+      minPurchase: number | null;
+      isActive: boolean;
+    }>
+  ): Promise<void> {
+    try {
+      await updateDoc(doc(db, this.OFFERS_COLLECTION, offerId), data);
+    } catch (error) {
+      console.error('Erreur updateOffer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime une offre (soft delete - désactive)
+   */
+  static async deleteOffer(offerId: string): Promise<void> {
+    try {
+      await updateDoc(doc(db, this.OFFERS_COLLECTION, offerId), {
+        isActive: false,
+      });
+    } catch (error) {
+      console.error('Erreur deleteOffer:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Récupère tous les partenaires actifs
    */
   static async getPartners(): Promise<Partner[]> {

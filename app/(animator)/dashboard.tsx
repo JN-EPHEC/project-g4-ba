@@ -494,7 +494,11 @@ export default function AnimatorDashboardScreen() {
                     style={[styles.featuredOfferItem, { borderColor: cardBorder }]}
                     onPress={() => router.push(`/(animator)/partners/offer/${offer.id}`)}
                   >
-                    <ThemedText style={styles.featuredOfferLogo}>{offer.partner.logo}</ThemedText>
+                    {offer.partner.logo?.startsWith('http') ? (
+                      <Image source={{ uri: offer.partner.logo }} style={styles.featuredOfferLogoImage} />
+                    ) : (
+                      <ThemedText style={styles.featuredOfferLogo}>{offer.partner.logo}</ThemedText>
+                    )}
                     <View style={styles.featuredOfferInfo}>
                       <ThemedText style={[styles.featuredOfferTitle, { color: textColor }]} numberOfLines={1}>
                         {offer.title}
@@ -856,6 +860,7 @@ const styles = StyleSheet.create({
   featuredOffers: { gap: Spacing.sm },
   featuredOfferItem: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1, gap: Spacing.md, direction: 'ltr' },
   featuredOfferLogo: { fontSize: 24 },
+  featuredOfferLogoImage: { width: 40, height: 40, borderRadius: 8 },
   featuredOfferInfo: { flex: 1 },
   featuredOfferTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
   featuredOfferPartner: { fontSize: 12 },

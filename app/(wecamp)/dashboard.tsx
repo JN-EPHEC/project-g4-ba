@@ -102,6 +102,9 @@ export default function WeCampDashboard() {
   // Partner context menu
   const [selectedPartnerForMenu, setSelectedPartnerForMenu] = useState<Partner | null>(null);
 
+  // Profile menu
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
   // Ranking period filter
   const [rankingPeriod, setRankingPeriod] = useState<'week' | 'month' | 'year' | 'all'>('all');
 
@@ -308,6 +311,82 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
     } catch (error) {
       console.error('Erreur suppression partenaire:', error);
       Alert.alert('Erreur', 'Impossible de supprimer le partenaire');
+    }
+  };
+
+  // Reset offer form
+  const resetOfferForm = () => {
+    setOfferForm({
+      partnerId: '',
+      title: '',
+      description: '',
+      discountType: 'percentage',
+      discountValue: '',
+      pointsCost: '',
+      validityDays: '30',
+      maxRedemptions: '',
+    });
+    setEditingOffer(null);
+  };
+
+  // Save offer (create or update)
+  const handleSaveOffer = async () => {
+    // Validation
+    if (!offerForm.partnerId) {
+      Alert.alert('Erreur', 'Veuillez sélectionner un partenaire');
+      return;
+    }
+    if (!offerForm.title.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer un titre pour l\'offre');
+      return;
+    }
+    if (!offerForm.discountValue || isNaN(Number(offerForm.discountValue))) {
+      Alert.alert('Erreur', 'Veuillez entrer une valeur de réduction valide');
+      return;
+    }
+    if (!offerForm.pointsCost || isNaN(Number(offerForm.pointsCost))) {
+      Alert.alert('Erreur', 'Veuillez entrer un coût en points valide');
+      return;
+    }
+
+    try {
+      const offerData = {
+        partnerId: offerForm.partnerId,
+        title: offerForm.title.trim(),
+        description: offerForm.description?.trim() || '',
+        discountType: offerForm.discountType,
+        discountValue: Number(offerForm.discountValue),
+        pointsCost: Number(offerForm.pointsCost),
+        validityDays: Number(offerForm.validityDays) || 30,
+        maxRedemptions: offerForm.maxRedemptions ? Number(offerForm.maxRedemptions) : undefined,
+      };
+
+      if (editingOffer) {
+        // Update existing offer
+        await PartnerService.updateOffer(editingOffer.id, offerData);
+        // Update local state
+        setAllOffers(allOffers.map(o =>
+          o.id === editingOffer.id
+            ? { ...o, ...offerData }
+            : o
+        ));
+        Alert.alert('Succès', 'Offre mise à jour avec succès');
+      } else {
+        // Create new offer
+        const newOffer = await PartnerService.createOffer(offerData);
+        // Find partner for the offer
+        const partner = partners.find(p => p.id === offerForm.partnerId);
+        if (partner) {
+          setAllOffers([...allOffers, { ...newOffer, partner }]);
+        }
+        Alert.alert('Succès', 'Offre créée avec succès');
+      }
+
+      setShowOfferForm(false);
+      resetOfferForm();
+    } catch (error) {
+      console.error('Erreur sauvegarde offre:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder l\'offre');
     }
   };
 
@@ -992,20 +1071,6 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
     }
   };
 
-  const resetOfferForm = () => {
-    setOfferForm({
-      partnerId: partners.length > 0 ? partners[0].id : '',
-      title: '',
-      description: '',
-      discountType: 'percentage',
-      discountValue: '',
-      pointsCost: '',
-      validityDays: '30',
-      maxRedemptions: '',
-    });
-    setEditingOffer(null);
-  };
-
   const renderPartenaires = () => (
     <View style={styles.section}>
       {/* Sub-tabs */}
@@ -1251,7 +1316,11 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                     ]}
                     onPress={() => setOfferForm({ ...offerForm, partnerId: p.id })}
                   >
-                    <Text style={styles.categoryChipEmoji}>{p.logo}</Text>
+                    {p.logo?.startsWith('http') ? (
+                      <Image source={{ uri: p.logo }} style={styles.offerFormPartnerLogo} />
+                    ) : (
+                      <Text style={styles.categoryChipEmoji}>{p.logo}</Text>
+                    )}
                     <Text
                       style={[
                         styles.categoryChipText,
@@ -1362,10 +1431,7 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
 
           <TouchableOpacity
             style={[styles.primaryButton, { marginTop: spacing.md }]}
-            onPress={() => {
-              Alert.alert('Info', 'Fonctionnalité de création à implémenter avec Firebase Admin');
-              setShowOfferForm(false);
-            }}
+            onPress={handleSaveOffer}
           >
             <Text style={styles.primaryButtonText}>
               {editingOffer ? 'Enregistrer' : 'Créer l\'offre'}
@@ -1491,7 +1557,7 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
             <Text style={styles.headerTitle}>WeCamp Admin</Text>
             <Text style={styles.headerSubtitle}>Panneau d'administration</Text>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.avatarButton}>
+          <TouchableOpacity onPress={() => setShowProfileMenu(true)} style={styles.avatarButton}>
             <Text style={styles.avatarText}>AD</Text>
           </TouchableOpacity>
         </View>
@@ -1663,6 +1729,64 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                 </TouchableOpacity>
               </>
             )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Profile Menu Modal */}
+      <Modal
+        visible={showProfileMenu}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowProfileMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowProfileMenu(false)}
+        >
+          <View style={styles.profileMenuContent}>
+            <View style={styles.profileMenuHeader}>
+              <View style={styles.profileMenuAvatar}>
+                <Text style={styles.profileMenuAvatarText}>AD</Text>
+              </View>
+              <View>
+                <Text style={styles.profileMenuName}>Administrateur</Text>
+                <Text style={styles.profileMenuRole}>WeCamp Admin</Text>
+              </View>
+            </View>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowProfileMenu(false);
+                // TODO: Navigate to settings if needed
+              }}
+            >
+              <Ionicons name="settings-outline" size={20} color={colors.neutral} />
+              <Text style={styles.menuItemText}>Paramètres</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={async () => {
+                setShowProfileMenu(false);
+                await logout();
+                router.replace('/(auth)/login');
+              }}
+            >
+              <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+              <Text style={[styles.menuItemText, { color: colors.danger }]}>Se déconnecter</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuCancelItem]}
+              onPress={() => setShowProfileMenu(false)}
+            >
+              <Text style={styles.menuCancelText}>Fermer</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -2529,6 +2653,11 @@ const styles = StyleSheet.create({
   categoryChipEmoji: {
     fontSize: 14,
   },
+  offerFormPartnerLogo: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+  },
   categoryChipText: {
     fontSize: 12,
     fontWeight: '600',
@@ -2681,6 +2810,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral,
     textAlign: 'center',
+  },
+
+  // Profile menu styles
+  profileMenuContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 320,
+    overflow: 'hidden',
+  },
+  profileMenuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.mist,
+  },
+  profileMenuAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileMenuAvatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  profileMenuName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  profileMenuRole: {
+    fontSize: 13,
+    color: colors.neutral,
   },
 
   // Partner logo upload styles

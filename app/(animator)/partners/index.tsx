@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Text,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -159,7 +160,11 @@ export default function PartnersListScreen() {
               onPress={() => router.push(`/(animator)/partners/offer/${offer.id}`)}
             >
               <View style={styles.offerHeader}>
-                <Text style={styles.offerLogo}>{offer.partner.logo}</Text>
+                {offer.partner.logo?.startsWith('http') ? (
+                  <Image source={{ uri: offer.partner.logo }} style={styles.offerLogoImage} />
+                ) : (
+                  <Text style={styles.offerLogo}>{offer.partner.logo}</Text>
+                )}
                 <View style={styles.discountBadge}>
                   <Text style={styles.discountText}>{formatDiscount(offer)}</Text>
                 </View>
@@ -204,7 +209,11 @@ export default function PartnersListScreen() {
               onPress={() => router.push(`/(animator)/partners/${partner.id}`)}
             >
               <View style={styles.partnerLogo}>
-                <Text style={styles.partnerLogoText}>{partner.logo}</Text>
+                {partner.logo?.startsWith('http') ? (
+                  <Image source={{ uri: partner.logo }} style={styles.partnerLogoImage} />
+                ) : (
+                  <Text style={styles.partnerLogoText}>{partner.logo}</Text>
+                )}
               </View>
               <View style={styles.partnerInfo}>
                 <Text style={styles.partnerName}>{partner.name}</Text>
@@ -347,6 +356,11 @@ const styles = StyleSheet.create({
   offerLogo: {
     fontSize: 32,
   },
+  offerLogoImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
   discountBadge: {
     backgroundColor: colors.accent,
     paddingHorizontal: spacing.xs,
@@ -417,6 +431,11 @@ const styles = StyleSheet.create({
   },
   partnerLogoText: {
     fontSize: 28,
+  },
+  partnerLogoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
   },
   partnerInfo: {
     flex: 1,

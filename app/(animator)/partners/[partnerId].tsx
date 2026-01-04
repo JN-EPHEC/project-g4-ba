@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Text,
   Linking,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -132,7 +133,11 @@ export default function PartnerDetailScreen() {
         {/* Partner Hero */}
         <View style={styles.heroCard}>
           <View style={styles.heroLogo}>
-            <Text style={styles.heroLogoText}>{partner.logo}</Text>
+            {partner.logo?.startsWith('http') ? (
+              <Image source={{ uri: partner.logo }} style={styles.heroLogoImage} />
+            ) : (
+              <Text style={styles.heroLogoText}>{partner.logo}</Text>
+            )}
           </View>
           <Text style={styles.heroName}>{partner.name}</Text>
           <Text style={styles.heroDescription}>{partner.description}</Text>
@@ -287,6 +292,11 @@ const styles = StyleSheet.create({
   },
   heroLogoText: {
     fontSize: 40,
+  },
+  heroLogoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
   },
   heroName: {
     fontSize: 24,
