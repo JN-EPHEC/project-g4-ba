@@ -16,6 +16,20 @@ export enum BadgeCategory {
 }
 
 /**
+ * Types de conditions pour débloquer un badge
+ */
+export type BadgeConditionType = 'points' | 'challenges' | 'challenges_category' | 'manual';
+
+/**
+ * Condition de déblocage d'un badge
+ */
+export interface BadgeCondition {
+  type: BadgeConditionType;
+  value?: number; // Points requis ou nombre de défis
+  challengeCategory?: string; // Catégorie de défis (si type = challenges_category)
+}
+
+/**
  * Définition d'un badge (template)
  */
 export interface BadgeDefinition {
@@ -24,10 +38,18 @@ export interface BadgeDefinition {
   description: string;
   icon: string;
   category: BadgeCategory;
-  requiredPoints?: number; // Points requis pour débloquer automatiquement
-  requiredChallenges?: number; // Nombre de défis requis
-  isManual: boolean; // Si true, doit être attribué manuellement par un animateur
+
+  // Nouvelle structure de conditions (flexible)
+  condition: BadgeCondition;
+
+  // Champs legacy (pour rétrocompatibilité, à supprimer après migration)
+  requiredPoints?: number;
+  requiredChallenges?: number;
+  isManual?: boolean;
+
+  isActive: boolean; // Pour soft delete
   createdAt: Date;
+  createdBy?: string; // ID de l'admin qui a créé le badge
 }
 
 /**

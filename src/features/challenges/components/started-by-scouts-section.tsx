@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
@@ -20,17 +20,20 @@ interface StartedByScoutsSectionProps {
   challenges: Challenge[];
   onScoutPress?: (scoutId: string) => void;
   onChallengePress?: (challenge: Challenge) => void;
+  onEditChallenge?: (challenge: Challenge) => void;
 }
 
 export function StartedByScoutsSection({
   challenges,
   onScoutPress,
   onChallengePress,
+  onEditChallenge,
 }: StartedByScoutsSectionProps) {
   const { user } = useAuth();
   const [startedSubmissions, setStartedSubmissions] = useState<StartedSubmissionWithInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<StartedSubmissionWithInfo | null>(null);
 
   const cardColor = useThemeColor({}, 'card');
   const cardBorderColor = useThemeColor({}, 'cardBorder');
@@ -137,7 +140,7 @@ export function StartedByScoutsSection({
             {index > 0 && <View style={[styles.divider, { backgroundColor: cardBorderColor }]} />}
             <TouchableOpacity
               style={styles.row}
-              onPress={() => challenge && onChallengePress?.(challenge)}
+              onPress={() => setSelectedItem({ submission, challenge, scout })}
               activeOpacity={0.7}
             >
               {/* Avatar */}
@@ -200,6 +203,90 @@ export function StartedByScoutsSection({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Context Menu Modal */}
+      <Modal
+        visible={!!selectedItem}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelectedItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedItem(null)}
+        >
+          <View style={[styles.menuContent, { backgroundColor: cardColor }]}>
+            {selectedItem && (
+              <>
+                <View style={styles.menuHeader}>
+                  <ThemedText style={styles.menuTitle}>
+                    {selectedItem.scout
+                      ? `${selectedItem.scout.firstName} ${selectedItem.scout.lastName?.charAt(0) || ''}.`
+                      : 'Scout inconnu'}
+                  </ThemedText>
+                  <ThemedText style={[styles.menuSubtitle, { color: textSecondary }]}>
+                    {selectedItem.challenge?.emoji || '🎯'} {selectedItem.challenge?.title || 'Défi inconnu'}
+                  </ThemedText>
+                </View>
+
+                {/* Voir le profil du scout */}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setSelectedItem(null);
+                    if (selectedItem.scout) {
+                      onScoutPress?.(selectedItem.scout.id);
+                    }
+                  }}
+                >
+                  <Ionicons name="person-outline" size={20} color={BrandColors.primary[600]} />
+                  <ThemedText style={styles.menuItemText}>Voir le profil du scout</ThemedText>
+                </TouchableOpacity>
+
+                {/* Voir les détails du défi */}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setSelectedItem(null);
+                    if (selectedItem.challenge) {
+                      onChallengePress?.(selectedItem.challenge);
+                    }
+                  }}
+                >
+                  <Ionicons name="eye-outline" size={20} color={BrandColors.primary[600]} />
+                  <ThemedText style={styles.menuItemText}>Voir les détails du défi</ThemedText>
+                </TouchableOpacity>
+
+                {/* Modifier le défi */}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setSelectedItem(null);
+                    if (selectedItem.challenge) {
+                      onEditChallenge?.(selectedItem.challenge);
+                    }
+                  }}
+                >
+                  <Ionicons name="create-outline" size={20} color={BrandColors.accent[600]} />
+                  <ThemedText style={[styles.menuItemText, { color: BrandColors.accent[600] }]}>
+                    Modifier le défi
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <View style={[styles.menuDivider, { backgroundColor: cardBorderColor }]} />
+
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.menuCancelItem]}
+                  onPress={() => setSelectedItem(null)}
+                >
+                  <ThemedText style={styles.menuCancelText}>Annuler</ThemedText>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -323,5 +410,54 @@ const styles = StyleSheet.create({
   showMoreText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  menuContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: 34,
+  },
+  menuHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  menuTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  menuSubtitle: {
+    fontSize: 14,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  menuDivider: {
+    height: 1,
+    marginHorizontal: 20,
+    marginVertical: 4,
+  },
+  menuCancelItem: {
+    justifyContent: 'center',
+  },
+  menuCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: BrandColors.primary[600],
   },
 });

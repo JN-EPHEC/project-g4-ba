@@ -231,26 +231,20 @@ export default function AnimatorChallengesScreen() {
     router.push(`/(animator)/challenges/${challenge.id}` as any);
   };
 
-  const handleDelete = (challenge: Challenge) => {
-    Alert.alert(
-      'Supprimer le défi',
-      `Êtes-vous sûr de vouloir supprimer "${challenge.title}" ? Cette action est irréversible.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await ChallengeService.deleteChallenge(challenge.id);
-              refetch();
-            } catch (err) {
-              Alert.alert('Erreur', 'Impossible de supprimer le défi');
-            }
-          },
-        },
-      ]
+  const handleDelete = async (challenge: Challenge) => {
+    // Utiliser window.confirm pour la compatibilité web (Alert.alert ne fonctionne pas sur web)
+    const confirmed = window.confirm(
+      `Supprimer le défi\n\nÊtes-vous sûr de vouloir supprimer "${challenge.title}" ?\n\nCette action est irréversible.`
     );
+
+    if (!confirmed) return;
+
+    try {
+      await ChallengeService.deleteChallenge(challenge.id);
+      refetch();
+    } catch (err) {
+      window.alert('Erreur: Impossible de supprimer le défi');
+    }
   };
 
   const handleArchive = async (challenge: Challenge) => {

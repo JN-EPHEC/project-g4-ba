@@ -6,8 +6,10 @@ import {
   collection,
   query,
   where,
-  orderBy,
   Timestamp,
+  updateDoc,
+  addDoc,
+  deleteDoc,
   type DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -16,89 +18,8 @@ import {
   ScoutBadge,
   BadgeWithDetails,
   BadgeCategory,
+  BadgeCondition,
 } from '@/types';
-
-/**
- * Badges par défaut disponibles dans l'application
- */
-const DEFAULT_BADGES: Omit<BadgeDefinition, 'id' | 'createdAt'>[] = [
-  {
-    name: 'Première flamme',
-    description: 'Premier feu de camp réussi',
-    icon: '🔥',
-    category: BadgeCategory.NATURE,
-    isManual: true,
-  },
-  {
-    name: 'Randonneur',
-    description: '50km parcourus en randonnée',
-    icon: '🥾',
-    category: BadgeCategory.SPORT,
-    requiredPoints: 100,
-    isManual: false,
-  },
-  {
-    name: 'Secouriste',
-    description: 'Formation premiers secours validée',
-    icon: '🏥',
-    category: BadgeCategory.PREMIERS_SECOURS,
-    isManual: true,
-  },
-  {
-    name: 'Chef étoilé',
-    description: '5 repas préparés en camp',
-    icon: '👨‍🍳',
-    category: BadgeCategory.CUISINE,
-    requiredChallenges: 5,
-    isManual: false,
-  },
-  {
-    name: 'Éco-héros',
-    description: 'Participation à 3 actions écologiques',
-    icon: '🌍',
-    category: BadgeCategory.NATURE,
-    requiredChallenges: 3,
-    isManual: false,
-  },
-  {
-    name: 'Noeud master',
-    description: 'Maîtrise de 10 noeuds différents',
-    icon: '🪢',
-    category: BadgeCategory.TECHNIQUE,
-    isManual: true,
-  },
-  {
-    name: 'Explorateur',
-    description: 'Participation à 5 activités',
-    icon: '🧭',
-    category: BadgeCategory.NATURE,
-    requiredChallenges: 5,
-    isManual: false,
-  },
-  {
-    name: 'Ami des animaux',
-    description: 'Observation et protection de la faune',
-    icon: '🦊',
-    category: BadgeCategory.NATURE,
-    isManual: true,
-  },
-  {
-    name: 'Artiste',
-    description: '3 créations artistiques réalisées',
-    icon: '🎨',
-    category: BadgeCategory.CREATIVITE,
-    requiredChallenges: 3,
-    isManual: false,
-  },
-  {
-    name: 'Champion',
-    description: 'Atteindre 500 points',
-    icon: '🏆',
-    category: BadgeCategory.SPORT,
-    requiredPoints: 500,
-    isManual: false,
-  },
-];
 
 /**
  * Service pour gérer les badges
@@ -109,18 +30,42 @@ export class BadgeService {
 
   /**
    * Convertit un document Firestore en BadgeDefinition
+   * Supporte les anciennes et nouvelles structures de données
    */
   private static convertToBadgeDefinition(data: DocumentData): BadgeDefinition {
+    // Migration: convertir l'ancienne structure vers la nouvelle
+    let condition: BadgeCondition;
+
+    if (data.condition) {
+      // Nouvelle structure
+      condition = data.condition;
+    } else {
+      // Ancienne structure - migration automatique
+      if (data.isManual) {
+        condition = { type: 'manual' };
+      } else if (data.requiredPoints) {
+        condition = { type: 'points', value: data.requiredPoints };
+      } else if (data.requiredChallenges) {
+        condition = { type: 'challenges', value: data.requiredChallenges };
+      } else {
+        condition = { type: 'manual' };
+      }
+    }
+
     return {
       id: data.id,
       name: data.name,
       description: data.description,
       icon: data.icon,
       category: data.category as BadgeCategory,
+      condition,
+      // Champs legacy pour rétrocompatibilité
       requiredPoints: data.requiredPoints,
       requiredChallenges: data.requiredChallenges,
-      isManual: data.isManual ?? true,
+      isManual: data.isManual,
+      isActive: data.isActive ?? true,
       createdAt: data.createdAt?.toDate() || new Date(),
+      createdBy: data.createdBy,
     };
   }
 
@@ -139,47 +84,171 @@ export class BadgeService {
   }
 
   /**
-   * Initialise les badges par défaut dans Firebase (à appeler une seule fois)
-   */
-  static async initializeDefaultBadges(): Promise<void> {
-    try {
-      const existingBadges = await this.getAllBadgeDefinitions();
-
-      if (existingBadges.length === 0) {
-        console.log('Initializing default badges...');
-
-        for (const badge of DEFAULT_BADGES) {
-          const badgeRef = doc(collection(db, this.BADGES_COLLECTION));
-          await setDoc(badgeRef, {
-            ...badge,
-            createdAt: Timestamp.fromDate(new Date()),
-          });
-        }
-
-        console.log(`${DEFAULT_BADGES.length} badges initialized`);
-      }
-    } catch (error) {
-      console.error('Error initializing badges:', error);
-    }
-  }
-
-  /**
-   * Récupère toutes les définitions de badges
+   * Récupère toutes les définitions de badges actifs
    */
   static async getAllBadgeDefinitions(): Promise<BadgeDefinition[]> {
     try {
       const q = query(
         collection(db, this.BADGES_COLLECTION),
-        orderBy('name', 'asc')
+        where('isActive', '==', true)
       );
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc =>
+      const badges = snapshot.docs.map(doc =>
         this.convertToBadgeDefinition({ id: doc.id, ...doc.data() })
       );
+
+      // Tri côté client pour éviter l'index composite
+      return badges.sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error('Error fetching badge definitions:', error);
       return [];
+    }
+  }
+
+  /**
+   * Récupère toutes les définitions de badges (incluant les inactifs)
+   * Pour l'admin uniquement
+   */
+  static async getAllBadgeDefinitionsAdmin(): Promise<BadgeDefinition[]> {
+    try {
+      const snapshot = await getDocs(collection(db, this.BADGES_COLLECTION));
+      const badges = snapshot.docs.map(doc =>
+        this.convertToBadgeDefinition({ id: doc.id, ...doc.data() })
+      );
+
+      return badges.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error('Error fetching all badge definitions:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Crée un nouveau badge (Admin WeCamp uniquement)
+   */
+  static async createBadge(data: {
+    name: string;
+    description: string;
+    icon: string;
+    category: BadgeCategory;
+    condition: BadgeCondition;
+    createdBy?: string;
+  }): Promise<BadgeDefinition> {
+    try {
+      const badgeData = {
+        name: data.name,
+        description: data.description,
+        icon: data.icon,
+        category: data.category,
+        condition: data.condition,
+        isActive: true,
+        createdAt: Timestamp.now(),
+        createdBy: data.createdBy || null,
+      };
+
+      const docRef = await addDoc(collection(db, this.BADGES_COLLECTION), badgeData);
+
+      return {
+        id: docRef.id,
+        ...badgeData,
+        createdAt: new Date(),
+      } as BadgeDefinition;
+    } catch (error) {
+      console.error('Error creating badge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour un badge existant (Admin WeCamp uniquement)
+   */
+  static async updateBadge(
+    badgeId: string,
+    data: Partial<{
+      name: string;
+      description: string;
+      icon: string;
+      category: BadgeCategory;
+      condition: BadgeCondition;
+    }>
+  ): Promise<void> {
+    try {
+      await updateDoc(doc(db, this.BADGES_COLLECTION, badgeId), data);
+    } catch (error) {
+      console.error('Error updating badge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime un badge (soft delete - désactive)
+   */
+  static async deleteBadge(badgeId: string): Promise<void> {
+    try {
+      await updateDoc(doc(db, this.BADGES_COLLECTION, badgeId), {
+        isActive: false,
+      });
+    } catch (error) {
+      console.error('Error deleting badge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime définitivement un badge (hard delete)
+   */
+  static async hardDeleteBadge(badgeId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, this.BADGES_COLLECTION, badgeId));
+    } catch (error) {
+      console.error('Error hard deleting badge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime tous les badges (pour reset complet)
+   */
+  static async deleteAllBadges(): Promise<number> {
+    try {
+      const snapshot = await getDocs(collection(db, this.BADGES_COLLECTION));
+      let count = 0;
+      for (const docSnap of snapshot.docs) {
+        await deleteDoc(doc(db, this.BADGES_COLLECTION, docSnap.id));
+        count++;
+      }
+      return count;
+    } catch (error) {
+      console.error('Error deleting all badges:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Réactive un badge précédemment supprimé
+   */
+  static async reactivateBadge(badgeId: string): Promise<void> {
+    try {
+      await updateDoc(doc(db, this.BADGES_COLLECTION, badgeId), {
+        isActive: true,
+      });
+    } catch (error) {
+      console.error('Error reactivating badge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Compte le nombre total de badges attribués
+   */
+  static async getTotalBadgesAwarded(): Promise<number> {
+    try {
+      const snapshot = await getDocs(collection(db, this.SCOUT_BADGES_COLLECTION));
+      return snapshot.size;
+    } catch (error) {
+      console.error('Error counting badges awarded:', error);
+      return 0;
     }
   }
 
@@ -228,7 +297,8 @@ export class BadgeService {
   static async getBadgesWithDetailsForScout(
     scoutId: string,
     scoutPoints: number = 0,
-    completedChallengesCount: number = 0
+    completedChallengesCount: number = 0,
+    challengesByCategory?: Record<string, number>
   ): Promise<BadgeWithDetails[]> {
     try {
       // Récupérer toutes les définitions de badges
@@ -245,11 +315,16 @@ export class BadgeService {
 
         // Calculer la progression pour les badges non débloqués
         let progress: number | undefined;
-        if (!unlocked && !definition.isManual) {
-          if (definition.requiredPoints) {
-            progress = Math.min(100, Math.round((scoutPoints / definition.requiredPoints) * 100));
-          } else if (definition.requiredChallenges) {
-            progress = Math.min(100, Math.round((completedChallengesCount / definition.requiredChallenges) * 100));
+        if (!unlocked && definition.condition.type !== 'manual') {
+          const condition = definition.condition;
+
+          if (condition.type === 'points' && condition.value) {
+            progress = Math.min(100, Math.round((scoutPoints / condition.value) * 100));
+          } else if (condition.type === 'challenges' && condition.value) {
+            progress = Math.min(100, Math.round((completedChallengesCount / condition.value) * 100));
+          } else if (condition.type === 'challenges_category' && condition.value && condition.challengeCategory) {
+            const categoryCount = challengesByCategory?.[condition.challengeCategory] || 0;
+            progress = Math.min(100, Math.round((categoryCount / condition.value) * 100));
           }
         }
 
@@ -333,7 +408,8 @@ export class BadgeService {
   static async checkAndAwardAutomaticBadges(
     scoutId: string,
     scoutPoints: number,
-    completedChallengesCount: number
+    completedChallengesCount: number,
+    challengesByCategory?: Record<string, number>
   ): Promise<ScoutBadge[]> {
     try {
       const definitions = await this.getAllBadgeDefinitions();
@@ -344,18 +420,26 @@ export class BadgeService {
 
       for (const definition of definitions) {
         // Skip si déjà obtenu ou si manuel
-        if (existingBadgeIds.has(definition.id) || definition.isManual) {
+        if (existingBadgeIds.has(definition.id) || definition.condition.type === 'manual') {
           continue;
         }
 
         let shouldAward = false;
+        const condition = definition.condition;
 
-        if (definition.requiredPoints && scoutPoints >= definition.requiredPoints) {
+        if (condition.type === 'points' && condition.value && scoutPoints >= condition.value) {
           shouldAward = true;
         }
 
-        if (definition.requiredChallenges && completedChallengesCount >= definition.requiredChallenges) {
+        if (condition.type === 'challenges' && condition.value && completedChallengesCount >= condition.value) {
           shouldAward = true;
+        }
+
+        if (condition.type === 'challenges_category' && condition.value && condition.challengeCategory) {
+          const categoryCount = challengesByCategory?.[condition.challengeCategory] || 0;
+          if (categoryCount >= condition.value) {
+            shouldAward = true;
+          }
         }
 
         if (shouldAward) {
@@ -370,6 +454,24 @@ export class BadgeService {
     } catch (error) {
       console.error('Error checking automatic badges:', error);
       return [];
+    }
+  }
+
+  /**
+   * Formate la condition d'un badge pour l'affichage
+   */
+  static formatCondition(condition: BadgeCondition): string {
+    switch (condition.type) {
+      case 'points':
+        return `${condition.value} points`;
+      case 'challenges':
+        return `${condition.value} défis complétés`;
+      case 'challenges_category':
+        return `${condition.value} défis ${condition.challengeCategory}`;
+      case 'manual':
+        return 'Attribution manuelle';
+      default:
+        return 'Condition inconnue';
     }
   }
 }

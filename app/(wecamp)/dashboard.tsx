@@ -26,7 +26,8 @@ import { StorageService } from '@/src/shared/services/storage-service';
 import { ChallengeService } from '@/src/features/challenges/services/challenge-service';
 import { AdminStatsService, GlobalStats, ChallengeStats, UnitStats } from '@/services/admin-stats-service';
 import { PartnerService } from '@/services/partner-service';
-import { Challenge } from '@/types';
+import { BadgeService } from '@/services/badge-service';
+import { Challenge, BadgeDefinition, BadgeCategory, BadgeCondition } from '@/types';
 import { Partner, PartnerOffer, Redemption } from '@/types/partners';
 
 // Design System
@@ -64,7 +65,7 @@ const spacing = {
   xl: 32,
 };
 
-type TabType = 'dashboard' | 'defis' | 'unites' | 'classement' | 'partenaires';
+type TabType = 'dashboard' | 'defis' | 'unites' | 'classement' | 'partenaires' | 'badges';
 
 interface TabInfo {
   key: TabType;
@@ -137,6 +138,25 @@ export default function WeCampDashboard() {
     maxRedemptions: '',
   });
 
+  // Badges state
+  const [badges, setBadges] = useState<BadgeDefinition[]>([]);
+  const [totalBadgesAwarded, setTotalBadgesAwarded] = useState(0);
+  const [showBadgeForm, setShowBadgeForm] = useState(false);
+  const [editingBadge, setEditingBadge] = useState<BadgeDefinition | null>(null);
+  const [selectedBadgeForMenu, setSelectedBadgeForMenu] = useState<BadgeDefinition | null>(null);
+  const [badgeSearchQuery, setBadgeSearchQuery] = useState('');
+
+  // Badge form state
+  const [badgeForm, setBadgeForm] = useState({
+    name: '',
+    description: '',
+    icon: '',
+    category: BadgeCategory.NATURE,
+    conditionType: 'manual' as 'points' | 'challenges' | 'challenges_category' | 'manual',
+    conditionValue: '',
+    conditionCategory: '',
+  });
+
   // Navigation tabs
   const tabs: TabInfo[] = [
     { key: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -144,18 +164,21 @@ export default function WeCampDashboard() {
     { key: 'unites', label: 'Unités', icon: '🏕️' },
     { key: 'classement', label: 'Classement', icon: '🏆' },
     { key: 'partenaires', label: 'Partenaires', icon: '🎁' },
+    { key: 'badges', label: 'Badges', icon: '🏅' },
   ];
 
 
   const loadData = useCallback(async () => {
     try {
-      const [challengesData, stats, cStats, ranking, partnersData, offersData] = await Promise.all([
+      const [challengesData, stats, cStats, ranking, partnersData, offersData, badgesData, badgesAwarded] = await Promise.all([
         ChallengeService.getChallenges(),
         AdminStatsService.getGlobalStats(),
         AdminStatsService.getChallengeStats(),
         AdminStatsService.getUnitRanking(),
         PartnerService.getPartners(),
         PartnerService.getAllActiveOffers(),
+        BadgeService.getAllBadgeDefinitionsAdmin(),
+        BadgeService.getTotalBadgesAwarded(),
       ]);
       setChallenges(challengesData);
       setGlobalStats(stats);
@@ -163,6 +186,8 @@ export default function WeCampDashboard() {
       setUnitRanking(ranking);
       setPartners(partnersData);
       setAllOffers(offersData);
+      setBadges(badgesData);
+      setTotalBadgesAwarded(badgesAwarded);
     } catch (error) {
       console.error('Erreur chargement données:', error);
     } finally {
@@ -202,34 +227,27 @@ export default function WeCampDashboard() {
     setSelectedChallengeForMenu(null);
   };
 
-  const handleDeleteChallenge = () => {
-    if (!selectedChallengeForMenu) return;
-    const challenge = selectedChallengeForMenu;
-
-    Alert.alert(
-      'Supprimer le défi',
-      `Voulez-vous vraiment supprimer "${challenge.title}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            setSelectedChallengeForMenu(null);
-            setDeletingId(challenge.id);
-            try {
-              await ChallengeService.deleteChallenge(challenge.id);
-              setChallenges((prev) => prev.filter((c) => c.id !== challenge.id));
-              Alert.alert('Succès', 'Défi supprimé avec succès');
-            } catch (error: any) {
-              Alert.alert('Erreur', error?.message || 'Impossible de supprimer le défi');
-            } finally {
-              setDeletingId(null);
-            }
-          },
-        },
-      ]
+  const handleDeleteChallenge = async (challenge: Challenge) => {
+    // Utiliser window.confirm pour la compatibilité web (Modal/Alert ne fonctionne pas sur web)
+    const confirmed = window.confirm(
+      `Voulez-vous vraiment supprimer "${challenge.title}" ?\n\nCette action est irréversible.`
     );
+
+    if (!confirmed) return;
+
+    setDeletingId(challenge.id);
+
+    try {
+      console.log('Deleting challenge:', challenge.id);
+      await ChallengeService.deleteChallenge(challenge.id);
+      console.log('Challenge deleted successfully');
+      setChallenges((prev) => prev.filter((c) => c.id !== challenge.id));
+    } catch (error: any) {
+      console.error('Delete challenge error:', error);
+      window.alert('Erreur: ' + (error?.message || 'Impossible de supprimer le défi'));
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const getDifficultyStyle = (difficulty: string) => {
@@ -690,22 +708,9 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                   <Text style={styles.challengeIcon}>{challenge.emoji || '🎯'}</Text>
                 </View>
                 <View style={styles.challengeInfo}>
-                  <View style={styles.challengeTitleRow}>
-                    <Text style={styles.challengeTitle} numberOfLines={1}>
-                      {challenge.title}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setSelectedChallengeForMenu(challenge)}
-                      disabled={deletingId === challenge.id}
-                      style={styles.challengeMenuButton}
-                    >
-                      {deletingId === challenge.id ? (
-                        <ActivityIndicator size="small" color={colors.neutral} />
-                      ) : (
-                        <Ionicons name="ellipsis-horizontal" size={20} color={colors.neutral} />
-                      )}
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.challengeTitle} numberOfLines={1}>
+                    {challenge.title}
+                  </Text>
                   <View style={styles.challengeTags}>
                     <View style={[styles.difficultyTag, { backgroundColor: diffStyle.bg }]}>
                       <Text style={[styles.difficultyTagText, { color: diffStyle.color }]}>
@@ -739,14 +744,30 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                 </View>
               </View>
 
-              {/* Edit Button */}
-              <TouchableOpacity
-                style={styles.editChallengeButton}
-                onPress={() => router.push(`/(wecamp)/edit-challenge?id=${challenge.id}`)}
-              >
-                <Ionicons name="pencil" size={14} color={colors.primary} />
-                <Text style={styles.editChallengeText}>Modifier</Text>
-              </TouchableOpacity>
+              {/* Action Buttons */}
+              <View style={styles.challengeActions}>
+                <TouchableOpacity
+                  style={styles.editChallengeButton}
+                  onPress={() => router.push(`/(wecamp)/edit-challenge?id=${challenge.id}`)}
+                >
+                  <Ionicons name="pencil" size={14} color={colors.primary} />
+                  <Text style={styles.editChallengeText}>Modifier</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteChallengeButton}
+                  onPress={() => handleDeleteChallenge(challenge)}
+                  disabled={deletingId === challenge.id}
+                >
+                  {deletingId === challenge.id ? (
+                    <ActivityIndicator size="small" color={colors.danger} />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                      <Text style={styles.deleteChallengeText}>Supprimer</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           );
         })
@@ -1658,6 +1679,282 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
     </View>
   );
 
+  // === BADGES ===
+
+  const resetBadgeForm = () => {
+    setBadgeForm({
+      name: '',
+      description: '',
+      icon: '',
+      category: BadgeCategory.NATURE,
+      conditionType: 'manual',
+      conditionValue: '',
+      conditionCategory: '',
+    });
+    setEditingBadge(null);
+  };
+
+  const handleEditBadge = (badge: BadgeDefinition) => {
+    setBadgeForm({
+      name: badge.name,
+      description: badge.description,
+      icon: badge.icon,
+      category: badge.category,
+      conditionType: badge.condition.type,
+      conditionValue: badge.condition.value?.toString() || '',
+      conditionCategory: badge.condition.challengeCategory || '',
+    });
+    setEditingBadge(badge);
+    setShowBadgeForm(true);
+    setSelectedBadgeForMenu(null);
+  };
+
+  const handleDeleteBadge = async (badge: BadgeDefinition) => {
+    Alert.alert(
+      'Supprimer le badge',
+      `Êtes-vous sûr de vouloir supprimer définitivement "${badge.name}" ? Les badges déjà attribués aux scouts seront conservés.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await BadgeService.hardDeleteBadge(badge.id);
+              setBadges(badges.filter(b => b.id !== badge.id));
+              Alert.alert('Succès', 'Badge supprimé définitivement');
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer le badge');
+            }
+          },
+        },
+      ]
+    );
+    setSelectedBadgeForMenu(null);
+  };
+
+  const handleDeleteAllBadges = async () => {
+    Alert.alert(
+      'Supprimer tous les badges',
+      `Êtes-vous sûr de vouloir supprimer définitivement les ${badges.length} badges ? Cette action est irréversible.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Tout supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const count = await BadgeService.deleteAllBadges();
+              setBadges([]);
+              Alert.alert('Succès', `${count} badges supprimés`);
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer les badges');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveBadge = async () => {
+    if (!badgeForm.name.trim() || !badgeForm.icon.trim()) {
+      Alert.alert('Erreur', 'Le nom et l\'icône sont obligatoires');
+      return;
+    }
+
+    // Construire la condition
+    const condition: BadgeCondition = {
+      type: badgeForm.conditionType,
+    };
+
+    if (badgeForm.conditionType !== 'manual') {
+      const value = parseInt(badgeForm.conditionValue);
+      if (isNaN(value) || value <= 0) {
+        Alert.alert('Erreur', 'La valeur de la condition doit être un nombre positif');
+        return;
+      }
+      condition.value = value;
+    }
+
+    if (badgeForm.conditionType === 'challenges_category' && !badgeForm.conditionCategory) {
+      Alert.alert('Erreur', 'La catégorie de défis est obligatoire pour ce type de condition');
+      return;
+    }
+
+    if (badgeForm.conditionType === 'challenges_category') {
+      condition.challengeCategory = badgeForm.conditionCategory;
+    }
+
+    try {
+      if (editingBadge) {
+        await BadgeService.updateBadge(editingBadge.id, {
+          name: badgeForm.name.trim(),
+          description: badgeForm.description.trim(),
+          icon: badgeForm.icon.trim(),
+          category: badgeForm.category,
+          condition,
+        });
+        setBadges(badges.map(b =>
+          b.id === editingBadge.id
+            ? { ...b, name: badgeForm.name.trim(), description: badgeForm.description.trim(), icon: badgeForm.icon.trim(), category: badgeForm.category, condition }
+            : b
+        ));
+        Alert.alert('Succès', 'Badge modifié');
+      } else {
+        const newBadge = await BadgeService.createBadge({
+          name: badgeForm.name.trim(),
+          description: badgeForm.description.trim(),
+          icon: badgeForm.icon.trim(),
+          category: badgeForm.category,
+          condition,
+        });
+        setBadges([...badges, newBadge]);
+        Alert.alert('Succès', 'Badge créé');
+      }
+      setShowBadgeForm(false);
+      resetBadgeForm();
+    } catch (error) {
+      console.error('Erreur sauvegarde badge:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder le badge');
+    }
+  };
+
+  const getBadgeCategoryLabel = (category: BadgeCategory) => {
+    const labels: Record<BadgeCategory, string> = {
+      [BadgeCategory.NATURE]: 'Nature',
+      [BadgeCategory.CUISINE]: 'Cuisine',
+      [BadgeCategory.SPORT]: 'Sport',
+      [BadgeCategory.PREMIERS_SECOURS]: 'Premiers secours',
+      [BadgeCategory.CREATIVITE]: 'Créativité',
+      [BadgeCategory.SOCIAL]: 'Social',
+      [BadgeCategory.TECHNIQUE]: 'Technique',
+    };
+    return labels[category] || category;
+  };
+
+  const filteredBadges = badges.filter(badge =>
+    badge.name.toLowerCase().includes(badgeSearchQuery.toLowerCase()) ||
+    badge.description.toLowerCase().includes(badgeSearchQuery.toLowerCase())
+  );
+
+  const renderBadges = () => (
+    <View style={styles.section}>
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={18} color={colors.neutral} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher un badge..."
+          placeholderTextColor={colors.neutralLight}
+          value={badgeSearchQuery}
+          onChangeText={setBadgeSearchQuery}
+        />
+      </View>
+
+      {/* Stats Row */}
+      <View style={styles.defisStatsRow}>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.primary }]}>
+            {badges.filter(b => b.isActive).length}
+          </Text>
+          <Text style={styles.defisStatLabel}>Badges actifs</Text>
+        </View>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.accent }]}>
+            {totalBadgesAwarded}
+          </Text>
+          <Text style={styles.defisStatLabel}>Attribués</Text>
+        </View>
+        <View style={styles.defisStatItem}>
+          <Text style={[styles.defisStatValue, { color: colors.neutral }]}>
+            {badges.filter(b => !b.isActive).length}
+          </Text>
+          <Text style={styles.defisStatLabel}>Inactifs</Text>
+        </View>
+      </View>
+
+      {/* Create Badge Card */}
+      <TouchableOpacity
+        style={styles.createBadgeCard}
+        onPress={() => {
+          resetBadgeForm();
+          setShowBadgeForm(true);
+        }}
+        activeOpacity={0.8}
+      >
+        <View style={styles.createBadgeIconContainer}>
+          <View style={styles.createBadgeIcon}>
+            <Ionicons name="add" size={28} color={colors.primary} />
+          </View>
+        </View>
+        <View style={styles.createBadgeContent}>
+          <Text style={styles.createBadgeTitle}>Créer un badge</Text>
+          <Text style={styles.createBadgeSubtitle}>
+            Définissez les conditions et récompensez vos scouts
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.neutral} />
+      </TouchableOpacity>
+
+      {/* Badges Grid */}
+      {filteredBadges.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="ribbon-outline" size={48} color={colors.neutral} />
+          <Text style={styles.emptyStateText}>Aucun badge</Text>
+          <Text style={styles.emptyStateSubtext}>Créez votre premier badge</Text>
+        </View>
+      ) : (
+        <View style={styles.badgesGridContainer}>
+          {filteredBadges.map((badge) => {
+            const categoryColor = {
+              [BadgeCategory.NATURE]: '#4CAF50',
+              [BadgeCategory.CUISINE]: '#FF9800',
+              [BadgeCategory.SPORT]: '#2196F3',
+              [BadgeCategory.PREMIERS_SECOURS]: '#F44336',
+              [BadgeCategory.CREATIVITE]: '#9C27B0',
+              [BadgeCategory.SOCIAL]: '#E91E63',
+              [BadgeCategory.TECHNIQUE]: '#607D8B',
+            }[badge.category] || colors.primary;
+
+            return (
+              <TouchableOpacity
+                key={badge.id}
+                style={[styles.badgeGridCard, !badge.isActive && { opacity: 0.5 }]}
+                onPress={() => setSelectedBadgeForMenu(badge)}
+                activeOpacity={0.8}
+              >
+                {/* Active indicator */}
+                <View style={[styles.badgeActiveIndicator, { backgroundColor: badge.isActive ? '#4CAF50' : colors.neutral }]} />
+
+                {/* Icon circle */}
+                <View style={[styles.badgeIconCircle, { borderColor: categoryColor }]}>
+                  <View style={[styles.badgeIconInner, { backgroundColor: `${categoryColor}15` }]}>
+                    <Text style={styles.badgeIconText}>{badge.icon}</Text>
+                  </View>
+                </View>
+
+                {/* Badge name */}
+                <Text style={styles.badgeGridName} numberOfLines={2}>{badge.name}</Text>
+
+                {/* Category tag */}
+                <View style={[styles.badgeCategoryTag, { backgroundColor: `${categoryColor}15` }]}>
+                  <Text style={[styles.badgeCategoryTagText, { color: categoryColor }]}>
+                    {getBadgeCategoryLabel(badge.category)}
+                  </Text>
+                </View>
+
+                {/* Condition */}
+                <Text style={styles.badgeGridCondition}>
+                  {BadgeService.formatCondition(badge.condition)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -1711,6 +2008,7 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
             {activeTab === 'unites' && renderUnites()}
             {activeTab === 'classement' && renderClassement()}
             {activeTab === 'partenaires' && renderPartenaires()}
+            {activeTab === 'badges' && renderBadges()}
           </>
         )}
       </ScrollView>
@@ -1893,41 +2191,36 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
         </TouchableOpacity>
       </Modal>
 
-      {/* Challenge Context Menu Modal */}
+      {/* Badge Context Menu Modal */}
       <Modal
-        visible={!!selectedChallengeForMenu}
+        visible={!!selectedBadgeForMenu}
         animationType="fade"
         transparent
-        onRequestClose={() => setSelectedChallengeForMenu(null)}
+        onRequestClose={() => setSelectedBadgeForMenu(null)}
       >
         <TouchableOpacity
           style={styles.menuOverlay}
           activeOpacity={1}
-          onPress={() => setSelectedChallengeForMenu(null)}
+          onPress={() => setSelectedBadgeForMenu(null)}
         >
           <View style={styles.menuContent}>
-            {selectedChallengeForMenu && (
+            {selectedBadgeForMenu && (
               <>
                 <View style={styles.menuHeader}>
-                  <Text style={styles.menuTitle}>{selectedChallengeForMenu.title}</Text>
-                  <Text style={styles.menuSubtitle}>
-                    {selectedChallengeForMenu.points} points • {getDifficultyStyle(selectedChallengeForMenu.difficulty).label}
-                  </Text>
+                  <Text style={styles.menuHeaderTitle}>{selectedBadgeForMenu.name}</Text>
                 </View>
 
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={handleEditChallenge}
+                  onPress={() => handleEditBadge(selectedBadgeForMenu)}
                 >
-                  <Ionicons name="create-outline" size={20} color={colors.primary} />
+                  <Ionicons name="pencil-outline" size={20} color={colors.neutral} />
                   <Text style={styles.menuItemText}>Modifier</Text>
                 </TouchableOpacity>
 
-                <View style={styles.menuDivider} />
-
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={handleDeleteChallenge}
+                  onPress={() => handleDeleteBadge(selectedBadgeForMenu)}
                 >
                   <Ionicons name="trash-outline" size={20} color={colors.danger} />
                   <Text style={[styles.menuItemText, { color: colors.danger }]}>Supprimer</Text>
@@ -1935,7 +2228,7 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
 
                 <TouchableOpacity
                   style={[styles.menuItem, styles.menuCancelItem]}
-                  onPress={() => setSelectedChallengeForMenu(null)}
+                  onPress={() => setSelectedBadgeForMenu(null)}
                 >
                   <Text style={styles.menuCancelText}>Annuler</Text>
                 </TouchableOpacity>
@@ -1943,6 +2236,190 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
             )}
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Badge Form Modal */}
+      <Modal
+        visible={showBadgeForm}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowBadgeForm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingBadge ? 'Modifier le badge' : 'Nouveau badge'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowBadgeForm(false)}>
+                <Ionicons name="close" size={24} color={colors.neutral} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Icon */}
+              <Text style={styles.formLabel}>Icône</Text>
+              <View style={styles.emojiPickerContainer}>
+                <View style={styles.selectedEmojiBox}>
+                  <Text style={styles.selectedEmoji}>{badgeForm.icon || '?'}</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiScrollView}>
+                  <View style={styles.emojiGrid}>
+                    {[
+                      // Trophées & Récompenses
+                      '🏆', '🥇', '🥈', '🥉', '🎖️', '🏅', '🌟', '⭐', '✨', '💎',
+                      // Nature & Outdoor
+                      '🏕️', '⛺', '🔥', '🌲', '🌳', '🍃', '🌿', '🌻', '🦋', '🐦',
+                      // Sport & Activités
+                      '🎯', '🧗', '🚴', '🏃', '🤸', '⚽', '🏀', '🎾', '🥾', '🧭',
+                      // Créativité & Arts
+                      '🎨', '🎭', '🎵', '📸', '✏️', '🎪', '🎬', '🖌️', '🎹', '🎸',
+                      // Cuisine & Social
+                      '👨‍🍳', '🍳', '🥘', '🤝', '💪', '❤️', '🙌', '👏', '🎉', '🎊',
+                      // Technique & Science
+                      '🔧', '⚙️', '🛠️', '🔬', '🧪', '💡', '📡', '🔭', '🧲', '⚡',
+                      // Animaux
+                      '🦊', '🦁', '🐺', '🦅', '🦉', '🐻', '🦌', '🐿️', '🦎', '🐢',
+                      // Premiers secours
+                      '🏥', '💊', '🩹', '❤️‍🩹', '🚑', '⛑️', '🩺', '💉', '🧬', '🫀',
+                    ].map((emoji) => (
+                      <TouchableOpacity
+                        key={emoji}
+                        style={[
+                          styles.emojiOption,
+                          badgeForm.icon === emoji && styles.emojiOptionSelected,
+                        ]}
+                        onPress={() => setBadgeForm({ ...badgeForm, icon: emoji })}
+                      >
+                        <Text style={styles.emojiText}>{emoji}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              {/* Name */}
+              <Text style={styles.formLabel}>Nom</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nom du badge"
+                placeholderTextColor={colors.neutralLight}
+                value={badgeForm.name}
+                onChangeText={(text) => setBadgeForm({ ...badgeForm, name: text })}
+              />
+
+              {/* Description */}
+              <Text style={styles.formLabel}>Description</Text>
+              <TextInput
+                style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+                placeholder="Description du badge"
+                placeholderTextColor={colors.neutralLight}
+                value={badgeForm.description}
+                onChangeText={(text) => setBadgeForm({ ...badgeForm, description: text })}
+                multiline
+              />
+
+              {/* Category */}
+              <Text style={styles.formLabel}>Catégorie</Text>
+              <View style={styles.categoryGrid}>
+                {Object.values(BadgeCategory).map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.categoryOption,
+                      badgeForm.category === cat && styles.categoryOptionActive,
+                    ]}
+                    onPress={() => setBadgeForm({ ...badgeForm, category: cat })}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryOptionText,
+                        badgeForm.category === cat && styles.categoryOptionTextActive,
+                      ]}
+                    >
+                      {getBadgeCategoryLabel(cat)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Condition Type */}
+              <Text style={styles.formLabel}>Condition de déblocage</Text>
+              <View style={styles.conditionTypeGrid}>
+                {[
+                  { type: 'manual', label: 'Manuel', icon: 'hand-left-outline' },
+                  { type: 'points', label: 'Points XP', icon: 'star-outline' },
+                  { type: 'challenges', label: 'Défis', icon: 'trophy-outline' },
+                  { type: 'challenges_category', label: 'Défis catégorie', icon: 'layers-outline' },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.type}
+                    style={[
+                      styles.conditionTypeOption,
+                      badgeForm.conditionType === item.type && styles.conditionTypeOptionActive,
+                    ]}
+                    onPress={() => setBadgeForm({ ...badgeForm, conditionType: item.type as any })}
+                  >
+                    <Ionicons
+                      name={item.icon as any}
+                      size={18}
+                      color={badgeForm.conditionType === item.type ? '#FFFFFF' : colors.neutral}
+                    />
+                    <Text
+                      style={[
+                        styles.conditionTypeText,
+                        badgeForm.conditionType === item.type && styles.conditionTypeTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Condition Value */}
+              {badgeForm.conditionType !== 'manual' && (
+                <>
+                  <Text style={styles.formLabel}>
+                    {badgeForm.conditionType === 'points' ? 'Points requis' : 'Nombre de défis requis'}
+                  </Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder={badgeForm.conditionType === 'points' ? 'Ex: 500' : 'Ex: 5'}
+                    placeholderTextColor={colors.neutralLight}
+                    value={badgeForm.conditionValue}
+                    onChangeText={(text) => setBadgeForm({ ...badgeForm, conditionValue: text })}
+                    keyboardType="numeric"
+                  />
+                </>
+              )}
+
+              {/* Challenge Category (if challenges_category) */}
+              {badgeForm.conditionType === 'challenges_category' && (
+                <>
+                  <Text style={styles.formLabel}>Catégorie de défis</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="Ex: nature, sport, cuisine"
+                    placeholderTextColor={colors.neutralLight}
+                    value={badgeForm.conditionCategory}
+                    onChangeText={(text) => setBadgeForm({ ...badgeForm, conditionCategory: text })}
+                  />
+                </>
+              )}
+
+              {/* Save Button */}
+              <TouchableOpacity
+                style={[styles.primaryButton, { marginTop: spacing.lg, marginBottom: spacing.xl }]}
+                onPress={handleSaveBadge}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {editingBadge ? 'Enregistrer' : 'Créer le badge'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
 
       {/* Profile Menu Modal */}
@@ -2377,12 +2854,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.neutral,
   },
+  challengeActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
   editChallengeButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: spacing.sm,
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: `${colors.primary}10`,
@@ -2391,6 +2873,97 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.primary,
+  },
+  deleteChallengeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: `${colors.danger}10`,
+  },
+  deleteChallengeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.danger,
+  },
+
+  // Confirm Modal Styles
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  confirmModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: `${colors.danger}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.dark,
+    marginBottom: 8,
+  },
+  confirmModalMessage: {
+    fontSize: 15,
+    color: colors.neutral,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  confirmModalWarning: {
+    fontSize: 13,
+    color: colors.danger,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  confirmModalCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+  },
+  confirmModalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.dark,
+  },
+  confirmModalDeleteButton: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  confirmModalDeleteText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 
   // Unités
@@ -3131,5 +3704,219 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
+  },
+
+  // Badge styles
+  badgeMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  badgeConditionText: {
+    fontSize: 12,
+    color: colors.neutral,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  categoryOption: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    backgroundColor: colors.mist,
+  },
+  categoryOptionActive: {
+    backgroundColor: colors.primary,
+  },
+  categoryOptionText: {
+    fontSize: 13,
+    color: colors.neutral,
+  },
+  categoryOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  conditionTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  conditionTypeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    backgroundColor: colors.mist,
+  },
+  conditionTypeOptionActive: {
+    backgroundColor: colors.primary,
+  },
+  conditionTypeText: {
+    fontSize: 13,
+    color: colors.neutral,
+  },
+  conditionTypeTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // Badge Grid
+  badgesGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  badgeGridCard: {
+    width: '47%',
+    backgroundColor: colors.cardBg,
+    borderRadius: 20,
+    padding: spacing.lg,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    position: 'relative',
+  },
+  badgeActiveIndicator: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  badgeIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  badgeIconInner: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeIconText: {
+    fontSize: 36,
+  },
+  badgeGridName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.dark,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+    minHeight: 40,
+  },
+  badgeCategoryTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: spacing.xs,
+  },
+  badgeCategoryTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  badgeGridCondition: {
+    fontSize: 12,
+    color: colors.neutral,
+    textAlign: 'center',
+  },
+
+  // Emoji Picker
+  emojiPickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  selectedEmojiBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  selectedEmoji: {
+    fontSize: 32,
+  },
+  emojiScrollView: {
+    flex: 1,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  emojiOption: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emojiOptionSelected: {
+    backgroundColor: `${colors.primary}20`,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  emojiText: {
+    fontSize: 22,
+  },
+
+  // Create Badge Card
+  createBadgeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    gap: spacing.md,
+  },
+  createBadgeIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createBadgeIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: `${colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createBadgeContent: {
+    flex: 1,
+  },
+  createBadgeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.dark,
+    marginBottom: 4,
+  },
+  createBadgeSubtitle: {
+    fontSize: 13,
+    color: colors.neutral,
+    lineHeight: 18,
   },
 });

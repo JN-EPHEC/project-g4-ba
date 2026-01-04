@@ -19,7 +19,6 @@ export function useBadges(options: UseBadgesOptions = {}) {
   // Déterminer le scout ID et les infos
   const targetScoutId = options.scoutId || user?.id;
   const isScout = user?.role === UserRole.SCOUT;
-  const isAnimator = user?.role === UserRole.ANIMATOR;
   const scoutPoints = isScout ? (user as Scout).points || 0 : 0;
 
   const loadBadges = useCallback(async () => {
@@ -31,11 +30,6 @@ export function useBadges(options: UseBadgesOptions = {}) {
     try {
       setLoading(true);
       setError(null);
-
-      // Initialiser les badges par défaut si nécessaire (seulement pour les animateurs)
-      if (isAnimator) {
-        await BadgeService.initializeDefaultBadges();
-      }
 
       // Récupérer le nombre de défis complétés
       let completedChallengesCount = 0;
@@ -69,7 +63,7 @@ export function useBadges(options: UseBadgesOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [targetScoutId, scoutPoints, isScout, isAnimator]);
+  }, [targetScoutId, scoutPoints, isScout]);
 
   useEffect(() => {
     loadBadges();

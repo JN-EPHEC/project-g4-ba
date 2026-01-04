@@ -159,6 +159,7 @@ export default function ChallengesKPIScreen() {
         <StartedByScoutsSection
           challenges={challenges}
           onChallengePress={(challenge) => router.push(`/(animator)/challenges/${challenge.id}`)}
+          onEditChallenge={(challenge) => router.push(`/(animator)/challenges/${challenge.id}`)}
         />
 
         {/* Popular Challenges */}

@@ -33,7 +33,18 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['animator', 'wecamp_admin'];
-      allow update, delete: if request.auth != null && (
+
+      // Séparation des règles update et delete pour plus de clarté
+      allow update: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin' ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
+         resource.data.unitId != null &&
+         resource.data.unitId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId)
+      );
+
+      // Delete: wecamp_admin peut supprimer n'importe quel défi
+      // Animateur peut supprimer uniquement les défis de son unité
+      allow delete: if request.auth != null && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin' ||
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
          resource.data.unitId != null &&
@@ -160,20 +171,22 @@ service cloud.firestore {
       allow write: if request.auth != null && statusId.matches(request.auth.uid + '_.*');
     }
 
-    // Règles pour les badges
+    // Règles pour les badges (définitions)
+    // - Admin WeCamp: peut créer/modifier/supprimer les définitions de badges
+    // - Autres utilisateurs: lecture seule
     match /badges/{badgeId} {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin';
     }
 
     // Règles pour les badges attribués aux scouts
+    // - Animateurs: peuvent attribuer des badges aux scouts de leur unité
+    // - Admin WeCamp: peut tout faire
     match /scoutBadges/{scoutBadgeId} {
       allow read: if request.auth != null;
-      allow create, update: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
-      allow delete: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow create, update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['animator', 'wecamp_admin'];
     }
 
     // Règles pour les niveaux
