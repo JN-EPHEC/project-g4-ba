@@ -42,22 +42,93 @@ export class PartnerService {
   }
 
   /**
+   * Crée un nouveau partenaire
+   */
+  static async createPartner(data: {
+    name: string;
+    logo: string;
+    category: Partner['category'];
+    description: string;
+    website?: string;
+  }): Promise<Partner> {
+    try {
+      const partnerData = {
+        name: data.name,
+        logo: data.logo,
+        category: data.category,
+        description: data.description,
+        website: data.website || '',
+        isActive: true,
+        createdAt: Timestamp.now(),
+      };
+
+      const docRef = await addDoc(collection(db, this.PARTNERS_COLLECTION), partnerData);
+
+      return {
+        id: docRef.id,
+        ...partnerData,
+        createdAt: new Date(),
+      } as Partner;
+    } catch (error) {
+      console.error('Erreur createPartner:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour un partenaire existant
+   */
+  static async updatePartner(
+    partnerId: string,
+    data: Partial<{
+      name: string;
+      logo: string;
+      category: Partner['category'];
+      description: string;
+      website: string;
+    }>
+  ): Promise<void> {
+    try {
+      await updateDoc(doc(db, this.PARTNERS_COLLECTION, partnerId), data);
+    } catch (error) {
+      console.error('Erreur updatePartner:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime un partenaire (soft delete - désactive)
+   */
+  static async deletePartner(partnerId: string): Promise<void> {
+    try {
+      await updateDoc(doc(db, this.PARTNERS_COLLECTION, partnerId), {
+        isActive: false,
+      });
+    } catch (error) {
+      console.error('Erreur deletePartner:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Récupère tous les partenaires actifs
    */
   static async getPartners(): Promise<Partner[]> {
     try {
       const q = query(
         collection(db, this.PARTNERS_COLLECTION),
-        where('isActive', '==', true),
-        orderBy('name')
+        where('isActive', '==', true)
       );
       const snapshot = await getDocs(q);
 
-      return snapshot.docs.map((doc) => ({
+      const partners = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() || new Date(),
       })) as Partner[];
+
+      // Tri côté client pour éviter l'index composite
+      return partners.sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error('Erreur getPartners:', error);
       return [];

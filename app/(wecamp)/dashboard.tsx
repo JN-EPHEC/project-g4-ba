@@ -12,10 +12,17 @@ import {
   RefreshControl,
   TextInput,
   Text,
+  Modal,
+  Share,
+  Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth-context';
+import { StorageService } from '@/src/shared/services/storage-service';
 import { ChallengeService } from '@/src/features/challenges/services/challenge-service';
 import { AdminStatsService, GlobalStats, ChallengeStats, UnitStats } from '@/services/admin-stats-service';
 import { PartnerService } from '@/services/partner-service';
@@ -65,15 +72,6 @@ interface TabInfo {
   icon: string;
 }
 
-// Activity types
-interface Activity {
-  id: number;
-  text: string;
-  time: string;
-  icon: string;
-  type: 'info' | 'warning' | 'success';
-}
-
 export default function WeCampDashboard() {
   const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -97,14 +95,25 @@ export default function WeCampDashboard() {
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [editingOffer, setEditingOffer] = useState<(PartnerOffer & { partner: Partner }) | null>(null);
 
+  // Unit detail modal
+  const [selectedUnit, setSelectedUnit] = useState<UnitStats | null>(null);
+  const [showUnitModal, setShowUnitModal] = useState(false);
+
+  // Partner context menu
+  const [selectedPartnerForMenu, setSelectedPartnerForMenu] = useState<Partner | null>(null);
+
+  // Ranking period filter
+  const [rankingPeriod, setRankingPeriod] = useState<'week' | 'month' | 'year' | 'all'>('all');
+
   // Partner form state
   const [partnerForm, setPartnerForm] = useState({
     name: '',
-    logo: '🏪',
+    logo: '',
     category: 'alimentation' as Partner['category'],
     description: '',
     website: '',
   });
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   // Offer form state
   const [offerForm, setOfferForm] = useState({
@@ -127,13 +136,6 @@ export default function WeCampDashboard() {
     { key: 'partenaires', label: 'Partenaires', icon: '🎁' },
   ];
 
-  // Recent activity (will be replaced with real data)
-  const recentActivity: Activity[] = [
-    { id: 1, text: 'Nouvelle unité créée', time: 'Il y a 2h', icon: '🏕️', type: 'info' },
-    { id: 2, text: 'Signalement: contenu inapproprié', time: 'Il y a 3h', icon: '⚠️', type: 'warning' },
-    { id: 3, text: 'Une unité atteint niveau Or', time: 'Il y a 5h', icon: '🏆', type: 'success' },
-    { id: 4, text: 'Défi très populaire', time: 'Il y a 1j', icon: '📈', type: 'info' },
-  ];
 
   const loadData = useCallback(async () => {
     try {
@@ -237,18 +239,114 @@ export default function WeCampDashboard() {
     return 'Bronze';
   };
 
+  // Export stats to clipboard/share
+  const handleExportStats = async () => {
+    const stats = `📊 Statistiques WeCamp - ${new Date().toLocaleDateString('fr-FR')}
+
+🏕️ Unités: ${globalStats?.totalUnits || 0}
+👥 Scouts: ${globalStats?.totalScouts || 0}
+🎯 Défis actifs: ${challenges.length}
+✅ Défis complétés: ${globalStats?.totalChallengesCompleted || 0}
+
+🏆 Top 3 Unités:
+${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoints} pts`).join('\n')}
+`;
+
+    try {
+      if (Platform.OS === 'web') {
+        await Clipboard.setStringAsync(stats);
+        Alert.alert('Exporté!', 'Les statistiques ont été copiées dans le presse-papier.');
+      } else {
+        await Share.share({ message: stats, title: 'Statistiques WeCamp' });
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Erreur', "Impossible d'exporter les statistiques");
+    }
+  };
+
+  // Show unit detail modal
+  const handleViewUnit = (unit: UnitStats) => {
+    setSelectedUnit(unit);
+    setShowUnitModal(true);
+  };
+
+  // Handle partner actions menu - ouvre le menu contextuel
+  const handlePartnerMenu = (partner: Partner) => {
+    setSelectedPartnerForMenu(partner);
+  };
+
+  // Actions du menu partenaire
+  const handleEditPartner = () => {
+    if (!selectedPartnerForMenu) return;
+    setPartnerForm({
+      name: selectedPartnerForMenu.name,
+      logo: selectedPartnerForMenu.logo,
+      category: selectedPartnerForMenu.category,
+      description: selectedPartnerForMenu.description || '',
+      website: selectedPartnerForMenu.website || '',
+    });
+    setEditingPartner(selectedPartnerForMenu);
+    setSelectedPartnerForMenu(null);
+    setShowPartnerForm(true);
+  };
+
+  const handleViewPartnerOffers = () => {
+    if (!selectedPartnerForMenu) return;
+    setActivePartnerTab('offres');
+    setPartnerSearchQuery(selectedPartnerForMenu.name);
+    setSelectedPartnerForMenu(null);
+  };
+
+  const handleDeletePartner = async () => {
+    if (!selectedPartnerForMenu) return;
+    try {
+      await PartnerService.deletePartner(selectedPartnerForMenu.id);
+      setPartners(partners.filter(p => p.id !== selectedPartnerForMenu.id));
+      setSelectedPartnerForMenu(null);
+      Alert.alert('Succès', 'Partenaire supprimé avec succès');
+    } catch (error) {
+      console.error('Erreur suppression partenaire:', error);
+      Alert.alert('Erreur', 'Impossible de supprimer le partenaire');
+    }
+  };
+
   const filteredUnits = unitRanking.filter((unit) =>
     unit.unitName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const top3Units = unitRanking.slice(0, 3);
 
+  // Filter challenges based on selected filter
+  const filteredChallenges = challenges.filter((c) => {
+    const now = new Date();
+    const endDate = new Date(c.endDate);
+    const isActive = !c.isArchived && endDate >= now;
+    const isExpired = !c.isArchived && endDate < now;
+    const isArchived = c.isArchived === true;
+
+    switch (activeChallengeFilter) {
+      case 'actifs':
+        return isActive;
+      case 'expirés':
+        return isExpired;
+      case 'archivés':
+        return isArchived;
+      default:
+        return true;
+    }
+  });
+
   // ==================== RENDER DASHBOARD ====================
   const renderDashboard = () => (
     <View style={styles.section}>
-      {/* Global Stats */}
+      {/* Global Stats - Clickable cards */}
       <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { backgroundColor: `${colors.primary}10` }]}>
+        <TouchableOpacity
+          style={[styles.statCard, { backgroundColor: `${colors.primary}10` }]}
+          onPress={() => setActiveTab('unites')}
+          activeOpacity={0.7}
+        >
           <View style={styles.statCardHeader}>
             <Text style={styles.statIcon}>🏕️</Text>
             <Text style={styles.statLabel}>Unités</Text>
@@ -256,10 +354,14 @@ export default function WeCampDashboard() {
           <Text style={[styles.statValue, { color: colors.primary }]}>
             {globalStats?.totalUnits || 0}
           </Text>
-          <Text style={styles.statTrend}>Total enregistrées</Text>
-        </View>
+          <Text style={styles.statTrend}>Voir toutes →</Text>
+        </TouchableOpacity>
 
-        <View style={[styles.statCard, { backgroundColor: `${colors.blue}10` }]}>
+        <TouchableOpacity
+          style={[styles.statCard, { backgroundColor: `${colors.blue}10` }]}
+          onPress={() => setActiveTab('unites')}
+          activeOpacity={0.7}
+        >
           <View style={styles.statCardHeader}>
             <Text style={styles.statIcon}>👥</Text>
             <Text style={styles.statLabel}>Scouts</Text>
@@ -267,10 +369,14 @@ export default function WeCampDashboard() {
           <Text style={[styles.statValue, { color: colors.blue }]}>
             {globalStats?.totalScouts || 0}
           </Text>
-          <Text style={styles.statTrend}>Membres actifs</Text>
-        </View>
+          <Text style={styles.statTrend}>Voir par unité →</Text>
+        </TouchableOpacity>
 
-        <View style={[styles.statCard, { backgroundColor: `${colors.accent}10` }]}>
+        <TouchableOpacity
+          style={[styles.statCard, { backgroundColor: `${colors.accent}10` }]}
+          onPress={() => setActiveTab('defis')}
+          activeOpacity={0.7}
+        >
           <View style={styles.statCardHeader}>
             <Text style={styles.statIcon}>🎯</Text>
             <Text style={styles.statLabel}>Défis actifs</Text>
@@ -278,10 +384,14 @@ export default function WeCampDashboard() {
           <Text style={[styles.statValue, { color: colors.accent }]}>
             {challenges.length}
           </Text>
-          <Text style={styles.statTrend}>Disponibles</Text>
-        </View>
+          <Text style={styles.statTrend}>Gérer les défis →</Text>
+        </TouchableOpacity>
 
-        <View style={[styles.statCard, { backgroundColor: `${colors.success}10` }]}>
+        <TouchableOpacity
+          style={[styles.statCard, { backgroundColor: `${colors.success}10` }]}
+          onPress={() => setActiveTab('classement')}
+          activeOpacity={0.7}
+        >
           <View style={styles.statCardHeader}>
             <Text style={styles.statIcon}>✅</Text>
             <Text style={styles.statLabel}>Complétés</Text>
@@ -289,8 +399,8 @@ export default function WeCampDashboard() {
           <Text style={[styles.statValue, { color: colors.success }]}>
             {globalStats?.totalChallengesCompleted || 0}
           </Text>
-          <Text style={styles.statTrend}>Défis terminés</Text>
-        </View>
+          <Text style={styles.statTrend}>Voir classement →</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Quick Actions */}
@@ -303,39 +413,33 @@ export default function WeCampDashboard() {
           <Text style={styles.primaryButtonText}>Nouveau défi</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleExportStats}>
           <Text style={styles.secondaryButtonIcon}>📊</Text>
           <Text style={styles.secondaryButtonText}>Exporter</Text>
         </TouchableOpacity>
       </View>
 
       {/* Recent Activity */}
-      <Text style={styles.sectionTitle}>Activité récente</Text>
+      <Text style={styles.sectionTitle}>Activité des défis</Text>
       <View style={styles.activityCard}>
         {challengeStats.length === 0 ? (
-          recentActivity.map((activity, index) => (
-            <View
-              key={activity.id}
-              style={[
-                styles.activityItem,
-                index < recentActivity.length - 1 && styles.activityItemBorder,
-              ]}
-            >
-              <Text style={styles.activityIcon}>{activity.icon}</Text>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>{activity.text}</Text>
-                <Text style={styles.activityTime}>{activity.time}</Text>
-              </View>
+          <View style={styles.activityItem}>
+            <Text style={styles.activityIcon}>📭</Text>
+            <View style={styles.activityContent}>
+              <Text style={styles.activityText}>Aucune activité</Text>
+              <Text style={styles.activityTime}>Créez des défis pour commencer</Text>
             </View>
-          ))
+          </View>
         ) : (
           challengeStats.slice(0, 4).map((stat, index) => (
-            <View
+            <TouchableOpacity
               key={stat.challengeId}
               style={[
                 styles.activityItem,
                 index < Math.min(challengeStats.length, 4) - 1 && styles.activityItemBorder,
               ]}
+              onPress={() => setActiveTab('defis')}
+              activeOpacity={0.7}
             >
               <Text style={styles.activityIcon}>{stat.emoji}</Text>
               <View style={styles.activityContent}>
@@ -344,7 +448,8 @@ export default function WeCampDashboard() {
                   {stat.totalParticipants} participants · {stat.completed} complétés
                 </Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.neutral} />
+            </TouchableOpacity>
           ))
         )}
       </View>
@@ -367,19 +472,19 @@ export default function WeCampDashboard() {
       <View style={styles.defisStatsRow}>
         <View style={styles.defisStatItem}>
           <Text style={[styles.defisStatValue, { color: colors.primary }]}>
-            {challenges.length}
+            {challenges.filter((c) => !c.isArchived && new Date(c.endDate) >= new Date()).length}
           </Text>
           <Text style={styles.defisStatLabel}>Actifs</Text>
         </View>
         <View style={styles.defisStatItem}>
           <Text style={[styles.defisStatValue, { color: colors.warning }]}>
-            0
+            {challenges.filter((c) => !c.isArchived && new Date(c.endDate) < new Date()).length}
           </Text>
-          <Text style={styles.defisStatLabel}>Brouillons</Text>
+          <Text style={styles.defisStatLabel}>Expirés</Text>
         </View>
         <View style={styles.defisStatItem}>
           <Text style={[styles.defisStatValue, { color: colors.neutral }]}>
-            0
+            {challenges.filter((c) => c.isArchived).length}
           </Text>
           <Text style={styles.defisStatLabel}>Archivés</Text>
         </View>
@@ -392,7 +497,7 @@ export default function WeCampDashboard() {
         style={styles.filtersScroll}
         contentContainerStyle={styles.filtersContent}
       >
-        {['tous', 'actifs', 'brouillons', 'archivés'].map((filter) => (
+        {['tous', 'actifs', 'expirés', 'archivés'].map((filter) => (
           <TouchableOpacity
             key={filter}
             style={[
@@ -414,13 +519,15 @@ export default function WeCampDashboard() {
       </ScrollView>
 
       {/* Challenges List */}
-      {challenges.length === 0 ? (
+      {filteredChallenges.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="trophy-outline" size={48} color={colors.neutral} />
-          <Text style={styles.emptyStateText}>Aucun défi créé</Text>
+          <Text style={styles.emptyStateText}>
+            {activeChallengeFilter === 'tous' ? 'Aucun défi créé' : `Aucun défi ${activeChallengeFilter}`}
+          </Text>
         </View>
       ) : (
-        challenges.map((challenge) => {
+        filteredChallenges.map((challenge) => {
           const stats = challengeStats.find((s) => s.challengeId === challenge.id);
           const diffStyle = getDifficultyStyle(challenge.difficulty);
 
@@ -567,7 +674,7 @@ export default function WeCampDashboard() {
                     {unit.category} · Récemment active
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.viewUnitButton}>
+                <TouchableOpacity style={styles.viewUnitButton} onPress={() => handleViewUnit(unit)}>
                   <Text style={styles.viewUnitButtonText}>Voir</Text>
                 </TouchableOpacity>
               </View>
@@ -603,17 +710,28 @@ export default function WeCampDashboard() {
     <View style={styles.section}>
       {/* Period Filter */}
       <View style={styles.periodFilter}>
-        {['Semaine', 'Mois', 'Année', 'Tout'].map((period, i) => (
+        {[
+          { key: 'week', label: 'Semaine' },
+          { key: 'month', label: 'Mois' },
+          { key: 'year', label: 'Année' },
+          { key: 'all', label: 'Tout' },
+        ].map((period) => (
           <TouchableOpacity
-            key={period}
-            style={[styles.periodButton, i === 1 && styles.periodButtonActive]}
+            key={period.key}
+            style={[styles.periodButton, rankingPeriod === period.key && styles.periodButtonActive]}
+            onPress={() => setRankingPeriod(period.key as typeof rankingPeriod)}
           >
-            <Text style={[styles.periodButtonText, i === 1 && styles.periodButtonTextActive]}>
-              {period}
+            <Text style={[styles.periodButtonText, rankingPeriod === period.key && styles.periodButtonTextActive]}>
+              {period.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+      {rankingPeriod !== 'all' && (
+        <Text style={{ fontSize: 12, color: colors.neutral, textAlign: 'center', marginBottom: spacing.sm }}>
+          Affichage: classement global (filtres bientôt disponibles)
+        </Text>
+      )}
 
       {/* Podium */}
       {top3Units.length >= 3 && top3Units.some((u) => u.totalPoints > 0) && (
@@ -772,15 +890,106 @@ export default function WeCampDashboard() {
     );
   };
 
+  // Upload logo partenaire
+  const pickPartnerLogo = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadPartnerLogo(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erreur sélection logo:', error);
+      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
+    }
+  };
+
+  const uploadPartnerLogo = async (uri: string) => {
+    try {
+      setIsUploadingLogo(true);
+      const logoUrl = await StorageService.uploadPartnerLogo(uri, `partner_${Date.now()}`);
+      setPartnerForm({ ...partnerForm, logo: logoUrl });
+    } catch (error) {
+      console.error('Erreur upload logo:', error);
+      Alert.alert('Erreur', 'Impossible d\'uploader le logo');
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const removePartnerLogo = () => {
+    setPartnerForm({ ...partnerForm, logo: '' });
+  };
+
   const resetPartnerForm = () => {
     setPartnerForm({
       name: '',
-      logo: '🏪',
-      category: 'alimentation',
+      logo: '',
+      category: 'alimentation' as Partner['category'],
       description: '',
       website: '',
     });
     setEditingPartner(null);
+  };
+
+  const handleSavePartner = async () => {
+    // Validation
+    if (!partnerForm.name.trim()) {
+      Alert.alert('Erreur', 'Le nom du partenaire est requis');
+      return;
+    }
+    if (!partnerForm.description.trim()) {
+      Alert.alert('Erreur', 'La description est requise');
+      return;
+    }
+
+    try {
+      if (editingPartner) {
+        // Mise à jour
+        await PartnerService.updatePartner(editingPartner.id, {
+          name: partnerForm.name.trim(),
+          logo: partnerForm.logo,
+          category: partnerForm.category,
+          description: partnerForm.description.trim(),
+          website: partnerForm.website.trim(),
+        });
+        // Mettre à jour la liste locale
+        setPartners(partners.map(p =>
+          p.id === editingPartner.id
+            ? { ...p, ...partnerForm, name: partnerForm.name.trim(), description: partnerForm.description.trim(), website: partnerForm.website.trim() }
+            : p
+        ));
+        Alert.alert('Succès', 'Partenaire modifié avec succès');
+      } else {
+        // Création
+        const newPartner = await PartnerService.createPartner({
+          name: partnerForm.name.trim(),
+          logo: partnerForm.logo,
+          category: partnerForm.category,
+          description: partnerForm.description.trim(),
+          website: partnerForm.website.trim(),
+        });
+        setPartners([...partners, newPartner]);
+        Alert.alert('Succès', 'Partenaire créé avec succès');
+      }
+
+      setShowPartnerForm(false);
+      resetPartnerForm();
+    } catch (error) {
+      console.error('Erreur sauvegarde partenaire:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder le partenaire');
+    }
   };
 
   const resetOfferForm = () => {
@@ -923,12 +1132,37 @@ export default function WeCampDashboard() {
           </View>
 
           <View style={styles.formRow}>
-            <Text style={styles.formLabel}>Logo (emoji)</Text>
-            <TextInput
-              style={[styles.formInput, { width: 80, textAlign: 'center', fontSize: 24 }]}
-              value={partnerForm.logo}
-              onChangeText={(text) => setPartnerForm({ ...partnerForm, logo: text })}
-            />
+            <Text style={styles.formLabel}>Logo de l'entreprise</Text>
+            {partnerForm.logo ? (
+              <View style={styles.logoPreviewContainer}>
+                <Image
+                  source={{ uri: partnerForm.logo }}
+                  style={styles.logoPreview}
+                  contentFit="contain"
+                />
+                <TouchableOpacity
+                  style={styles.removeLogoButton}
+                  onPress={removePartnerLogo}
+                >
+                  <Ionicons name="close-circle" size={24} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.logoPickerButton}
+                onPress={pickPartnerLogo}
+                disabled={isUploadingLogo}
+              >
+                {isUploadingLogo ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="cloud-upload-outline" size={32} color={colors.neutral} />
+                    <Text style={styles.logoPickerText}>Cliquez pour uploader</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.formRow}>
@@ -983,10 +1217,7 @@ export default function WeCampDashboard() {
 
           <TouchableOpacity
             style={[styles.primaryButton, { marginTop: spacing.md }]}
-            onPress={() => {
-              Alert.alert('Info', 'Fonctionnalité de création à implémenter avec Firebase Admin');
-              setShowPartnerForm(false);
-            }}
+            onPress={handleSavePartner}
           >
             <Text style={styles.primaryButtonText}>
               {editingPartner ? 'Enregistrer' : 'Créer le partenaire'}
@@ -1162,7 +1393,15 @@ export default function WeCampDashboard() {
                 <View key={partner.id} style={styles.partnerCard}>
                   <View style={styles.partnerHeader}>
                     <View style={styles.partnerLogoContainer}>
-                      <Text style={styles.partnerLogo}>{partner.logo}</Text>
+                      {partner.logo && partner.logo.startsWith('http') ? (
+                        <Image
+                          source={{ uri: partner.logo }}
+                          style={styles.partnerLogoImage}
+                          contentFit="contain"
+                        />
+                      ) : (
+                        <Text style={styles.partnerLogo}>{partner.logo || '🏪'}</Text>
+                      )}
                     </View>
                     <View style={styles.partnerInfo}>
                       <Text style={styles.partnerName}>{partner.name}</Text>
@@ -1177,7 +1416,10 @@ export default function WeCampDashboard() {
                         </Text>
                       </View>
                     </View>
-                    <TouchableOpacity style={styles.partnerEditButton}>
+                    <TouchableOpacity
+                      style={styles.partnerEditButton}
+                      onPress={() => handlePartnerMenu(partner)}
+                    >
                       <Ionicons name="ellipsis-vertical" size={20} color={colors.neutral} />
                     </TouchableOpacity>
                   </View>
@@ -1296,6 +1538,134 @@ export default function WeCampDashboard() {
           </>
         )}
       </ScrollView>
+
+      {/* Unit Detail Modal */}
+      <Modal
+        visible={showUnitModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowUnitModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedUnit && (
+              <>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{selectedUnit.unitName}</Text>
+                  <TouchableOpacity onPress={() => setShowUnitModal(false)}>
+                    <Ionicons name="close" size={24} color={colors.neutral} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[styles.levelBadge, { backgroundColor: `${getLevelColor(getUnitLevel(selectedUnit.totalPoints))}30`, alignSelf: 'flex-start', marginBottom: spacing.md }]}>
+                  <Text style={[styles.levelBadgeText, { color: getLevelColor(getUnitLevel(selectedUnit.totalPoints)) }]}>
+                    Niveau {getUnitLevel(selectedUnit.totalPoints)}
+                  </Text>
+                </View>
+
+                <Text style={styles.modalSubtitle}>{selectedUnit.category}</Text>
+
+                <View style={styles.modalStatsGrid}>
+                  <View style={styles.modalStatItem}>
+                    <Text style={styles.modalStatValue}>{selectedUnit.totalScouts}</Text>
+                    <Text style={styles.modalStatLabel}>Scouts</Text>
+                  </View>
+                  <View style={styles.modalStatItem}>
+                    <Text style={styles.modalStatValue}>{selectedUnit.totalAnimators}</Text>
+                    <Text style={styles.modalStatLabel}>Animateurs</Text>
+                  </View>
+                  <View style={styles.modalStatItem}>
+                    <Text style={[styles.modalStatValue, { color: colors.accent }]}>
+                      {selectedUnit.totalPoints.toLocaleString()}
+                    </Text>
+                    <Text style={styles.modalStatLabel}>Points</Text>
+                  </View>
+                  <View style={styles.modalStatItem}>
+                    <Text style={[styles.modalStatValue, { color: colors.success }]}>
+                      {selectedUnit.totalChallengesCompleted}
+                    </Text>
+                    <Text style={styles.modalStatLabel}>Défis complétés</Text>
+                  </View>
+                </View>
+
+                <View style={styles.modalInfoRow}>
+                  <Ionicons name="people" size={18} color={colors.neutral} />
+                  <Text style={styles.modalInfoText}>
+                    {selectedUnit.totalMembers} membres au total
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.primaryButton, { marginTop: spacing.lg }]}
+                  onPress={() => {
+                    setShowUnitModal(false);
+                    setActiveTab('classement');
+                  }}
+                >
+                  <Text style={styles.primaryButtonText}>Voir dans le classement</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Partner Context Menu Modal */}
+      <Modal
+        visible={!!selectedPartnerForMenu}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelectedPartnerForMenu(null)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedPartnerForMenu(null)}
+        >
+          <View style={styles.menuContent}>
+            {selectedPartnerForMenu && (
+              <>
+                <View style={styles.menuHeader}>
+                  <Text style={styles.menuTitle}>{selectedPartnerForMenu.name}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleEditPartner}
+                >
+                  <Ionicons name="create-outline" size={20} color={colors.primary} />
+                  <Text style={styles.menuItemText}>Modifier</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleViewPartnerOffers}
+                >
+                  <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+                  <Text style={styles.menuItemText}>Voir les offres</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuDivider} />
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleDeletePartner}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  <Text style={[styles.menuItemText, { color: colors.danger }]}>Supprimer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.menuCancelItem]}
+                  onPress={() => setSelectedPartnerForMenu(null)}
+                >
+                  <Text style={styles.menuCancelText}>Annuler</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -2034,7 +2404,8 @@ const styles = StyleSheet.create({
     color: colors.neutral,
   },
   partnerEditButton: {
-    padding: spacing.xs,
+    padding: spacing.md,
+    marginRight: -spacing.sm,
   },
   partnerDescription: {
     fontSize: 13,
@@ -2187,5 +2558,171 @@ const styles = StyleSheet.create({
   },
   discountTypeTextActive: {
     color: '#FFFFFF',
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 20,
+    padding: spacing.lg,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.dark,
+    flex: 1,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.neutral,
+    marginBottom: spacing.lg,
+  },
+  modalStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  modalStatItem: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: colors.mist,
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  modalStatValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.dark,
+    marginBottom: 4,
+  },
+  modalStatLabel: {
+    fontSize: 12,
+    color: colors.neutral,
+  },
+  modalInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mist,
+    padding: spacing.md,
+    borderRadius: 12,
+  },
+  modalInfoText: {
+    fontSize: 14,
+    color: colors.dark,
+  },
+
+  // Partner context menu styles
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  menuContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 320,
+    overflow: 'hidden',
+  },
+  menuHeader: {
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.mist,
+  },
+  menuTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.dark,
+    textAlign: 'center',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: colors.dark,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.mist,
+    marginHorizontal: spacing.lg,
+  },
+  menuCancelItem: {
+    justifyContent: 'center',
+    backgroundColor: colors.mist,
+    marginTop: spacing.xs,
+  },
+  menuCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral,
+    textAlign: 'center',
+  },
+
+  // Partner logo upload styles
+  logoPickerButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.neutralLight,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  logoPickerText: {
+    fontSize: 11,
+    color: colors.neutral,
+    textAlign: 'center',
+  },
+  logoPreviewContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  logoPreview: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.mist,
+  },
+  removeLogoButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: colors.cardBg,
+    borderRadius: 12,
+  },
+  partnerLogoImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
   },
 });

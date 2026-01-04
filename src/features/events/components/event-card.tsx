@@ -125,19 +125,41 @@ export function EventCard({
     return { day, month, time };
   };
 
+  // Calculer le label temporel (DEMAIN, AUJOURD'HUI, etc.)
+  const getTimeLabel = (eventDate: Date): string | null => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+
+    if (eventDay.getTime() === today.getTime()) {
+      return "AUJOURD'HUI";
+    } else if (eventDay.getTime() === tomorrow.getTime()) {
+      return 'DEMAIN';
+    }
+    return null;
+  };
+
   const { day, month, time } = formatDate(date);
+  const timeLabel = getTimeLabel(date);
   const isFull = maxParticipants ? participantCount >= maxParticipants : false;
 
   // Event color based on type
   const eventColor = type === 'activity' ? BrandColors.accent[500] : BrandColors.primary[500];
 
-  // Si on a une image, on utilise un layout différent avec l'image en fond
+  // Si on a une image, on utilise un layout style Netflix
   if (imageUrl) {
+    // Calculer l'heure de fin (approximative: +3h par défaut)
+    const endTime = new Date(date);
+    endTime.setHours(endTime.getHours() + 3);
+    const endTimeStr = endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
     return (
       <TouchableOpacity
         style={[styles.cardWithImage, { borderColor: cardBorder }]}
         onPress={onPress}
-        activeOpacity={0.6}
+        activeOpacity={0.8}
       >
         <ImageBackground
           source={{ uri: imageUrl }}
@@ -145,23 +167,25 @@ export function EventCard({
           imageStyle={styles.imageStyle}
         >
           <LinearGradient
-            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.9)']}
-            locations={[0, 0.5, 1]}
+            colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.7)']}
+            locations={[0, 0.4, 1]}
             style={styles.imageGradient}
           >
-            {/* Header with Type Badge and Action Buttons */}
+            {/* Header: Date à gauche, Badge temporel + Actions à droite */}
             <View style={styles.imageHeader}>
-              <View style={[styles.typeBadge, { backgroundColor: 'rgba(255,255,255,0.95)' }]}>
-                <Text style={styles.typeIcon}>{config.icon}</Text>
-                <Text style={[styles.typeLabel, { color: config.color }]}>
-                  {config.label}
-                </Text>
+              {/* Date Badge - Gauche */}
+              <View style={styles.dateBadgeNetflix}>
+                <Text style={styles.dateBadgeDayNetflix}>{day}</Text>
+                <Text style={styles.dateBadgeMonthNetflix}>{month.toUpperCase()}</Text>
               </View>
+
+              {/* Right side: Time label + Actions */}
               <View style={styles.imageHeaderRight}>
-                <View style={styles.dateBadgeSmall}>
-                  <Text style={styles.dateBadgeDay}>{day}</Text>
-                  <Text style={styles.dateBadgeMonth}>{month.toUpperCase()}</Text>
-                </View>
+                {timeLabel && (
+                  <View style={styles.timeLabelBadge}>
+                    <Text style={styles.timeLabelText}>{timeLabel}</Text>
+                  </View>
+                )}
                 {canEdit && onEdit && (
                   <TouchableOpacity
                     onPress={onEdit}
@@ -183,63 +207,62 @@ export function EventCard({
               </View>
             </View>
 
+            {/* Middle: Type Badge */}
+            <View style={styles.middleSection}>
+              <View style={styles.typeBadgeNetflix}>
+                <Text style={styles.typeIconNetflix}>{config.icon}</Text>
+                <Text style={styles.typeLabelNetflix}>
+                  {config.label}
+                </Text>
+              </View>
+            </View>
+
             {/* Bottom content */}
-            <View style={styles.imageContent}>
-              <Text style={styles.imageTitleText} numberOfLines={2}>
+            <View style={styles.imageContentNetflix}>
+              {/* Title */}
+              <Text style={styles.imageTitleNetflix} numberOfLines={2}>
                 {title}
               </Text>
 
+              {/* Unit Name */}
               {unitName && (
-                <View style={styles.unitBadgeImage}>
-                  <Text style={styles.unitBadgeIcon}>🏕️</Text>
-                  <Text style={styles.unitBadgeTextImage}>{unitName}</Text>
+                <View style={styles.unitBadgeNetflix}>
+                  <Text style={styles.unitIconNetflix}>🏕️</Text>
+                  <Text style={styles.unitTextNetflix}>{unitName}</Text>
                 </View>
               )}
 
-              <View style={styles.imageInfoRow}>
-                <View style={styles.infoChip}>
-                  <Text style={styles.infoChipIcon}>🕐</Text>
-                  <Text style={styles.infoChipText}>{time}</Text>
+              {/* Info Row: Time, Location, Participants, Button */}
+              <View style={styles.infoRowNetflix}>
+                <View style={styles.infoItemNetflix}>
+                  <Text style={styles.infoIconNetflix}>🕐</Text>
+                  <Text style={styles.infoTextNetflix}>{time} - {endTimeStr}</Text>
                 </View>
-                <View style={styles.infoChip}>
-                  <Text style={styles.infoChipIcon}>📍</Text>
-                  <Text style={styles.infoChipText} numberOfLines={1}>{location}</Text>
+                <View style={styles.infoItemNetflix}>
+                  <Text style={styles.infoIconNetflix}>📍</Text>
+                  <Text style={styles.infoTextNetflix} numberOfLines={1}>{location}</Text>
                 </View>
-              </View>
-
-              <View style={styles.imageFooter}>
                 <TouchableOpacity
-                  style={styles.participantsChip}
+                  style={styles.infoItemNetflix}
                   onPress={onViewParticipants}
                   disabled={!onViewParticipants}
                 >
-                  <Text style={styles.infoChipIcon}>👥</Text>
-                  <Text style={styles.infoChipText}>
-                    {participantCount}{maxParticipants ? `/${maxParticipants}` : ''}
-                  </Text>
-                  {isFull && <Text style={styles.fullBadgeSmall}>COMPLET</Text>}
+                  <Text style={styles.infoIconNetflix}>👥</Text>
+                  <Text style={styles.infoTextNetflix}>{participantCount}</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={[
-                    styles.attendanceButtonSmall,
+                    styles.attendanceButtonNetflix,
                     isRegistered
-                      ? { backgroundColor: 'rgba(255,255,255,0.95)' }
+                      ? { backgroundColor: BrandColors.primary[500] }
                       : { backgroundColor: BrandColors.accent[500] },
-                    isFull && !isRegistered && { backgroundColor: 'rgba(255,255,255,0.5)' },
+                    isFull && !isRegistered && { backgroundColor: NeutralColors.gray[400] },
                   ]}
                   onPress={onAttendancePress}
                   disabled={isFull && !isRegistered}
                   activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.attendanceButtonTextSmall,
-                      isRegistered
-                        ? { color: BrandColors.primary[600] }
-                        : { color: '#FFFFFF' },
-                    ]}
-                  >
+                  <Text style={styles.attendanceTextNetflix}>
                     {isRegistered ? '✓ Inscrit' : isFull ? 'Complet' : "S'inscrire"}
                   </Text>
                 </TouchableOpacity>
@@ -374,12 +397,12 @@ export function EventCard({
 }
 
 const styles = StyleSheet.create({
-  // Layout avec image
+  // ========== LAYOUT NETFLIX (avec image) ==========
   cardWithImage: {
     borderRadius: Radius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    height: 320,
+    height: 300,
   },
   imageBackground: {
     width: '100%',
@@ -403,28 +426,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
   },
-  dateBadgeSmall: {
+  // Date badge style Netflix (gauche)
+  dateBadgeNetflix: {
     backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
+    minWidth: 60,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
-  dateBadgeDay: {
-    fontSize: 20,
+  dateBadgeDayNetflix: {
+    fontSize: 28,
     fontWeight: '700',
-    color: BrandColors.primary[600],
+    color: NeutralColors.gray[800],
+    lineHeight: 32,
   },
-  dateBadgeMonth: {
-    fontSize: 10,
+  dateBadgeMonthNetflix: {
+    fontSize: 12,
     fontWeight: '600',
-    color: BrandColors.primary[500],
+    color: NeutralColors.gray[600],
     marginTop: -2,
+  },
+  // Badge temporel (DEMAIN, AUJOURD'HUI)
+  timeLabelBadge: {
+    backgroundColor: BrandColors.accent[500],
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  timeLabelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   actionButtonImage: {
     padding: Spacing.sm,
@@ -435,85 +479,96 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  imageContent: {
-    gap: Spacing.sm,
+  // Section milieu (type badge)
+  middleSection: {
+    alignItems: 'flex-start',
   },
-  imageTitleText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-    lineHeight: 28,
-  },
-  imageInfoRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    flexWrap: 'wrap',
-  },
-  infoChip: {
+  typeBadgeNetflix: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: Radius.md,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  infoChipIcon: {
-    fontSize: 13,
-  },
-  infoChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: NeutralColors.gray[700],
-    maxWidth: 140,
-  },
-  participantsChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: Radius.md,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  fullBadgeSmall: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FF3B30',
-    marginLeft: 4,
-  },
-  imageFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-  },
-  attendanceButtonSmall: {
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
     borderRadius: Radius.lg,
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
-  attendanceButtonTextSmall: {
+  typeIconNetflix: {
+    fontSize: 16,
+  },
+  typeLabelNetflix: {
     fontSize: 14,
     fontWeight: '600',
+    color: NeutralColors.gray[800],
+  },
+  // Contenu bas Netflix
+  imageContentNetflix: {
+    gap: Spacing.sm,
+  },
+  imageTitleNetflix: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 30,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  unitBadgeNetflix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  unitIconNetflix: {
+    fontSize: 14,
+  },
+  unitTextNetflix: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.9)',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  // Info row Netflix (heure, lieu, participants, bouton)
+  infoRowNetflix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flexWrap: 'wrap',
+    marginTop: Spacing.xs,
+  },
+  infoItemNetflix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  infoIconNetflix: {
+    fontSize: 14,
+  },
+  infoTextNetflix: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.9)',
+    maxWidth: 120,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  attendanceButtonNetflix: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
+    marginLeft: 'auto',
+  },
+  attendanceTextNetflix: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   // Layout par défaut sans image
   card: {
@@ -594,26 +649,6 @@ const styles = StyleSheet.create({
   unitBadgeText: {
     fontSize: 12,
     fontWeight: '500',
-  },
-  unitBadgeImage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.md,
-    gap: 4,
-    alignSelf: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  unitBadgeTextImage: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: NeutralColors.gray[700],
   },
   typeIcon: {
     fontSize: 12,

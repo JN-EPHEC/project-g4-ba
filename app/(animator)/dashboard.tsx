@@ -38,13 +38,6 @@ interface LeaderboardUser {
   avatarUrl?: string;
 }
 
-interface ActiveChallenge {
-  id: string;
-  title: string;
-  emoji: string;
-  progress: number;
-}
-
 export default function AnimatorDashboardScreen() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const {
@@ -60,7 +53,6 @@ export default function AnimatorDashboardScreen() {
   const [upcomingEvents, setUpcomingEvents] = useState<(Event & { attendeesCount?: number })[]>([]);
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [topScouts, setTopScouts] = useState<LeaderboardUser[]>([]);
-  const [activeChallenges, setActiveChallenges] = useState<ActiveChallenge[]>([]);
   const [unitBalance, setUnitBalance] = useState(0);
   const [featuredOffers, setFeaturedOffers] = useState<(PartnerOffer & { partner: Partner })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -154,20 +146,13 @@ export default function AnimatorDashboardScreen() {
         setEventsCount(0);
       }
 
-      // Charger les défis actifs
+      // Charger le nombre de défis actifs
       try {
         const allChallenges = await ChallengeService.getActiveChallenges();
         const unitChallenges = animator?.unitId
           ? allChallenges.filter(c => c.unitId === animator.unitId)
           : allChallenges;
         setChallengesCount(unitChallenges.length);
-
-        setActiveChallenges(unitChallenges.slice(0, 2).map(c => ({
-          id: c.id,
-          title: c.title,
-          emoji: c.emoji || '🎯',
-          progress: Math.floor(Math.random() * 50) + 20,
-        })));
       } catch (error) {
         setChallengesCount(0);
       }
@@ -442,30 +427,8 @@ export default function AnimatorDashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.challengesRow}>
-            {/* Active Challenges */}
-            <View style={[styles.challengesCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-              <ThemedText style={[styles.cardSubtitle, { color: textSecondary }]}>EN COURS</ThemedText>
-              {activeChallenges.length === 0 ? (
-                <ThemedText style={[styles.emptySmall, { color: textSecondary }]}>Aucun défi actif</ThemedText>
-              ) : (
-                activeChallenges.map((challenge) => (
-                  <View key={challenge.id} style={styles.challengeItem}>
-                    <ThemedText style={styles.challengeEmoji}>{challenge.emoji}</ThemedText>
-                    <View style={styles.challengeInfo}>
-                      <ThemedText style={[styles.challengeTitle, { color: textColor }]} numberOfLines={1}>{challenge.title}</ThemedText>
-                      <View style={[styles.progressBar, { backgroundColor: cardBorder }]}>
-                        <View style={[styles.progressFill, { width: `${challenge.progress}%`, backgroundColor: BrandColors.primary[500] }]} />
-                      </View>
-                    </View>
-                    <ThemedText style={[styles.challengeProgress, { color: textSecondary }]}>{challenge.progress}%</ThemedText>
-                  </View>
-                ))
-              )}
-            </View>
-
-            {/* Top 3 */}
-            <View style={[styles.leaderboardCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+          {/* Top 3 Leaderboard */}
+          <View style={[styles.leaderboardCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
               <ThemedText style={[styles.cardSubtitle, { color: textSecondary }]}>TOP 3 🏆</ThemedText>
               {topScouts.length === 0 ? (
                 <ThemedText style={[styles.emptySmall, { color: textSecondary }]}>Pas de classement</ThemedText>
@@ -481,7 +444,6 @@ export default function AnimatorDashboardScreen() {
                   </View>
                 ))
               )}
-            </View>
           </View>
         </Animated.View>
 
@@ -852,19 +814,10 @@ const styles = StyleSheet.create({
   messageTime: { fontSize: 12 },
   emptyText: { textAlign: 'center', padding: Spacing.xl },
 
-  // Challenges & Leaderboard
-  challengesRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, gap: Spacing.md, direction: 'ltr' },
-  challengesCard: { flex: 1, padding: Spacing.md, borderRadius: Radius.xl, borderWidth: 1 },
-  leaderboardCard: { flex: 1, padding: Spacing.md, borderRadius: Radius.xl, borderWidth: 1 },
+  // Leaderboard
+  leaderboardCard: { marginHorizontal: Spacing.xl, padding: Spacing.lg, borderRadius: Radius.xl, borderWidth: 1 },
   cardSubtitle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: Spacing.md },
   emptySmall: { fontSize: 12, textAlign: 'center', paddingVertical: Spacing.lg },
-  challengeItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.sm, direction: 'ltr' },
-  challengeEmoji: { fontSize: 24 },
-  challengeInfo: { flex: 1 },
-  challengeTitle: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
-  progressBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 3 },
-  challengeProgress: { fontSize: 12, fontWeight: '600' },
   leaderboardItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm, gap: Spacing.sm, direction: 'ltr' },
   leaderboardRank: { fontSize: 14, fontWeight: '700', width: 20 },
   leaderboardEmoji: { fontSize: 20 },

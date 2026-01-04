@@ -167,6 +167,19 @@ export class StorageService {
   }
 
   /**
+   * Upload un logo de partenaire
+   */
+  static async uploadPartnerLogo(
+    localUri: string,
+    partnerId: string
+  ): Promise<string> {
+    const path = `partners/${partnerId}/logo_${Date.now()}.jpg`;
+    return this.uploadImage(localUri, path, {
+      contentType: 'image/jpeg',
+    });
+  }
+
+  /**
    * Upload une image de totem générée par IA (depuis un Blob)
    */
   static async uploadTotemImage(

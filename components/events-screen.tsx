@@ -176,7 +176,8 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false, c
       user.id,
       unitId,
       false,
-      eventData.maxParticipants
+      eventData.maxParticipants,
+      eventData.imageUrl
     );
 
     await refetch();

@@ -8,12 +8,17 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { EventType } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { BrandColors } from '@/constants/theme';
+import { BrandColors, NeutralColors } from '@/constants/theme';
 import { Spacing, Radius } from '@/constants/design-tokens';
+import { StorageService } from '@/src/shared/services/storage-service';
+import { useAuth } from '@/context/auth-context';
 
 interface EventFormProps {
   visible: boolean;
@@ -29,6 +34,7 @@ export interface EventFormData {
   startDate: Date;
   endDate: Date;
   maxParticipants?: number;
+  imageUrl?: string;
 }
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -107,6 +113,7 @@ async function searchAddresses(query: string): Promise<NominatimResult[]> {
 
 export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
   const defaults = getDefaultDates();
+  const { user } = useAuth();
 
   // Theme colors
   const backgroundColor = useThemeColor({}, 'background');
@@ -127,6 +134,8 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
   const [endDateStr, setEndDateStr] = useState(defaults.endDate);
   const [endTimeStr, setEndTimeStr] = useState(defaults.endTime);
   const [maxParticipants, setMaxParticipants] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -146,7 +155,54 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
     setEndDateStr(newDefaults.endDate);
     setEndTimeStr(newDefaults.endTime);
     setMaxParticipants('');
+    setImageUrl('');
     setError('');
+  };
+
+  // Sélection d'image
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erreur sélection image:', error);
+      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
+    }
+  };
+
+  // Upload d'image vers Firebase Storage
+  const uploadImage = async (uri: string) => {
+    if (!user?.id) return;
+
+    try {
+      setIsUploadingImage(true);
+      const url = await StorageService.uploadEventImage(uri, user.id);
+      setImageUrl(url);
+    } catch (error) {
+      console.error('Erreur upload image:', error);
+      Alert.alert('Erreur', 'Impossible d\'uploader l\'image');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Supprimer l'image
+  const removeImage = () => {
+    setImageUrl('');
   };
 
   // Recherche d'adresses avec debounce
@@ -253,6 +309,7 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
         startDate,
         endDate,
         maxParticipants: maxParticipants ? parseInt(maxParticipants, 10) : undefined,
+        imageUrl: imageUrl || undefined,
       });
       handleClose();
     } catch (err) {
@@ -475,6 +532,43 @@ export function EventForm({ visible, onClose, onSubmit }: EventFormProps) {
               keyboardType="number-pad"
             />
           </View>
+
+          {/* Image de fond */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Image de fond (optionnel)</Text>
+            {imageUrl ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.imagePreview}
+                  contentFit="cover"
+                />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={removeImage}
+                >
+                  <Ionicons name="close-circle" size={28} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.imagePicker, { backgroundColor: cardColor, borderColor: cardBorder }]}
+                onPress={pickImage}
+                disabled={isUploadingImage}
+              >
+                {isUploadingImage ? (
+                  <ActivityIndicator size="large" color={BrandColors.primary[500]} />
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={40} color={textSecondary} />
+                    <Text style={[styles.imagePickerText, { color: textSecondary }]}>
+                      Appuyer pour ajouter une photo
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
         </ScrollView>
       </View>
     </Modal>
@@ -629,5 +723,36 @@ const styles = StyleSheet.create({
   },
   numberInput: {
     width: 150,
+  },
+  // Styles pour l'upload d'image
+  imagePicker: {
+    height: 150,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  imagePickerText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  imagePreviewContainer: {
+    position: 'relative',
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: Radius.lg,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 14,
   },
 });
