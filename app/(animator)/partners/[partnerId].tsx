@@ -9,8 +9,8 @@ import {
   ActivityIndicator,
   Text,
   Linking,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/auth-context';
@@ -86,6 +86,15 @@ export default function PartnerDetailScreen() {
     return { bg: colors.dangerLight, color: colors.danger };
   };
 
+  // Helper pour détecter si c'est une URL d'image
+  const isImageUrl = (str: string | undefined): boolean => {
+    if (!str) return false;
+    return str.startsWith('http://') ||
+           str.startsWith('https://') ||
+           str.startsWith('data:image') ||
+           str.includes('firebasestorage.googleapis.com');
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -133,8 +142,8 @@ export default function PartnerDetailScreen() {
         {/* Partner Hero */}
         <View style={styles.heroCard}>
           <View style={styles.heroLogo}>
-            {partner.logo?.startsWith('http') ? (
-              <Image source={{ uri: partner.logo }} style={styles.heroLogoImage} />
+            {isImageUrl(partner.logo) ? (
+              <Image source={{ uri: partner.logo }} style={styles.heroLogoImage} contentFit="cover" />
             ) : (
               <Text style={styles.heroLogoText}>{partner.logo}</Text>
             )}

@@ -35,12 +35,15 @@ export interface PostComposerProps {
   placeholder?: string;
   /** Liste des utilisateurs mentionnables */
   mentionableUsers?: MentionableUser[];
+  /** Mode compact pour style chat */
+  compact?: boolean;
 }
 
 export function PostComposer({
   onSubmit,
   placeholder = 'Quoi de neuf dans votre unité ?',
   mentionableUsers = [],
+  compact = false,
 }: PostComposerProps) {
   const [content, setContent] = useState('');
   const [attachmentUri, setAttachmentUri] = useState<string | null>(null);
@@ -157,6 +160,97 @@ export function PostComposer({
     inputRef.current?.focus();
   };
 
+  // Mode compact (style chat)
+  if (compact) {
+    return (
+      <View style={styles.compactContainer}>
+        {/* Liste des mentions (au-dessus de l'input en mode compact) */}
+        {showMentions && filteredUsers.length > 0 && (
+          <View style={[styles.mentionsListCompact, { backgroundColor: inputBg, borderColor: cardBorder }]}>
+            <ScrollView
+              style={styles.mentionsScroll}
+              keyboardShouldPersistTaps="always"
+              nestedScrollEnabled
+            >
+              {filteredUsers.slice(0, 5).map((user) => (
+                <TouchableOpacity
+                  key={user.id}
+                  style={[styles.mentionItem, { borderBottomColor: cardBorder }]}
+                  onPress={() => handleSelectMention(user)}
+                >
+                  <View style={[styles.mentionAvatar, { backgroundColor: BrandColors.primary[500] }]}>
+                    <ThemedText style={styles.mentionAvatarText}>
+                      {getUserTotemEmoji(user) || user.firstName.charAt(0).toUpperCase()}
+                    </ThemedText>
+                  </View>
+                  <ThemedText style={[styles.mentionName, { color: textColor }]}>
+                    {getDisplayName(user)}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Aperçu de l'image en mode compact */}
+        {attachmentUri && (
+          <View style={styles.attachmentPreviewCompact}>
+            <Image
+              source={{ uri: attachmentUri }}
+              style={styles.previewImageCompact}
+              contentFit="cover"
+            />
+            <TouchableOpacity
+              style={styles.removeButtonCompact}
+              onPress={handleRemoveAttachment}
+            >
+              <Ionicons name="close-circle" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Input row */}
+        <View style={[styles.compactInputRow, { backgroundColor: '#F5F0E8' }]}>
+          <TouchableOpacity
+            style={styles.compactActionButton}
+            onPress={handlePickImage}
+            disabled={isSubmitting}
+          >
+            <Ionicons name="attach" size={22} color={textSecondary} />
+          </TouchableOpacity>
+
+          <TextInput
+            ref={inputRef}
+            style={[styles.compactInput, { color: textColor }]}
+            placeholder={placeholder}
+            placeholderTextColor={textSecondary}
+            value={content}
+            onChangeText={handleTextChange}
+            multiline
+            maxLength={MAX_CHARACTERS + 50}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.compactSubmitButton,
+              { backgroundColor: BrandColors.accent[500] },
+              !canSubmit && styles.submitButtonDisabled
+            ]}
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send" size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Mode normal (card)
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -272,6 +366,61 @@ export function PostComposer({
 }
 
 const styles = StyleSheet.create({
+  // Mode compact (chat)
+  compactContainer: {
+    width: '100%',
+  },
+  compactInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  compactInput: {
+    flex: 1,
+    fontSize: 15,
+    minHeight: 36,
+    maxHeight: 100,
+    paddingVertical: Spacing.xs,
+  },
+  compactActionButton: {
+    padding: Spacing.sm,
+  },
+  compactSubmitButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mentionsListCompact: {
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.sm,
+    maxHeight: 200,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  attachmentPreviewCompact: {
+    marginBottom: Spacing.sm,
+    position: 'relative',
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  previewImageCompact: {
+    width: 80,
+    height: 80,
+    borderRadius: Radius.lg,
+  },
+  removeButtonCompact: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: Radius.full,
+  },
+  // Mode normal (card)
   card: {
     borderWidth: 1,
     marginBottom: Spacing.lg,

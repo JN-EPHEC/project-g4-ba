@@ -32,7 +32,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<AnyUser>;
-  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string, dateOfBirth?: Date, totemData?: TotemData) => Promise<AnyUser>;
+  register: (email: string, password: string, firstName: string, lastName: string, role: UserRole, unitId?: string, dateOfBirth?: Date, totemData?: TotemData, sectionId?: string) => Promise<AnyUser>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<AnyUser>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -139,7 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: UserRole,
     unitId?: string,
     dateOfBirth?: Date,
-    totemData?: TotemData
+    totemData?: TotemData,
+    sectionId?: string
   ) => {
     try {
       setIsLoading(true);
@@ -156,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Créer le document utilisateur dans Firestore
       const additionalData: Record<string, any> = {};
       if (unitId) additionalData.unitId = unitId;
+      if (sectionId) additionalData.sectionId = sectionId;
       if (dateOfBirth) additionalData.dateOfBirth = dateOfBirth;
 
       // Ajouter les données totem si présentes

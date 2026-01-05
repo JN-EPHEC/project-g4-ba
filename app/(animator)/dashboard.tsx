@@ -18,7 +18,8 @@ import { EventAttendanceService } from '@/services/event-attendance-service';
 import { UnitService } from '@/services/unit-service';
 import { LeaderboardService } from '@/services/leaderboard-service';
 import { ChannelService } from '@/src/shared/services/channel-service';
-import { Animator, Unit, UserRole, Event } from '@/types';
+import { Animator, Unit, UserRole, Event, Section } from '@/types';
+import { SectionService } from '@/services/section-service';
 import { BrandColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/design-tokens';
 import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
@@ -58,6 +59,7 @@ export default function AnimatorDashboardScreen() {
   const [featuredOffers, setFeaturedOffers] = useState<(PartnerOffer & { partner: Partner })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [section, setSection] = useState<Section | null>(null);
 
   // Vérification de sécurité
   useEffect(() => {
@@ -80,6 +82,21 @@ export default function AnimatorDashboardScreen() {
   useEffect(() => {
     loadDashboardData();
   }, [animator?.unitId]);
+
+  // Charger les données de la section
+  useEffect(() => {
+    const loadSection = async () => {
+      if (animator?.sectionId) {
+        try {
+          const sectionData = await SectionService.getSectionById(animator.sectionId);
+          setSection(sectionData);
+        } catch (error) {
+          console.error('Erreur chargement section:', error);
+        }
+      }
+    };
+    loadSection();
+  }, [animator?.sectionId]);
 
   const loadDashboardData = async () => {
     try {
@@ -247,7 +264,21 @@ export default function AnimatorDashboardScreen() {
               <ThemedText style={styles.greeting}>
                 Bonjour {getDisplayName(animator, { firstNameOnly: true })} 👋
               </ThemedText>
-              {unit && (
+              {section && (
+                <TouchableOpacity
+                  style={styles.sectionBadge}
+                  onPress={() => router.push('/(animator)/unit-overview')}
+                  activeOpacity={0.7}
+                >
+                  {section.logoUrl ? (
+                    <Image source={{ uri: section.logoUrl }} style={styles.sectionBadgeLogo} />
+                  ) : null}
+                  <ThemedText style={styles.sectionBadgeText}>
+                    {section.name}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+              {unit && !section && (
                 <>
                   <ThemedText style={styles.unitName}>{unit.name}</ThemedText>
                   {unit.scoutGroup?.name && (
@@ -277,27 +308,9 @@ export default function AnimatorDashboardScreen() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Alerts Section */}
-        <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-          {missingHealthRecordsCount > 0 && (
-            <TouchableOpacity
-              style={[styles.alertCard, { backgroundColor: '#FEF2F2' }]}
-              onPress={() => router.push('/(animator)/scouts')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.alertIcon, { backgroundColor: '#FEE2E2' }]}>
-                <ThemedText style={styles.alertEmoji}>🏥</ThemedText>
-              </View>
-              <ThemedText style={[styles.alertText, { color: '#DC2626' }]}>
-                {missingHealthRecordsCount} {missingHealthRecordsCount === 1 ? 'fiche santé manquante' : 'fiches santé manquantes'}
-              </ThemedText>
-              <View style={[styles.alertButton, { backgroundColor: '#FECACA' }]}>
-                <ThemedText style={[styles.alertButtonText, { color: '#DC2626' }]}>Voir</ThemedText>
-              </View>
-            </TouchableOpacity>
-          )}
-
-          {pendingAuthorizationsCount > 0 && (
+        {/* Alerts Section - Only pending authorizations (health records are in notifications) */}
+        {pendingAuthorizationsCount > 0 && (
+          <Animated.View entering={FadeInUp.duration(400).delay(100)}>
             <TouchableOpacity
               style={[styles.alertCard, { backgroundColor: '#FFFBEB' }]}
               onPress={() => router.push('/(animator)/documents/authorizations')}
@@ -313,8 +326,8 @@ export default function AnimatorDashboardScreen() {
                 <ThemedText style={[styles.alertButtonText, { color: '#D97706' }]}>Voir</ThemedText>
               </View>
             </TouchableOpacity>
-          )}
-        </Animated.View>
+          </Animated.View>
+        )}
 
         {/* Quick Actions */}
         <Animated.View entering={FadeInUp.duration(400).delay(150)}>
@@ -710,6 +723,9 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 15, color: 'rgba(255,255,255,0.8)', marginBottom: Spacing.xs, writingDirection: 'ltr' },
   unitName: { fontSize: 26, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.5, writingDirection: 'ltr', marginTop: 2 },
   unitGroup: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2, writingDirection: 'ltr' },
+  sectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  sectionBadgeLogo: { width: 24, height: 24, borderRadius: 6 },
+  sectionBadgeText: { fontSize: 20, fontWeight: '600', color: '#FFFFFF' },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, direction: 'ltr' },
   notificationButton: {
     width: 44, height: 44, borderRadius: 22,

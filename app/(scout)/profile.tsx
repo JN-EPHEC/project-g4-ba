@@ -13,14 +13,13 @@ import { Scout } from '@/types';
 import { RankProgressBar } from '@/components/rank-progress-bar';
 import { TOTEM_ANIMALS } from '@/components/totem-selector';
 import { BrandColors } from '@/constants/theme';
-import { Radius, Spacing } from '@/constants/design-tokens';
+import { Radius } from '@/constants/design-tokens';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const scout = user as Scout;
   const iconColor = useThemeColor({}, 'icon');
   const borderColor = useThemeColor({}, 'border');
-  const backgroundColor = useThemeColor({}, 'background');
   const [themeExpanded, setThemeExpanded] = useState(false);
 
   const handleLogout = () => {
@@ -135,6 +134,7 @@ export default function ProfileScreen() {
               <ThemedText style={styles.infoLabel}>Rôle</ThemedText>
               <ThemedText style={styles.infoValue}>Scout</ThemedText>
             </View>
+
             <View style={[styles.infoRow, { borderBottomColor: borderColor }]}>
               <ThemedText style={styles.infoLabel}>Points</ThemedText>
               <ThemedText style={styles.infoValue}>{scout?.points || 0}</ThemedText>

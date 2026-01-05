@@ -9,7 +9,7 @@ import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/auth-context';
-import { Scout, UserRole, HealthRecord } from '@/types';
+import { Scout, UserRole, HealthRecord, Section } from '@/types';
 import { useEvents } from '@/src/features/events/hooks/use-events';
 import { useChallenges } from '@/src/features/challenges/hooks/use-challenges';
 import { useAllChallengeProgress } from '@/src/features/challenges/hooks/use-all-challenge-progress';
@@ -18,6 +18,7 @@ import { LeaderboardService, LeaderboardEntry } from '@/services/leaderboard-ser
 import { ChannelService } from '@/src/shared/services/channel-service';
 import { UserService } from '@/services/user-service';
 import { HealthService } from '@/services/health-service';
+import { SectionService } from '@/services/section-service';
 import { ChallengeSubmissionService } from '@/services/challenge-submission-service';
 import { ChallengeService } from '@/services/challenge-service';
 import { ChallengeStatus } from '@/types';
@@ -70,6 +71,9 @@ export default function ScoutDashboardScreen() {
   // State pour la fiche santé
   const [healthRecord, setHealthRecord] = useState<HealthRecord | null>(null);
   const [healthRecordLoading, setHealthRecordLoading] = useState(true);
+
+  // State pour la section
+  const [section, setSection] = useState<Section | null>(null);
 
   // Filtrer les nouveautés non vues
   const lastNewsViewedAt = scout?.lastNewsViewedAt || new Date(0);
@@ -142,6 +146,21 @@ export default function ScoutDashboardScreen() {
       loadNewMembers();
     }
   }, [scout?.unitId, scout?.id]);
+
+  // Charger les données de la section
+  useEffect(() => {
+    const loadSection = async () => {
+      if (scout?.sectionId) {
+        try {
+          const sectionData = await SectionService.getSectionById(scout.sectionId);
+          setSection(sectionData);
+        } catch (error) {
+          console.error('Erreur chargement section:', error);
+        }
+      }
+    };
+    loadSection();
+  }, [scout?.sectionId]);
 
   // Charger les défis validés récemment
   useEffect(() => {
@@ -362,6 +381,20 @@ export default function ScoutDashboardScreen() {
               <ThemedText style={styles.headerTotem}>
                 {scout?.totemAnimal ? `${getUserTotemEmoji(scout) || ''} ${scout.totemAnimal}`.trim() : getDisplayName(scout)}
               </ThemedText>
+              {section && (
+                <TouchableOpacity
+                  style={styles.sectionBadge}
+                  onPress={() => router.push('/(scout)/section')}
+                  activeOpacity={0.7}
+                >
+                  {section.logoUrl ? (
+                    <Image source={{ uri: section.logoUrl }} style={styles.sectionBadgeLogo} />
+                  ) : null}
+                  <ThemedText style={styles.sectionBadgeText}>
+                    {section.name}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
               <View style={styles.headerBadges}>
                 <View style={styles.levelBadge}>
                   <ThemedText style={styles.levelBadgeText}>
@@ -995,6 +1028,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.9)',
+  },
+  sectionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  sectionBadgeLogo: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+  },
+  sectionBadgeText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.85)',
   },
   notificationButton: {
     width: 44,

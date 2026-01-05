@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, Platform, Image, Text } from 'react-native';
+import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, Platform, Text } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
@@ -241,6 +242,15 @@ export default function AnimatorChallengesScreen() {
       default:
         return '🏪';
     }
+  };
+
+  // Helper pour détecter si c'est une URL d'image
+  const isImageUrl = (str: string | undefined): boolean => {
+    if (!str) return false;
+    return str.startsWith('http://') ||
+           str.startsWith('https://') ||
+           str.startsWith('data:image') ||
+           str.includes('firebasestorage.googleapis.com');
   };
 
   const formatDiscount = (offer: PartnerOffer) => {
@@ -617,8 +627,8 @@ export default function AnimatorChallengesScreen() {
                       onPress={() => router.push(`/(animator)/partners/offer/${offer.id}`)}
                     >
                       <View style={styles.offerHeader}>
-                        {offer.partner.logo?.startsWith('http') ? (
-                          <Image source={{ uri: offer.partner.logo }} style={styles.offerLogoImage} />
+                        {isImageUrl(offer.partner.logo) ? (
+                          <Image source={{ uri: offer.partner.logo }} style={styles.offerLogoImage} contentFit="cover" />
                         ) : (
                           <Text style={styles.offerLogo}>{offer.partner.logo}</Text>
                         )}
@@ -666,8 +676,8 @@ export default function AnimatorChallengesScreen() {
                       onPress={() => router.push(`/(animator)/partners/${partner.id}`)}
                     >
                       <View style={styles.partnerLogo}>
-                        {partner.logo?.startsWith('http') ? (
-                          <Image source={{ uri: partner.logo }} style={styles.partnerLogoImage} />
+                        {isImageUrl(partner.logo) ? (
+                          <Image source={{ uri: partner.logo }} style={styles.partnerLogoImage} contentFit="cover" />
                         ) : (
                           <Text style={styles.partnerLogoText}>{partner.logo}</Text>
                         )}

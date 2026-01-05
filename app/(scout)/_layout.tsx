@@ -151,6 +151,12 @@ export default function ScoutLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="section"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

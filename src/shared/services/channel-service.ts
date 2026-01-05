@@ -20,6 +20,7 @@ import {
   Channel,
   ChannelMessage,
   MessageComment,
+  MessageReaction,
   ChannelType,
   DEFAULT_CHANNELS,
   DEFAULT_CHANNEL_PERMISSIONS,
@@ -529,6 +530,75 @@ export class ChannelService {
       });
       return true;
     }
+  }
+
+  /**
+   * Ajouter ou retirer une réaction emoji sur un message
+   * @returns Les nouvelles réactions du message
+   */
+  static async toggleReaction(
+    messageId: string,
+    userId: string,
+    emoji: string
+  ): Promise<MessageReaction[]> {
+    const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+    const messageDoc = await getDoc(messageRef);
+
+    if (!messageDoc.exists()) {
+      throw new Error('Message non trouvé');
+    }
+
+    const data = messageDoc.data();
+    const reactions: MessageReaction[] = data.reactions || [];
+
+    // Trouver si cette réaction existe déjà
+    const existingReactionIndex = reactions.findIndex((r) => r.emoji === emoji);
+
+    if (existingReactionIndex !== -1) {
+      const existingReaction = reactions[existingReactionIndex];
+      const hasUserReacted = existingReaction.userIds.includes(userId);
+
+      if (hasUserReacted) {
+        // Retirer la réaction de l'utilisateur
+        existingReaction.userIds = existingReaction.userIds.filter((id) => id !== userId);
+        existingReaction.count--;
+
+        // Si plus personne n'a cette réaction, la supprimer
+        if (existingReaction.count === 0) {
+          reactions.splice(existingReactionIndex, 1);
+        }
+      } else {
+        // Ajouter l'utilisateur à cette réaction
+        existingReaction.userIds.push(userId);
+        existingReaction.count++;
+      }
+    } else {
+      // Créer une nouvelle réaction
+      reactions.push({
+        emoji,
+        userIds: [userId],
+        count: 1,
+      });
+    }
+
+    // Mettre à jour Firestore
+    await updateDoc(messageRef, { reactions });
+
+    return reactions;
+  }
+
+  /**
+   * Obtenir les réactions d'un message
+   */
+  static async getReactions(messageId: string): Promise<MessageReaction[]> {
+    const messageRef = doc(db, this.MESSAGES_COLLECTION, messageId);
+    const messageDoc = await getDoc(messageRef);
+
+    if (!messageDoc.exists()) {
+      return [];
+    }
+
+    return messageDoc.data().reactions || [];
   }
 
   /**

@@ -5,13 +5,20 @@ import {
   View,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { PostCard, PostComposer, ChannelList, type PostAuthor } from '@/components/ui';
+import { ChannelList, PostCard, type PostAuthor } from '@/components/ui';
+import { ChatBubble, type ChatBubbleAuthor } from '@/components/ui/chat-bubble';
+import { DateSeparator } from '@/components/ui/date-separator';
+import { ChatHeader } from '@/components/ui/chat-header';
+import { PostComposer } from '@/components/ui/post-composer';
+import { ChannelType } from '@/src/shared/types/channel';
 import type { MentionableUser } from '@/components/ui/post-composer';
 import { ChannelService } from '@/src/shared/services/channel-service';
 import { StorageService } from '@/src/shared/services/storage-service';
@@ -20,7 +27,7 @@ import { UnitService } from '@/services/unit-service';
 import type { Channel, ChannelMessage } from '@/src/shared/types/channel';
 import type { AnyUser } from '@/types';
 import { UserRole } from '@/types';
-import { BrandColors, NeutralColors } from '@/constants/theme';
+import { BrandColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Radius, Spacing } from '@/constants/design-tokens';
 
@@ -28,6 +35,33 @@ interface MessagesScreenProps {
   user: AnyUser;
   unitId: string;
   userRole: UserRole;
+}
+
+interface MessageGroup {
+  date: Date;
+  messages: ChannelMessage[];
+}
+
+// Grouper les messages par date
+function groupMessagesByDate(messages: ChannelMessage[]): MessageGroup[] {
+  const groups: MessageGroup[] = [];
+  let currentDateStr = '';
+
+  // Messages sont ordonnés du plus récent au plus ancien, on inverse pour l'affichage
+  const sortedMessages = [...messages].reverse();
+
+  for (const msg of sortedMessages) {
+    const msgDate = new Date(msg.createdAt);
+    const dateStr = msgDate.toDateString();
+
+    if (dateStr !== currentDateStr) {
+      groups.push({ date: msgDate, messages: [] });
+      currentDateStr = dateStr;
+    }
+    groups[groups.length - 1].messages.push(msg);
+  }
+
+  return groups;
 }
 
 export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) {
@@ -40,7 +74,6 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  // Compteur pour forcer le re-rendu de la liste
   const [listKey, setListKey] = useState(0);
 
   // Theme colors
@@ -58,7 +91,7 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       console.log('[Messages] Chargement des membres pour mentions...');
       const members = await UnitService.getUnitMembers(unitId);
       const mentionable: MentionableUser[] = members
-        .filter((member) => member.id !== user.id) // Exclure l'utilisateur actuel
+        .filter((member) => member.id !== user.id)
         .map((member) => ({
           id: member.id,
           firstName: member.firstName,
@@ -84,20 +117,17 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
     console.log('[Messages] Chargement des canaux pour unitId:', unitId, 'role:', userRole);
 
     try {
-      // S'assurer que les canaux par défaut existent (uniquement pour les animateurs)
       if (userRole === UserRole.ANIMATOR) {
         console.log('[Messages] Création/vérification des canaux par défaut...');
         await ChannelService.ensureDefaultChannels(unitId, user.id);
         console.log('[Messages] Canaux par défaut OK');
       }
 
-      // Récupérer les canaux accessibles pour ce rôle
       console.log('[Messages] Récupération des canaux accessibles...');
       const accessibleChannels = await ChannelService.getAccessibleChannels(unitId, userRole);
       console.log('[Messages] Canaux reçus:', accessibleChannels.length);
       setChannels(accessibleChannels);
 
-      // Sélectionner le premier canal par défaut
       if (accessibleChannels.length > 0 && !selectedChannel) {
         setSelectedChannel(accessibleChannels[0]);
       }
@@ -118,11 +148,9 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       const fetchedMessages = await ChannelService.getMessages(selectedChannel.id);
       setMessages(fetchedMessages);
 
-      // Charger les auteurs des messages
       const authorIds = [...new Set(fetchedMessages.map((m) => m.authorId))];
       const authorsMap: Record<string, PostAuthor> = { ...authors };
 
-      // Toujours ajouter l'utilisateur courant à la map des auteurs
       if (!authorsMap[user.id]) {
         authorsMap[user.id] = {
           id: user.id,
@@ -178,6 +206,15 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
     }
   }, [selectedChannel?.id]);
 
+  // Auto-scroll vers le bas quand nouveau message
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadMessages();
@@ -212,7 +249,6 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       attachment
     );
 
-    // Ajouter l'auteur s'il n'existe pas (faire avant d'ajouter le message)
     if (!authors[user.id]) {
       setAuthors((prev) => ({
         ...prev,
@@ -227,15 +263,13 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       }));
     }
 
-    // Ajouter le nouveau message au début de la liste (plus récent en premier)
+    // Ajouter le nouveau message au début de la liste
     setMessages((prev) => [newMessage, ...prev]);
-
-    // Forcer le re-rendu de la liste pour que React recalcule l'ordre
     setListKey((prev) => prev + 1);
 
-    // Scroller vers le haut après l'ajout du message
+    // Scroller vers le bas après l'ajout
     setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
 
@@ -243,13 +277,11 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
     ? ChannelService.canWrite(selectedChannel, userRole)
     : false;
 
-  // Les animateurs peuvent supprimer les messages
   const canDeleteMessages = userRole === UserRole.ANIMATOR;
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
       await ChannelService.deleteMessage(messageId);
-      // Retirer le message de la liste locale
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
       console.log('[Messages] Message supprimé:', messageId);
     } catch (error) {
@@ -257,6 +289,26 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
       alert('Erreur lors de la suppression du message');
     }
   };
+
+  // Convertir PostAuthor en ChatBubbleAuthor
+  const toChatBubbleAuthor = (author?: PostAuthor): ChatBubbleAuthor | undefined => {
+    if (!author) return undefined;
+    return {
+      id: author.id,
+      firstName: author.firstName,
+      lastName: author.lastName,
+      profilePicture: author.profilePicture,
+      totemAnimal: author.totemAnimal,
+      totemEmoji: author.totemEmoji,
+      role: author.role,
+    };
+  };
+
+  // Grouper les messages par date
+  const messageGroups = groupMessagesByDate(messages);
+
+  // Déterminer si on utilise le style chat (uniquement pour le canal Général)
+  const isChatStyle = selectedChannel?.type === ChannelType.GENERAL;
 
   if (isLoading) {
     return (
@@ -305,97 +357,107 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView
-        ref={scrollViewRef}
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={BrandColors.primary[500]}
-          />
-        }
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ThemedText type="title" style={[styles.title, { color: textColor }]}>
-          Messages
-        </ThemedText>
+        {/* Header avec titre et canaux */}
+        <View style={styles.headerSection}>
+          <ThemedText type="title" style={[styles.title, { color: textColor }]}>
+            Messages
+          </ThemedText>
 
-        <Animated.View entering={FadeIn.duration(300)}>
-          <ChannelList
-            channels={channels}
-            selectedChannelId={selectedChannel?.id || null}
-            onSelectChannel={handleSelectChannel}
-            userRole={userRole}
-          />
-        </Animated.View>
+          <Animated.View entering={FadeIn.duration(300)}>
+            <ChannelList
+              channels={channels}
+              selectedChannelId={selectedChannel?.id || null}
+              onSelectChannel={handleSelectChannel}
+              userRole={userRole}
+            />
+          </Animated.View>
 
+          {selectedChannel && (
+            <ChatHeader
+              channelName={selectedChannel.name}
+              channelIcon={
+                selectedChannel.name === 'Annonces'
+                  ? 'megaphone'
+                  : selectedChannel.name === 'Parents'
+                    ? 'people'
+                    : 'chatbubble'
+              }
+            />
+          )}
+        </View>
+
+        {/* Zone de messages scrollable */}
         {selectedChannel && (
-          <>
-            {/* En-tête du canal sélectionné */}
-            <Animated.View
-              entering={FadeIn.duration(300)}
-              style={[styles.channelHeader, { backgroundColor: cardColor, borderColor: cardBorder }]}
-            >
-              <View style={[styles.channelIconContainer, { backgroundColor: BrandColors.primary[500] }]}>
-                <Ionicons
-                  name={selectedChannel.name === 'Annonces' ? 'megaphone' : selectedChannel.name === 'Parents' ? 'people' : 'chatbubble'}
-                  size={24}
-                  color="#FFFFFF"
-                />
-              </View>
-              <View style={styles.channelInfo}>
-                <ThemedText type="subtitle" style={[styles.channelTitle, { color: textColor }]}>
-                  {selectedChannel.name}
-                </ThemedText>
-                {selectedChannel.description && (
-                  <ThemedText style={[styles.channelDescription, { color: textSecondary }]}>
-                    {selectedChannel.description}
-                  </ThemedText>
-                )}
-              </View>
-            </Animated.View>
-
-            {canWriteInChannel ? (
-              <Animated.View entering={FadeIn.duration(300)}>
-                <PostComposer
-                  onSubmit={handleSubmitMessage}
-                  placeholder={`Message dans #${selectedChannel.name}...`}
-                  mentionableUsers={mentionableUsers}
-                />
-              </Animated.View>
-            ) : (
-              <View style={[styles.readOnlyBanner, { backgroundColor: `${BrandColors.accent[500]}15`, borderColor: BrandColors.accent[500] }]}>
-                <Ionicons name="eye-outline" size={16} color={BrandColors.accent[500]} />
-                <ThemedText style={[styles.readOnlyText, { color: BrandColors.accent[500] }]}>
-                  Ce canal est en lecture seule
-                </ThemedText>
-              </View>
-            )}
-
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesScrollView}
+            contentContainerStyle={isChatStyle ? styles.messagesContent : styles.messagesContentCard}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={BrandColors.primary[500]}
+              />
+            }
+          >
             {isLoadingMessages ? (
               <View style={styles.loadingMessages}>
                 <ActivityIndicator size="small" color={BrandColors.primary[500]} />
               </View>
             ) : messages.length === 0 ? (
-              <Animated.View entering={FadeIn.duration(400)} style={[styles.emptyState, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-                <Ionicons name="chatbubble-ellipses-outline" size={48} color={textSecondary} />
-                <ThemedText type="subtitle" style={[styles.emptyTitle, { color: textColor }]}>
-                  Aucun message
-                </ThemedText>
-                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
-                  {canWriteInChannel
-                    ? 'Soyez le premier à écrire dans ce canal !'
-                    : 'Aucun message pour le moment.'}
-                </ThemedText>
+              <Animated.View
+                entering={FadeIn.duration(400)}
+                style={styles.emptyStateChat}
+              >
+                <View style={styles.welcomeBubble}>
+                  <ThemedText style={styles.welcomeText}>
+                    Bienvenue dans #{selectedChannel.name} !
+                  </ThemedText>
+                </View>
               </Animated.View>
+            ) : isChatStyle ? (
+              // Style chat pour le canal Général
+              <View key={`messages-list-${listKey}`}>
+                {messageGroups.map((group, groupIndex) => (
+                  <View key={`group-${groupIndex}`}>
+                    <DateSeparator date={group.date} />
+                    {group.messages.map((message, messageIndex) => (
+                      <Animated.View
+                        key={`${message.id}-${messageIndex}`}
+                        entering={FadeInUp.duration(200).delay(messageIndex * 30)}
+                      >
+                        <ChatBubble
+                          id={message.id}
+                          content={message.content}
+                          authorId={message.authorId}
+                          author={toChatBubbleAuthor(authors[message.authorId])}
+                          createdAt={message.createdAt}
+                          attachment={message.attachment}
+                          reactions={message.reactions}
+                          currentUserId={user.id}
+                          isCurrentUser={message.authorId === user.id}
+                          isAnimator={userRole === UserRole.ANIMATOR}
+                          canDelete={canDeleteMessages}
+                          onDelete={handleDeleteMessage}
+                        />
+                      </Animated.View>
+                    ))}
+                  </View>
+                ))}
+              </View>
             ) : (
+              // Style carte pour Annonces et Parents
               <View key={`messages-list-${listKey}`}>
                 {messages.map((message, index) => (
                   <Animated.View
                     key={`${message.id}-${index}`}
-                    entering={FadeInDown.duration(300).delay(index * 50)}
+                    entering={FadeInUp.duration(300).delay(index * 50)}
                   >
                     <PostCard
                       post={{
@@ -422,9 +484,33 @@ export function MessagesScreen({ user, unitId, userRole }: MessagesScreenProps) 
                 ))}
               </View>
             )}
-          </>
+          </ScrollView>
         )}
-      </ScrollView>
+
+        {/* Zone de saisie en bas */}
+        {selectedChannel && (
+          <View style={[
+            isChatStyle ? styles.composerContainer : styles.composerContainerCard,
+            { backgroundColor, borderTopColor: cardBorder }
+          ]}>
+            {canWriteInChannel ? (
+              <PostComposer
+                onSubmit={handleSubmitMessage}
+                placeholder={`Message dans #${selectedChannel.name}...`}
+                mentionableUsers={mentionableUsers}
+                compact={isChatStyle}
+              />
+            ) : (
+              <View style={[styles.readOnlyBanner, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+                <Ionicons name="eye-outline" size={16} color={BrandColors.accent[500]} />
+                <ThemedText style={[styles.readOnlyText, { color: BrandColors.accent[500] }]}>
+                  Ce canal est en lecture seule
+                </ThemedText>
+              </View>
+            )}
+          </View>
+        )}
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
@@ -433,13 +519,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollContent: {
-    padding: Spacing.lg,
+  keyboardView: {
+    flex: 1,
+  },
+  headerSection: {
     paddingTop: 60,
-    paddingBottom: 100,
+    paddingHorizontal: Spacing.lg,
   },
   title: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     fontSize: 28,
     fontWeight: '700',
   },
@@ -456,32 +544,40 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     alignItems: 'center',
   },
-  channelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-    padding: Spacing.md,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    gap: Spacing.md,
-  },
-  channelIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  channelInfo: {
+  messagesScrollView: {
     flex: 1,
   },
-  channelTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  messagesContent: {
+    paddingBottom: Spacing.md,
   },
-  channelDescription: {
-    fontSize: 13,
-    marginTop: 2,
+  messagesContentCard: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  emptyStateChat: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: Spacing.xl * 2,
+  },
+  welcomeBubble: {
+    backgroundColor: BrandColors.primary[500] + '15',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.full,
+  },
+  welcomeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: BrandColors.primary[600],
+  },
+  composerContainer: {
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  composerContainerCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   readOnlyBanner: {
     flexDirection: 'row',
@@ -489,20 +585,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.md,
     borderRadius: Radius.lg,
-    marginBottom: Spacing.lg,
     gap: Spacing.sm,
-    borderWidth: 1,
   },
   readOnlyText: {
     fontSize: 13,
     fontWeight: '500',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl * 2,
-    gap: Spacing.sm,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
   },
   emptyTitle: {
     fontSize: 18,

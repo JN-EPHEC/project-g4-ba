@@ -58,6 +58,15 @@ export interface Channel {
 }
 
 /**
+ * Réaction sur un message (emoji + utilisateurs)
+ */
+export interface MessageReaction {
+  emoji: string;           // L'emoji de la réaction
+  userIds: string[];       // Liste des utilisateurs ayant réagi avec cet emoji
+  count: number;           // Nombre total de réactions
+}
+
+/**
  * Message dans un canal
  */
 export interface ChannelMessage {
@@ -71,8 +80,9 @@ export interface ChannelMessage {
     name?: string;
   };
   isPinned: boolean;       // Message épinglé
-  likes?: string[];        // Array des userIds qui ont liké
-  likesCount?: number;     // Compteur de likes
+  likes?: string[];        // Array des userIds qui ont liké (legacy)
+  likesCount?: number;     // Compteur de likes (legacy)
+  reactions?: MessageReaction[]; // Nouvelles réactions multi-emoji
   commentsCount?: number;  // Nombre de commentaires
   createdAt: Date;
   updatedAt?: Date;

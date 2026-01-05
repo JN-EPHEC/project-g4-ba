@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ScrollView, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity, StatusBar, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -337,6 +338,15 @@ export default function ChallengesScreen() {
     return `-${offer.discountValue}€`;
   };
 
+  // Helper pour détecter si c'est une URL d'image
+  const isImageUrl = (str: string | undefined): boolean => {
+    if (!str) return false;
+    return str.startsWith('http://') ||
+           str.startsWith('https://') ||
+           str.startsWith('data:image') ||
+           str.includes('firebasestorage.googleapis.com');
+  };
+
   // Couleur selon le coût en points
   const getDifficultyColor = (pointsCost: number) => {
     if (pointsCost <= 500) return { bg: '#E8F5E9', color: '#28A745' };
@@ -420,7 +430,11 @@ export default function ChallengesScreen() {
                 style={[styles.partnerCard, { backgroundColor: rewardsCardColor, borderColor: rewardsCardBorderColor }]}
               >
                 <View style={styles.partnerLogo}>
-                  <ThemedText style={styles.partnerLogoText}>{partner.logo}</ThemedText>
+                  {isImageUrl(partner.logo) ? (
+                    <Image source={{ uri: partner.logo }} style={styles.partnerLogoImage} contentFit="cover" />
+                  ) : (
+                    <ThemedText style={styles.partnerLogoText}>{partner.logo}</ThemedText>
+                  )}
                 </View>
                 <ThemedText type="defaultSemiBold" style={styles.partnerName}>
                   {partner.name}
@@ -457,7 +471,11 @@ export default function ChallengesScreen() {
                 >
                   <View style={styles.offerHeader}>
                     <View style={styles.offerPartnerInfo}>
-                      <ThemedText style={styles.offerPartnerLogo}>{offer.partner.logo}</ThemedText>
+                      {isImageUrl(offer.partner.logo) ? (
+                        <Image source={{ uri: offer.partner.logo }} style={styles.offerPartnerLogoImage} contentFit="cover" />
+                      ) : (
+                        <ThemedText style={styles.offerPartnerLogo}>{offer.partner.logo}</ThemedText>
+                      )}
                       <ThemedText type="defaultSemiBold" style={styles.offerPartnerName}>
                         {offer.partner.name}
                       </ThemedText>
@@ -1208,6 +1226,11 @@ const styles = StyleSheet.create({
   partnerLogoText: {
     fontSize: 24,
   },
+  partnerLogoImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+  },
   partnerName: {
     fontSize: 14,
     textAlign: 'center',
@@ -1240,6 +1263,11 @@ const styles = StyleSheet.create({
   },
   offerPartnerLogo: {
     fontSize: 20,
+  },
+  offerPartnerLogoImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
   },
   offerPartnerName: {
     fontSize: 14,

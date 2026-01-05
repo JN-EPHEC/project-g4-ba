@@ -8,13 +8,13 @@ import {
   StyleSheet,
   View,
   ActivityIndicator,
-  TextInput,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Unit } from '@/types';
-import { UnitService } from '@/services/unit-service';
+import { Section, SECTION_EMOJIS, SECTION_COLORS, SECTION_LABELS } from '@/types';
+import { SectionService } from '@/services/section-service';
 
 // Design System Colors
 const colors = {
@@ -28,79 +28,53 @@ const colors = {
   mist: '#E8EDE9',
   canvas: '#FDFCFB',
   cardBg: '#FFFFFF',
-  scouts: '#004B87',
-  guides: '#00A86B',
 };
 
-export default function UnitSelectionScreen() {
+export default function SectionSelectionScreen() {
   const params = useLocalSearchParams();
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [animatorCode, setAnimatorCode] = useState('');
 
-  // Vérifier si c'est un animateur (pour afficher le code d'accès)
-  const isAnimator = params.role === 'animator';
+  const unitId = params.unitId as string;
 
   useEffect(() => {
-    loadUnits();
-  }, []);
+    loadSections();
+  }, [unitId]);
 
-  const loadUnits = async () => {
+  const loadSections = async () => {
     try {
       setLoading(true);
-      const allUnits = await UnitService.getAllUnits();
-      console.log('📋 Unités chargées:', allUnits);
-      setUnits(allUnits);
+      if (unitId) {
+        const sectionsData = await SectionService.getSectionsByUnit(unitId);
+        console.log('📋 Sections chargées:', sectionsData);
+        setSections(sectionsData);
+      }
     } catch (error: any) {
-      console.error('Erreur lors du chargement des unités:', error);
-      Alert.alert('Erreur', 'Impossible de charger les unités disponibles');
+      console.error('Erreur lors du chargement des sections:', error);
+      Alert.alert('Erreur', 'Impossible de charger les sections disponibles');
     } finally {
       setLoading(false);
     }
   };
 
-  const getUnitColor = (unit: Unit): string => {
-    // Utiliser la catégorie définie ou la déduire du nom
-    let category = unit.category?.toLowerCase() || '';
-    if (!category) {
-      const nameLower = unit.name.toLowerCase();
-      if (nameLower.includes('scout')) category = 'scouts';
-      else if (nameLower.includes('guide')) category = 'guides';
-      else if (nameLower.includes('patro')) category = 'patro';
-      else if (nameLower.includes('sgp')) category = 'sgp';
-      else if (nameLower.includes('faucon')) category = 'faucons';
-    }
-
-    switch (category) {
-      case 'scouts':
-        return colors.scouts;
-      case 'guides':
-        return colors.guides;
-      case 'patro':
-        return '#059669';
-      case 'sgp':
-        return '#7c3aed';
-      case 'faucons':
-        return '#dc2626';
-      default:
-        return colors.neutral;
-    }
+  const getSectionColor = (section: Section): string => {
+    return SECTION_COLORS[section.sectionType] || colors.primary;
   };
 
-  const getUnitInitial = (name: string): string => {
-    return name.charAt(0).toUpperCase();
+  const getSectionEmoji = (section: Section): string => {
+    return SECTION_EMOJIS[section.sectionType] || '🏕️';
   };
 
-  const handleContinue = async () => {
-    if (!selectedUnit) {
-      Alert.alert('Choisis ta fédération', 'Sélectionne une fédération pour continuer ton inscription.');
+  const handleContinue = () => {
+    if (!selectedSection) {
+      Alert.alert('Choisis ta section', 'Sélectionne une section pour continuer ton inscription.');
       return;
     }
 
-    // Rediriger vers la page de sélection de section
+    // Rediriger vers la page de configuration du totem
     router.push({
-      pathname: '/(auth)/section-selection',
+      pathname: '/(auth)/totem-setup',
       params: {
         email: params.email as string,
         password: params.password as string,
@@ -108,8 +82,8 @@ export default function UnitSelectionScreen() {
         lastName: params.lastName as string,
         dateOfBirth: params.dateOfBirth as string,
         role: params.role as string,
-        unitId: selectedUnit,
-        animatorCode: animatorCode || undefined,
+        unitId: unitId,
+        sectionId: selectedSection,
       },
     });
   };
@@ -118,7 +92,7 @@ export default function UnitSelectionScreen() {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <ThemedText style={styles.loadingText}>Chargement des fédérations...</ThemedText>
+        <ThemedText style={styles.loadingText}>Chargement des sections...</ThemedText>
       </View>
     );
   }
@@ -135,53 +109,59 @@ export default function UnitSelectionScreen() {
           <View style={styles.iconContainer}>
             <ThemedText style={styles.iconEmoji}>🏕️</ThemedText>
           </View>
-          <ThemedText style={styles.title}>Choisis ta fédération</ThemedText>
+          <ThemedText style={styles.title}>Choisis ta section</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Pour personnaliser ton expérience WeCamp
+            Dans quelle section es-tu inscrit ?
           </ThemedText>
         </View>
 
-        {/* Federations List */}
-        <View style={styles.federationsContainer}>
-          {units.length === 0 ? (
+        {/* Sections List */}
+        <View style={styles.sectionsContainer}>
+          {sections.length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons name="alert-circle-outline" size={48} color={colors.neutral} />
-              <ThemedText style={styles.emptyText}>Aucune fédération disponible</ThemedText>
+              <ThemedText style={styles.emptyText}>Aucune section disponible dans cette unité</ThemedText>
+              <ThemedText style={styles.emptySubtext}>Contacte ton animateur pour créer une section</ThemedText>
             </View>
           ) : (
-            units.map((unit) => {
-              const isSelected = selectedUnit === unit.id;
-              const unitColor = getUnitColor(unit);
+            sections.map((section) => {
+              const isSelected = selectedSection === section.id;
+              const sectionColor = getSectionColor(section);
 
               return (
                 <Pressable
-                  key={unit.id}
-                  onPress={() => setSelectedUnit(unit.id)}
+                  key={section.id}
+                  onPress={() => setSelectedSection(section.id)}
                   style={[
-                    styles.federationCard,
+                    styles.sectionCard,
                     isSelected && {
-                      borderColor: unitColor,
+                      borderColor: sectionColor,
                       borderWidth: 2,
-                      shadowColor: unitColor,
+                      shadowColor: sectionColor,
                       shadowOpacity: 0.2,
                     },
                   ]}
                 >
-                  {/* Logo/Initial */}
-                  <View style={[styles.federationLogo, { backgroundColor: `${unitColor}15` }]}>
-                    <ThemedText style={[styles.federationInitial, { color: unitColor }]}>
-                      {getUnitInitial(unit.name)}
-                    </ThemedText>
+                  {/* Logo ou Emoji */}
+                  <View style={[styles.sectionLogo, { backgroundColor: `${sectionColor}15` }]}>
+                    {section.logoUrl ? (
+                      <Image
+                        source={{ uri: section.logoUrl }}
+                        style={styles.sectionLogoImage}
+                      />
+                    ) : (
+                      <ThemedText style={styles.sectionEmoji}>
+                        {getSectionEmoji(section)}
+                      </ThemedText>
+                    )}
                   </View>
 
                   {/* Info */}
-                  <View style={styles.federationInfo}>
-                    <ThemedText style={styles.federationName}>{unit.name}</ThemedText>
-                    {unit.description && (
-                      <ThemedText style={styles.federationDescription}>
-                        {unit.description}
-                      </ThemedText>
-                    )}
+                  <View style={styles.sectionInfo}>
+                    <ThemedText style={styles.sectionName}>{section.name}</ThemedText>
+                    <ThemedText style={[styles.sectionAge, { color: sectionColor }]}>
+                      {section.ageRange.min} - {section.ageRange.max} ans
+                    </ThemedText>
                   </View>
 
                   {/* Checkmark */}
@@ -189,7 +169,7 @@ export default function UnitSelectionScreen() {
                     style={[
                       styles.checkmark,
                       isSelected
-                        ? { backgroundColor: unitColor, borderWidth: 0 }
+                        ? { backgroundColor: sectionColor, borderWidth: 0 }
                         : { borderColor: colors.mist, borderWidth: 2 },
                     ]}
                   >
@@ -201,36 +181,6 @@ export default function UnitSelectionScreen() {
           )}
         </View>
 
-        {/* Code Animateur Section - Seulement pour les animateurs */}
-        {selectedUnit && isAnimator && (
-          <View style={styles.codeSection}>
-            <View style={styles.codeSectionHeader}>
-              <ThemedText style={styles.codeIcon}>🔑</ThemedText>
-              <ThemedText style={styles.codeSectionTitle}>Code d'accès animateur</ThemedText>
-            </View>
-
-            <ThemedText style={styles.codeSectionDescription}>
-              Entre le code fourni par ta fédération pour confirmer que tu es animateur.
-            </ThemedText>
-
-            <TextInput
-              style={styles.codeInput}
-              placeholder="Ex: GUIDES2025"
-              placeholderTextColor="#6B7280"
-              value={animatorCode}
-              onChangeText={(text) => setAnimatorCode(text.toUpperCase())}
-              autoCapitalize="characters"
-            />
-
-            <View style={styles.codeHint}>
-              <Ionicons name="information-circle-outline" size={14} color={colors.neutralLight} />
-              <ThemedText style={styles.codeHintText}>
-                Pas de code ? Continue en tant que scout ou parent.
-              </ThemedText>
-            </View>
-          </View>
-        )}
-
         {/* Spacer */}
         <View style={styles.spacer} />
 
@@ -239,16 +189,16 @@ export default function UnitSelectionScreen() {
           <TouchableOpacity
             style={[
               styles.continueButton,
-              !selectedUnit && styles.continueButtonDisabled,
+              (!selectedSection || sections.length === 0) && styles.continueButtonDisabled,
             ]}
             onPress={handleContinue}
-            disabled={!selectedUnit}
+            disabled={!selectedSection || sections.length === 0}
             activeOpacity={0.8}
           >
             <ThemedText
               style={[
                 styles.continueButtonText,
-                !selectedUnit && styles.continueButtonTextDisabled,
+                (!selectedSection || sections.length === 0) && styles.continueButtonTextDisabled,
               ]}
             >
               Continuer
@@ -322,8 +272,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Federations
-  federationsContainer: {
+  // Sections
+  sectionsContainer: {
     gap: 12,
     marginBottom: 24,
   },
@@ -332,16 +282,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 40,
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
     borderWidth: 1,
     borderColor: colors.mist,
   },
   emptyText: {
     fontSize: 15,
+    color: colors.dark,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    fontSize: 13,
     color: colors.neutral,
     textAlign: 'center',
   },
-  federationCard: {
+  sectionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.cardBg,
@@ -356,29 +312,33 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  federationLogo: {
+  sectionLogo: {
     width: 56,
     height: 56,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  federationInitial: {
-    fontSize: 24,
-    fontWeight: '700',
+  sectionEmoji: {
+    fontSize: 28,
   },
-  federationInfo: {
+  sectionLogoImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+  },
+  sectionInfo: {
     flex: 1,
   },
-  federationName: {
+  sectionName: {
     fontSize: 17,
     fontWeight: '700',
     color: colors.dark,
   },
-  federationDescription: {
+  sectionAge: {
     fontSize: 13,
-    color: colors.neutral,
-    marginTop: 2,
+    marginTop: 4,
+    fontWeight: '500',
   },
   checkmark: {
     width: 28,
@@ -387,55 +347,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-  },
-
-  // Code Section
-  codeSection: {
-    backgroundColor: colors.cardBg,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.mist,
-    marginBottom: 24,
-  },
-  codeSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  codeIcon: {
-    fontSize: 20,
-  },
-  codeSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.dark,
-  },
-  codeSectionDescription: {
-    fontSize: 13,
-    color: colors.neutral,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  codeInput: {
-    backgroundColor: colors.mist,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.dark,
-    letterSpacing: 1,
-  },
-  codeHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-  },
-  codeHintText: {
-    fontSize: 12,
-    color: colors.neutralLight,
   },
 
   // Spacer

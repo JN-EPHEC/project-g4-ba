@@ -1,6 +1,6 @@
-import React from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { ScrollView, StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,16 +9,40 @@ import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { BrandColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { Scout, Section, SECTION_COLORS, SECTION_EMOJIS } from '@/types';
+import { SectionService } from '@/services/section-service';
 
 export default function MoreScreen() {
   const { user, logout } = useAuth();
+  const scout = user as Scout;
   const iconColor = useThemeColor({}, 'icon');
   const textSecondary = useThemeColor({}, 'textSecondary');
+  const [section, setSection] = useState<Section | null>(null);
+
+  // Charger les données de la section
+  useFocusEffect(
+    useCallback(() => {
+      const loadSection = async () => {
+        if (scout?.sectionId) {
+          try {
+            const sectionData = await SectionService.getSectionById(scout.sectionId);
+            setSection(sectionData);
+          } catch (error) {
+            console.error('Erreur chargement section:', error);
+          }
+        }
+      };
+      loadSection();
+    }, [scout?.sectionId])
+  );
 
   const handleLogout = async () => {
     await logout();
     router.replace('/(auth)/login');
   };
+
+  const sectionColor = section ? (SECTION_COLORS[section.sectionType] || BrandColors.primary[500]) : BrandColors.primary[500];
+  const sectionEmoji = section ? (SECTION_EMOJIS[section.sectionType] || '🏕️') : '🏕️';
 
   return (
     <ThemedView style={styles.container}>
@@ -40,6 +64,21 @@ export default function MoreScreen() {
               <ThemedText type="defaultSemiBold">Mon profil</ThemedText>
               <ThemedText style={styles.actionDescription}>
                 Voir et modifier mes informations
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/(scout)/section')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: `${sectionColor}15` }]}>
+              <Text style={styles.sectionEmojiIcon}>{sectionEmoji}</Text>
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Ma section</ThemedText>
+              <ThemedText style={[styles.actionDescription, section && { color: sectionColor }]}>
+                {section ? section.name : 'Voir ma section'}
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={20} color={iconColor} />
@@ -175,5 +214,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
     marginTop: 2,
+  },
+  sectionEmojiIcon: {
+    fontSize: 24,
   },
 });

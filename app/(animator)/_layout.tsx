@@ -181,7 +181,8 @@ export default function AnimatorLayout() {
       <Tabs.Screen
         name="section-logo"
         options={{
-          href: null, // Accessible depuis Gestion > Ma section
+          href: null,
+          tabBarButton: () => null, // Cache complètement l'onglet
         }}
       />
     </Tabs>

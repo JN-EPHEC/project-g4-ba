@@ -127,6 +127,7 @@ export default function TotemSetupScreen() {
 
     try {
       const dateOfBirth = params.dateOfBirth ? new Date(params.dateOfBirth as string) : new Date();
+      const sectionId = params.sectionId as string | undefined;
 
       await register(
         params.email as string,
@@ -143,7 +144,8 @@ export default function TotemSetupScreen() {
               totemTraits: traits,
               totemImageUrl: generatedImageUrl || undefined,
             }
-          : undefined
+          : undefined,
+        sectionId
       );
 
       router.push('/(auth)/pending-approval');
@@ -157,6 +159,7 @@ export default function TotemSetupScreen() {
   const handleSkip = async () => {
     try {
       const dateOfBirth = params.dateOfBirth ? new Date(params.dateOfBirth as string) : new Date();
+      const sectionId = params.sectionId as string | undefined;
 
       await register(
         params.email as string,
@@ -165,7 +168,9 @@ export default function TotemSetupScreen() {
         params.lastName as string,
         UserRole.SCOUT,
         params.unitId as string,
-        dateOfBirth
+        dateOfBirth,
+        undefined,
+        sectionId
       );
 
       router.push('/(auth)/pending-approval');
