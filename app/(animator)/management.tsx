@@ -671,6 +671,25 @@ export default function ManagementScreen() {
         </TouchableOpacity>
 
         <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
+          Ma section
+        </ThemedText>
+
+        <TouchableOpacity onPress={() => router.push('/(animator)/section-logo')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.accent[500]}15` }]}>
+              <Ionicons name="sparkles" size={28} color={BrandColors.accent[500]} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Logo de la section</ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Personnaliser le logo avec l'IA
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
+        <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
           Outils
         </ThemedText>
 

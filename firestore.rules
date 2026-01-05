@@ -12,11 +12,29 @@ service cloud.firestore {
       allow delete: if request.auth.uid == userId;
     }
 
-    // Règles pour les unités (lecture publique pour l'inscription)
+    // Règles pour les unités
+    // - Lecture publique pour permettre la recherche par code d'accès lors de l'inscription
+    // - Création: uniquement admin WeCamp
+    // - Modification: admin WeCamp OU chef d'unité (isUnitLeader)
+    // - Suppression: uniquement admin WeCamp
     match /units/{unitId} {
-      allow read: if true; // Lecture publique pour permettre la sélection lors de l'inscription
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow read: if true;
+
+      // Création d'unité: uniquement admin WeCamp
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin';
+
+      // Modification: admin WeCamp OU chef d'unité de cette unité
+      allow update: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin' ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId == unitId &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isUnitLeader == true)
+      );
+
+      // Suppression: uniquement admin WeCamp
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin';
     }
 
     // Règles pour les groupes scouts
@@ -194,6 +212,30 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+    }
+
+    // Règles pour les sections
+    // - Lecture publique pour permettre la recherche par code d'accès lors de l'inscription
+    // - Création: uniquement admin WeCamp
+    // - Modification: admin WeCamp OU tout animateur de l'unité parente
+    // - Suppression: uniquement admin WeCamp
+    match /sections/{sectionId} {
+      allow read: if true;
+
+      // Création de section: uniquement admin WeCamp
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin';
+
+      // Modification: admin WeCamp OU tout animateur de l'unité parente
+      allow update: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin' ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId == resource.data.unitId)
+      );
+
+      // Suppression: uniquement admin WeCamp
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin';
     }
 
     // Règles pour les fiches santé

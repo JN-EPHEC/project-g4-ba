@@ -318,6 +318,116 @@ export const generateTotemImage = functions
   });
 
 /**
+ * Cloud Function pour générer un logo de section scout avec IA
+ */
+export const generateSectionLogo = functions
+  .region('europe-west1')
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    // Authentification requise
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Vous devez être connecté');
+    }
+
+    const userId = context.auth.uid;
+    const { sectionType, sectionName, style, visualElements } = data;
+
+    if (!sectionType || !sectionName) {
+      throw new functions.https.HttpsError('invalid-argument', 'Le type et le nom de la section sont requis');
+    }
+
+    if (!HUGGINGFACE_TOKEN) {
+      console.error('Token Hugging Face non configuré');
+      throw new functions.https.HttpsError('failed-precondition', 'Service IA non configuré');
+    }
+
+    // Mapping des styles vers des descriptions
+    const styleDescriptions: Record<string, string> = {
+      nature: 'organic natural elements, forest green, earthy brown colors, hand-drawn feel',
+      moderne: 'minimalist modern design, clean lines, geometric shapes, bold colors',
+      classique: 'traditional scout badge style, vintage rope border, classic heraldry elements',
+    };
+
+    const styleDesc = styleDescriptions[style] || styleDescriptions.nature;
+
+    // Construire le prompt
+    const prompt = `A circular scout section logo emblem for "${sectionName}", featuring ${visualElements}, ${styleDesc}, scout camping theme, high quality digital illustration, clean vector art style, white background, centered composition, professional badge design`;
+
+    // Seed aléatoire pour avoir des images différentes
+    const randomSeed = Math.floor(Math.random() * 2147483647);
+
+    try {
+      console.log(`Génération logo section: ${sectionName} (${sectionType}), style: ${style}`);
+      console.log(`Prompt: ${prompt}`);
+
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${HUGGINGFACE_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            seed: randomSeed,
+            num_inference_steps: 4,
+            guidance_scale: 0,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 503) {
+          const errorData = await response.json();
+          if (errorData.estimated_time) {
+            throw new functions.https.HttpsError(
+              'unavailable',
+              `Le modèle est en cours de chargement. Réessayez dans ${Math.ceil(errorData.estimated_time)} secondes.`
+            );
+          }
+        }
+        throw new functions.https.HttpsError('internal', `Erreur Hugging Face: ${response.status}`);
+      }
+
+      // Récupérer l'image en buffer
+      const imageBuffer = await response.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+
+      // Uploader vers Firebase Storage
+      const bucket = admin.storage().bucket();
+      const fileName = `sections/logos/${userId}/${Date.now()}.png`;
+      const file = bucket.file(fileName);
+
+      await file.save(Buffer.from(imageBuffer), {
+        metadata: {
+          contentType: 'image/png',
+        },
+      });
+
+      // Rendre le fichier public et obtenir l'URL
+      await file.makePublic();
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+      console.log(`Logo section généré avec succès: ${publicUrl}`);
+
+      return {
+        success: true,
+        imageUrl: publicUrl,
+        imageBase64: base64Image,
+      };
+
+    } catch (error: any) {
+      console.error('Erreur lors de la génération du logo:', error);
+
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+
+      throw new functions.https.HttpsError('internal', error.message || 'Erreur lors de la génération');
+    }
+  });
+
+/**
  * DÉSACTIVÉ : Cette fonction créait automatiquement un document user
  * mais elle écrasait les données envoyées par le client (notamment le rôle).
  * La création du document est maintenant gérée côté client dans UserService.createUser()

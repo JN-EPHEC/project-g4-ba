@@ -203,6 +203,45 @@ export class StorageService {
   }
 
   /**
+   * Upload une image depuis une chaîne base64
+   */
+  static async uploadBase64Image(
+    base64Data: string,
+    path: string,
+    contentType: string = 'image/png'
+  ): Promise<string> {
+    try {
+      // Extraire les données base64 pures (sans le préfixe data:image/...)
+      let pureBase64 = base64Data;
+      if (base64Data.includes(',')) {
+        pureBase64 = base64Data.split(',')[1];
+      }
+
+      // Convertir base64 en Uint8Array
+      const binaryString = atob(pureBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Créer la référence dans Storage
+      const storageRef = ref(storage, path);
+
+      // Upload les bytes
+      const uploadResult: UploadResult = await uploadBytes(storageRef, bytes, {
+        contentType,
+      });
+
+      // Récupérer l'URL de téléchargement
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+      return downloadURL;
+    } catch (error) {
+      console.error('Erreur lors de l\'upload de l\'image base64:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Supprime un fichier de Storage
    */
   static async deleteFile(path: string): Promise<void> {

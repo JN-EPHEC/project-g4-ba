@@ -298,6 +298,28 @@ export class UnitService {
   }
 
   /**
+   * Récupère tous les animateurs d'une unité
+   */
+  static async getAnimatorsByUnit(unitId: string): Promise<any[]> {
+    try {
+      const q = query(
+        collection(db, 'users'),
+        where('unitId', '==', unitId),
+        where('role', '==', UserRole.ANIMATOR)
+      );
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      console.error('Erreur lors de la récupération des animateurs:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Récupère tous les membres d'une unité (scouts + animateurs)
    */
   static async getUnitMembers(unitId: string): Promise<{ id: string; firstName: string; lastName: string; role: UserRole }[]> {
@@ -420,6 +442,134 @@ export class UnitService {
       );
     } catch (error) {
       console.error('Erreur lors de la récupération des groupes:', error);
+      throw error;
+    }
+  }
+
+  // ==================== MÉTHODES ADMIN WECAMP ====================
+
+  /**
+   * Génère un code d'accès unique pour une unité
+   * Format: UNIT-XXXXXX (6 caractères alphanumériques)
+   */
+  static generateAccessCode(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'UNIT-';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  /**
+   * Crée une unité via le panel admin WeCamp
+   * Génère automatiquement un code d'accès unique
+   * L'unité est créée sans leader initial (le premier animateur à rejoindre devient leader)
+   */
+  static async createUnitByAdmin(
+    name: string,
+    category: UnitCategory,
+    description?: string,
+    logoUrl?: string
+  ): Promise<Unit> {
+    try {
+      const accessCode = this.generateAccessCode();
+      const now = new Date();
+
+      const unitData: Record<string, any> = {
+        name,
+        category,
+        groupId: 'wecamp-global', // Groupe par défaut pour les unités créées par admin
+        leaderId: '', // Pas de leader initial
+        accessCode,
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now),
+      };
+
+      if (description) unitData.description = description;
+      if (logoUrl) unitData.logoUrl = logoUrl;
+
+      const unitRef = doc(collection(db, this.UNITS_COLLECTION));
+      await setDoc(unitRef, unitData);
+
+      return this.convertUnit({ id: unitRef.id, ...unitData });
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'unité par admin:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recherche une unité par son code d'accès
+   */
+  static async getUnitByAccessCode(accessCode: string): Promise<Unit | null> {
+    try {
+      const q = query(
+        collection(db, this.UNITS_COLLECTION),
+        where('accessCode', '==', accessCode.toUpperCase())
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return null;
+      }
+
+      const unitDoc = querySnapshot.docs[0];
+      return this.convertUnit({ id: unitDoc.id, ...unitDoc.data() });
+    } catch (error) {
+      console.error('Erreur lors de la recherche par code d\'accès:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Permet à un animateur de rejoindre une unité via son code d'accès
+   * Le premier animateur à rejoindre devient automatiquement chef d'unité (isUnitLeader: true)
+   */
+  static async joinUnitAsAnimator(
+    animatorId: string,
+    accessCode: string
+  ): Promise<{ unit: Unit; isLeader: boolean }> {
+    try {
+      // Trouver l'unité par code
+      const unit = await this.getUnitByAccessCode(accessCode);
+
+      if (!unit) {
+        throw new Error('Code d\'unité invalide');
+      }
+
+      // Vérifier si c'est le premier animateur (devient leader)
+      const isFirstAnimator = !unit.leaderId || unit.leaderId === '';
+
+      // Mettre à jour l'animateur avec l'unitId et le statut de leader
+      await UserService.updateUser(animatorId, {
+        unitId: unit.id,
+        isUnitLeader: isFirstAnimator,
+      });
+
+      // Si premier animateur, mettre à jour l'unité avec le leaderId
+      if (isFirstAnimator) {
+        await this.updateUnit(unit.id, { leaderId: animatorId });
+      }
+
+      return { unit, isLeader: isFirstAnimator };
+    } catch (error) {
+      console.error('Erreur lors de la jonction à l\'unité:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Régénère le code d'accès d'une unité (révocation de l'ancien code)
+   */
+  static async regenerateAccessCode(unitId: string): Promise<string> {
+    try {
+      const newCode = this.generateAccessCode();
+      await this.updateUnit(unitId, { accessCode: newCode });
+      return newCode;
+    } catch (error) {
+      console.error('Erreur lors de la régénération du code:', error);
       throw error;
     }
   }

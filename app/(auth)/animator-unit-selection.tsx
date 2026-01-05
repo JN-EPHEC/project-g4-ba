@@ -1,20 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   View,
-  ActivityIndicator,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/auth-context';
-import { Unit, UserRole } from '@/types';
+import { UserRole, SECTION_LABELS, SECTION_EMOJIS, isValidSectionCode, extractPrefixFromCode, getSectionTypeFromPrefix } from '@/types';
+import { SectionService } from '@/services/section-service';
 import { UnitService } from '@/services/unit-service';
 
 // Design System Colors
@@ -29,173 +30,107 @@ const colors = {
   mist: '#E8EDE9',
   canvas: '#FDFCFB',
   cardBg: '#FFFFFF',
-  scouts: '#004B87',
-  guides: '#00A86B',
+  danger: '#DC3545',
+  success: '#28A745',
 };
-
-// Codes d'accès par catégorie de fédération
-const ACCESS_CODES: Record<string, string> = {
-  'scouts': 'SCOUTS2025',
-  'guides': 'GUIDES2025',
-  'patro': 'PATRO2025',
-  'sgp': 'SGP2025',
-  'faucons': 'FAUCONS2025',
-};
-
-type UnitMode = 'choice' | 'join';
 
 export default function AnimatorUnitSelectionScreen() {
   const params = useLocalSearchParams();
   const { register, isLoading: authLoading } = useAuth();
-  const [mode, setMode] = useState<UnitMode>('choice');
-  const [selectedChoice, setSelectedChoice] = useState<'join' | 'create' | null>(null);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [accessCode, setAccessCode] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+  const [foundSection, setFoundSection] = useState<{
+    id: string;
+    name: string;
+    sectionType: string;
+    unitId: string;
+    unitName: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadUnits();
-  }, []);
+  const handleCodeChange = async (text: string) => {
+    const formattedCode = text.toUpperCase();
+    setAccessCode(formattedCode);
+    setError(null);
+    setFoundSection(null);
 
-  const loadUnits = async () => {
-    try {
-      setLoading(true);
-      const allUnits = await UnitService.getAllUnits();
-      console.log('📋 Unités chargées pour animateur:', allUnits);
-      setUnits(allUnits);
-    } catch (error: any) {
-      console.error('Erreur lors du chargement des unités:', error);
-      Alert.alert('Erreur', 'Impossible de charger les fédérations disponibles');
-    } finally {
-      setLoading(false);
+    // Extraire le préfixe pour validation
+    const prefix = extractPrefixFromCode(formattedCode);
+
+    // Valider le format du code de section (PREFIXE-XXXXXX)
+    if (prefix && formattedCode.length >= 10 && isValidSectionCode(formattedCode)) {
+      setIsValidating(true);
+      try {
+        const section = await SectionService.getSectionByAccessCode(formattedCode);
+        if (section) {
+          // Récupérer le nom de l'unité parente
+          const unit = await UnitService.getUnitById(section.unitId);
+          setFoundSection({
+            id: section.id,
+            name: section.name,
+            sectionType: section.sectionType,
+            unitId: section.unitId,
+            unitName: unit?.name || 'Unité',
+          });
+        } else {
+          setError('Code invalide. Vérifie le code fourni par l\'admin WeCamp.');
+        }
+      } catch (err) {
+        console.error('Erreur validation code:', err);
+        setError('Erreur de validation. Réessaie.');
+      } finally {
+        setIsValidating(false);
+      }
     }
-  };
-
-  const getUnitColor = (unit: Unit): string => {
-    // Utiliser la catégorie définie ou la déduire du nom
-    let category = unit.category?.toLowerCase() || '';
-    if (!category) {
-      const nameLower = unit.name.toLowerCase();
-      if (nameLower.includes('scout')) category = 'scouts';
-      else if (nameLower.includes('guide')) category = 'guides';
-      else if (nameLower.includes('patro')) category = 'patro';
-      else if (nameLower.includes('sgp')) category = 'sgp';
-      else if (nameLower.includes('faucon')) category = 'faucons';
-    }
-
-    switch (category) {
-      case 'scouts':
-        return colors.scouts;
-      case 'guides':
-        return colors.guides;
-      case 'patro':
-        return '#059669';
-      case 'sgp':
-        return '#7c3aed';
-      case 'faucons':
-        return '#dc2626';
-      default:
-        return colors.neutral;
-    }
-  };
-
-  const getUnitInitial = (name: string): string => {
-    return name.charAt(0).toUpperCase();
-  };
-
-  const getSelectedUnit = (): Unit | undefined => {
-    return units.find(u => u.id === selectedUnit);
-  };
-
-  // Déduire la catégorie à partir du nom si elle n'est pas définie
-  const getCategoryFromUnit = (unit: Unit): string => {
-    if (unit.category) {
-      return String(unit.category).toLowerCase();
-    }
-    // Déduire la catégorie à partir du nom
-    const nameLower = unit.name.toLowerCase();
-    if (nameLower.includes('scout')) return 'scouts';
-    if (nameLower.includes('guide')) return 'guides';
-    if (nameLower.includes('patro')) return 'patro';
-    if (nameLower.includes('sgp')) return 'sgp';
-    if (nameLower.includes('faucon')) return 'faucons';
-    return '';
   };
 
   const handleContinue = async () => {
-    console.log('🔍 handleContinue appelé');
-    console.log('🔍 selectedUnit:', selectedUnit);
-    console.log('🔍 accessCode:', accessCode);
-
-    if (!selectedUnit) {
-      console.log('❌ Pas de fédération sélectionnée');
-      Alert.alert('Choisis ta fédération', 'Sélectionne une fédération pour continuer ton inscription.');
+    if (!foundSection) {
+      Alert.alert('Erreur', 'Entre un code de section valide pour continuer.');
       return;
     }
-
-    if (!accessCode.trim()) {
-      console.log('❌ Pas de code d\'accès');
-      Alert.alert('Code d\'accès requis', 'Entre le code d\'accès de ta fédération pour confirmer que tu es animateur.');
-      return;
-    }
-
-    const unit = getSelectedUnit();
-    if (!unit) {
-      Alert.alert('Erreur', 'Fédération non trouvée');
-      return;
-    }
-
-    // Vérifier le code d'accès
-    // 1. D'abord vérifier si l'unité a un code d'accès personnalisé
-    // 2. Sinon, utiliser le code par défaut de la fédération
-    const categoryKey = getCategoryFromUnit(unit);
-    console.log('🔍 Catégorie brute:', unit.category);
-    console.log('🔍 Catégorie déduite:', categoryKey);
-    console.log('🔍 Code personnalisé de l\'unité:', unit.accessCode);
-
-    const enteredCode = accessCode.trim().toUpperCase();
-    const unitAccessCode = unit.accessCode?.toUpperCase();
-    const federationCode = ACCESS_CODES[categoryKey];
-
-    console.log('🔍 Code entré:', enteredCode);
-    console.log('🔍 Code attendu (unité):', unitAccessCode);
-    console.log('🔍 Code attendu (fédération):', federationCode);
-
-    // Vérifier si le code correspond au code personnalisé de l'unité OU au code de la fédération
-    const isValidCode = (unitAccessCode && enteredCode === unitAccessCode) ||
-                        (federationCode && enteredCode === federationCode);
-
-    if (!isValidCode) {
-      console.log('❌ Code invalide');
-      Alert.alert(
-        'Code invalide',
-        `Le code d'accès est incorrect pour ${unit.name}.`,
-        [{ text: 'Réessayer', style: 'default' }]
-      );
-      return;
-    }
-
-    console.log('✅ Code valide, création du compte...');
 
     try {
-      console.log('🚀 Inscription animateur avec la fédération:', unit.name, 'ID:', unit.id);
+      console.log('🚀 Inscription animateur avec la section:', foundSection.name, 'ID:', foundSection.id);
 
-      // Créer le compte animateur avec unitId
-      const registeredUser = await register(
+      // Créer le compte animateur avec l'unitId (sectionId sera mis à jour après)
+      const newUser = await register(
         params.email as string,
         params.password as string,
         params.firstName as string,
         params.lastName as string,
         UserRole.ANIMATOR,
-        unit.id
+        foundSection.unitId
       );
-      console.log('✅ Inscription animateur réussie');
 
-      // Rediriger vers le dashboard
-      setTimeout(() => {
-        router.replace('/(animator)/dashboard');
-      }, 500);
+      console.log('✅ Compte créé avec ID:', newUser.id);
+
+      // Rejoindre la section (le premier animateur devient chef de section)
+      const result = await SectionService.joinSectionAsAnimator(
+        newUser.id,
+        accessCode
+      );
+
+      console.log('✅ Inscription réussie, isSectionLeader:', result.isLeader);
+
+      // Si l'animateur est devenu chef de section, proposer de personnaliser le logo
+      if (result.isLeader) {
+        setTimeout(() => {
+          router.replace({
+            pathname: '/(auth)/section-logo-setup',
+            params: {
+              sectionId: result.section.id,
+              sectionName: result.section.name,
+              sectionType: result.section.sectionType,
+            },
+          });
+        }, 500);
+      } else {
+        // Sinon, rediriger vers le dashboard
+        setTimeout(() => {
+          router.replace('/(animator)/dashboard');
+        }, 500);
+      }
     } catch (error: any) {
       console.error('❌ Erreur d\'inscription:', error);
       const errorMessage = error?.message || 'Impossible de créer ton compte';
@@ -203,252 +138,155 @@ export default function AnimatorUnitSelectionScreen() {
     }
   };
 
-  const handleChoiceContinue = () => {
-    if (selectedChoice === 'join') {
-      setMode('join');
-    } else if (selectedChoice === 'create') {
-      // Naviguer vers l'écran de création d'unité
-      router.push({
-        pathname: '/(auth)/create-unit',
-        params: {
-          email: params.email as string,
-          password: params.password as string,
-          firstName: params.firstName as string,
-          lastName: params.lastName as string,
-          dateOfBirth: params.dateOfBirth as string,
-          role: params.role as string,
-        },
-      });
-    }
+  // Obtenir l'emoji et le label de la section trouvée
+  const getSectionInfo = () => {
+    if (!foundSection) return { emoji: '', label: '' };
+    const sectionType = getSectionTypeFromPrefix(extractPrefixFromCode(accessCode) || '');
+    if (!sectionType) return { emoji: '', label: '' };
+    return {
+      emoji: SECTION_EMOJIS[sectionType] || '',
+      label: SECTION_LABELS[sectionType] || '',
+    };
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <ThemedText style={styles.loadingText}>Chargement des fédérations...</ThemedText>
-      </View>
-    );
-  }
+  const sectionInfo = getSectionInfo();
 
-  // Écran de choix initial
-  if (mode === 'choice') {
-    return (
-      <View style={styles.container}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <ThemedText style={styles.iconEmoji}>⭐</ThemedText>
-            </View>
-            <ThemedText style={styles.title}>Rejoindre une unité</ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Mon unité existe-t-elle déjà sur l'application ?
-            </ThemedText>
-          </View>
-
-          {/* Choice Cards */}
-          <View style={styles.choiceContainer}>
-            <Pressable
-              onPress={() => setSelectedChoice('join')}
-              style={[
-                styles.choiceCard,
-                selectedChoice === 'join' && styles.choiceCardSelected,
-              ]}
-            >
-              <View style={[styles.choiceIcon, { backgroundColor: `${colors.primary}15` }]}>
-                <Ionicons name="search" size={28} color={colors.primary} />
-              </View>
-              <View style={styles.choiceContent}>
-                <ThemedText style={styles.choiceTitle}>Mon unité existe déjà</ThemedText>
-                <ThemedText style={styles.choiceDescription}>
-                  Je veux rejoindre une unité existante sur l'application
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.checkmark,
-                  selectedChoice === 'join'
-                    ? { backgroundColor: colors.primary, borderWidth: 0 }
-                    : { borderColor: colors.mist, borderWidth: 2 },
-                ]}
-              >
-                {selectedChoice === 'join' && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
-              </View>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setSelectedChoice('create')}
-              style={[
-                styles.choiceCard,
-                selectedChoice === 'create' && styles.choiceCardSelected,
-              ]}
-            >
-              <View style={[styles.choiceIcon, { backgroundColor: `${colors.accent}15` }]}>
-                <Ionicons name="add-circle" size={28} color={colors.accent} />
-              </View>
-              <View style={styles.choiceContent}>
-                <ThemedText style={styles.choiceTitle}>Mon unité n'existe pas encore</ThemedText>
-                <ThemedText style={styles.choiceDescription}>
-                  Je veux créer ma propre unité sur l'application
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.checkmark,
-                  selectedChoice === 'create'
-                    ? { backgroundColor: colors.accent, borderWidth: 0 }
-                    : { borderColor: colors.mist, borderWidth: 2 },
-                ]}
-              >
-                {selectedChoice === 'create' && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
-              </View>
-            </Pressable>
-          </View>
-
-          {/* Spacer */}
-          <View style={styles.spacer} />
-
-          {/* Buttons */}
-          <View style={styles.buttonsContainer}>
-            <TouchableOpacity
-              style={[
-                styles.continueButton,
-                !selectedChoice && styles.continueButtonDisabled,
-              ]}
-              onPress={handleChoiceContinue}
-              disabled={!selectedChoice}
-              activeOpacity={0.8}
-            >
-              <ThemedText
-                style={[
-                  styles.continueButtonText,
-                  !selectedChoice && styles.continueButtonTextDisabled,
-                ]}
-              >
-                Continuer
-              </ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <ThemedText style={styles.backButtonText}>Retour</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // Écran de sélection d'unité (mode === 'join')
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <ThemedText style={styles.iconEmoji}>🏕</ThemedText>
+            <Ionicons name="key" size={40} color={colors.primary} />
           </View>
-          <ThemedText style={styles.title}>Choisis ton unité</ThemedText>
+          <ThemedText style={styles.title}>Rejoins ta section</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Sélectionne l'unité que tu animes
+            Entre le code d'accès fourni par l'admin WeCamp pour ta section
           </ThemedText>
         </View>
 
-        {/* Federations List */}
-        <View style={styles.federationsContainer}>
-          {units.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Ionicons name="alert-circle-outline" size={48} color={colors.neutral} />
-              <ThemedText style={styles.emptyText}>Aucune fédération disponible</ThemedText>
+        {/* Code Input Card */}
+        <View style={styles.codeCard}>
+          <View style={styles.codeInputContainer}>
+            <TextInput
+              style={styles.codeInput}
+              placeholder="LOUV-XXXXXX"
+              placeholderTextColor={colors.neutralLight}
+              value={accessCode}
+              onChangeText={handleCodeChange}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={12}
+            />
+            {isValidating && (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.validatingIndicator} />
+            )}
+          </View>
+
+          {/* Status Message */}
+          {error && (
+            <View style={styles.statusContainer}>
+              <Ionicons name="close-circle" size={20} color={colors.danger} />
+              <ThemedText style={[styles.statusText, { color: colors.danger }]}>{error}</ThemedText>
             </View>
-          ) : (
-            units.map((unit) => {
-              const isSelected = selectedUnit === unit.id;
-              const unitColor = getUnitColor(unit);
+          )}
 
-              return (
-                <Pressable
-                  key={unit.id}
-                  onPress={() => {
-                    console.log('🎯 Fédération sélectionnée:', unit.name, 'ID:', unit.id);
-                    setSelectedUnit(unit.id);
-                  }}
-                  style={[
-                    styles.federationCard,
-                    isSelected && {
-                      borderColor: unitColor,
-                      borderWidth: 2,
-                      shadowColor: unitColor,
-                      shadowOpacity: 0.2,
-                    },
-                  ]}
-                >
-                  {/* Logo/Initial */}
-                  <View style={[styles.federationLogo, { backgroundColor: `${unitColor}15` }]}>
-                    <ThemedText style={[styles.federationInitial, { color: unitColor }]}>
-                      {getUnitInitial(unit.name)}
-                    </ThemedText>
-                  </View>
-
-                  {/* Info */}
-                  <View style={styles.federationInfo}>
-                    <ThemedText style={styles.federationName}>{unit.name}</ThemedText>
-                    <ThemedText style={styles.federationDescription}>
-                      {unit.category ? `Fédération des ${unit.category}` : unit.description || ''}
-                    </ThemedText>
-                  </View>
-
-                  {/* Checkmark */}
-                  <View
-                    style={[
-                      styles.checkmark,
-                      isSelected
-                        ? { backgroundColor: unitColor, borderWidth: 0 }
-                        : { borderColor: colors.mist, borderWidth: 2 },
-                    ]}
-                  >
-                    {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
-                  </View>
-                </Pressable>
-              );
-            })
+          {foundSection && (
+            <View style={styles.sectionFoundCard}>
+              <View style={styles.sectionFoundHeader}>
+                <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                <ThemedText style={styles.sectionFoundTitle}>Section trouvée !</ThemedText>
+              </View>
+              <View style={styles.sectionFoundDetails}>
+                <View style={styles.sectionNameRow}>
+                  <ThemedText style={styles.sectionEmoji}>{sectionInfo.emoji}</ThemedText>
+                  <ThemedText style={styles.sectionFoundName}>{foundSection.name}</ThemedText>
+                </View>
+                <ThemedText style={styles.sectionFoundType}>{sectionInfo.label}</ThemedText>
+                <View style={styles.unitInfoRow}>
+                  <Ionicons name="location-outline" size={14} color={colors.neutral} />
+                  <ThemedText style={styles.unitFoundName}>{foundSection.unitName}</ThemedText>
+                </View>
+              </View>
+            </View>
           )}
         </View>
 
-        {/* Code Animateur Section - Toujours visible pour animateurs */}
-        {selectedUnit && (
-          <View style={styles.codeSection}>
-            <View style={styles.codeSectionHeader}>
-              <ThemedText style={styles.codeIcon}>🔑</ThemedText>
-              <ThemedText style={styles.codeSectionTitle}>Code d'accès animateur</ThemedText>
-            </View>
-
-            <ThemedText style={styles.codeSectionDescription}>
-              Entre le code d'accès de l'unité ou de ta fédération.
-            </ThemedText>
-
-            <TextInput
-              style={styles.codeInput}
-              placeholder="Ex: SCOUTS2025 ou code de l'unité"
-              placeholderTextColor="#6B7280"
-              value={accessCode}
-              onChangeText={(text) => setAccessCode(text.toUpperCase())}
-              autoCapitalize="characters"
-            />
+        {/* How it works */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoHeader}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <ThemedText style={styles.infoTitle}>Comment ça marche ?</ThemedText>
           </View>
-        )}
+          <View style={styles.infoSteps}>
+            <View style={styles.infoStep}>
+              <View style={styles.infoStepNumber}>
+                <ThemedText style={styles.infoStepNumberText}>1</ThemedText>
+              </View>
+              <ThemedText style={styles.infoStepText}>
+                Demande le code d'accès à l'admin WeCamp
+              </ThemedText>
+            </View>
+            <View style={styles.infoStep}>
+              <View style={styles.infoStepNumber}>
+                <ThemedText style={styles.infoStepNumberText}>2</ThemedText>
+              </View>
+              <ThemedText style={styles.infoStepText}>
+                Entre le code (ex: LOUV-A1B2C3, PIO-X7Y8Z9)
+              </ThemedText>
+            </View>
+            <View style={styles.infoStep}>
+              <View style={styles.infoStepNumber}>
+                <ThemedText style={styles.infoStepNumberText}>3</ThemedText>
+              </View>
+              <ThemedText style={styles.infoStepText}>
+                Tu rejoins automatiquement la section
+              </ThemedText>
+            </View>
+          </View>
+          <View style={styles.infoNote}>
+            <Ionicons name="star" size={14} color={colors.accent} />
+            <ThemedText style={styles.infoNoteText}>
+              Le premier animateur à rejoindre devient automatiquement chef de section.
+            </ThemedText>
+          </View>
+        </View>
+
+        {/* Code Examples */}
+        <View style={styles.codeExamplesCard}>
+          <ThemedText style={styles.codeExamplesTitle}>Préfixes par section</ThemedText>
+          <View style={styles.codeExamplesGrid}>
+            <View style={styles.codeExample}>
+              <ThemedText style={styles.codeExamplePrefix}>BAL-</ThemedText>
+              <ThemedText style={styles.codeExampleLabel}>Baladins</ThemedText>
+            </View>
+            <View style={styles.codeExample}>
+              <ThemedText style={styles.codeExamplePrefix}>LOUV-</ThemedText>
+              <ThemedText style={styles.codeExampleLabel}>Louveteaux</ThemedText>
+            </View>
+            <View style={styles.codeExample}>
+              <ThemedText style={styles.codeExamplePrefix}>LUT-</ThemedText>
+              <ThemedText style={styles.codeExampleLabel}>Lutins</ThemedText>
+            </View>
+            <View style={styles.codeExample}>
+              <ThemedText style={styles.codeExamplePrefix}>ECL-</ThemedText>
+              <ThemedText style={styles.codeExampleLabel}>Éclaireurs</ThemedText>
+            </View>
+            <View style={styles.codeExample}>
+              <ThemedText style={styles.codeExamplePrefix}>GUI-</ThemedText>
+              <ThemedText style={styles.codeExampleLabel}>Guides</ThemedText>
+            </View>
+            <View style={styles.codeExample}>
+              <ThemedText style={styles.codeExamplePrefix}>PIO-</ThemedText>
+              <ThemedText style={styles.codeExampleLabel}>Pionniers</ThemedText>
+            </View>
+          </View>
+        </View>
 
         {/* Spacer */}
         <View style={styles.spacer} />
@@ -458,29 +296,29 @@ export default function AnimatorUnitSelectionScreen() {
           <TouchableOpacity
             style={[
               styles.continueButton,
-              (!selectedUnit || !accessCode.trim() || authLoading) && styles.continueButtonDisabled,
+              (!foundSection || authLoading) && styles.continueButtonDisabled,
             ]}
             onPress={handleContinue}
-            disabled={!selectedUnit || !accessCode.trim() || authLoading}
+            disabled={!foundSection || authLoading}
             activeOpacity={0.8}
           >
-            <ThemedText
-              style={[
-                styles.continueButtonText,
-                (!selectedUnit || !accessCode.trim() || authLoading) && styles.continueButtonTextDisabled,
-              ]}
-            >
-              {authLoading ? 'Création du compte...' : 'Continuer'}
-            </ThemedText>
+            {authLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <ThemedText
+                style={[
+                  styles.continueButtonText,
+                  (!foundSection || authLoading) && styles.continueButtonTextDisabled,
+                ]}
+              >
+                Rejoindre la section
+              </ThemedText>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => {
-              setMode('choice');
-              setSelectedUnit(null);
-              setAccessCode('');
-            }}
+            onPress={() => router.back()}
             activeOpacity={0.7}
           >
             <ThemedText style={styles.backButtonText}>Retour</ThemedText>
@@ -504,15 +342,6 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 40,
   },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: colors.neutral,
-  },
 
   // Header
   header: {
@@ -523,13 +352,10 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: colors.accentLight,
+    backgroundColor: colors.mist,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-  },
-  iconEmoji: {
-    fontSize: 40,
   },
   title: {
     fontSize: 26,
@@ -543,158 +369,208 @@ const styles = StyleSheet.create({
     color: colors.neutral,
     textAlign: 'center',
     lineHeight: 22,
+    paddingHorizontal: 20,
   },
 
-  // Choice Cards
-  choiceContainer: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  choiceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardBg,
-    borderRadius: 16,
-    padding: 20,
-    gap: 16,
-    borderWidth: 2,
-    borderColor: colors.mist,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  choiceCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}08`,
-  },
-  choiceIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  choiceContent: {
-    flex: 1,
-  },
-  choiceTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.dark,
-    marginBottom: 4,
-  },
-  choiceDescription: {
-    fontSize: 13,
-    color: colors.neutral,
-    lineHeight: 18,
-  },
-
-  // Federations
-  federationsContainer: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  emptyCard: {
-    backgroundColor: colors.cardBg,
-    borderRadius: 16,
-    padding: 40,
-    alignItems: 'center',
-    gap: 16,
-    borderWidth: 1,
-    borderColor: colors.mist,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: colors.neutral,
-    textAlign: 'center',
-  },
-  federationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardBg,
-    borderRadius: 16,
-    padding: 16,
-    gap: 16,
-    borderWidth: 1,
-    borderColor: colors.mist,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  federationLogo: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  federationInitial: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  federationInfo: {
-    flex: 1,
-  },
-  federationName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.dark,
-  },
-  federationDescription: {
-    fontSize: 13,
-    color: colors.neutral,
-    marginTop: 2,
-  },
-  checkmark: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-
-  // Code Section
-  codeSection: {
+  // Code Card
+  codeCard: {
     backgroundColor: colors.cardBg,
     borderRadius: 16,
     padding: 24,
     borderWidth: 1,
     borderColor: colors.mist,
     marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  codeSectionHeader: {
+  codeInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  codeIcon: {
-    fontSize: 20,
-  },
-  codeSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.dark,
-  },
-  codeSectionDescription: {
-    fontSize: 13,
-    color: colors.neutral,
-    lineHeight: 18,
-    marginBottom: 12,
   },
   codeInput: {
+    flex: 1,
     backgroundColor: colors.mist,
     borderRadius: 12,
     padding: 16,
-    fontSize: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.dark,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  validatingIndicator: {
+    position: 'absolute',
+    right: 16,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  statusText: {
+    fontSize: 14,
+    flex: 1,
+  },
+
+  // Section Found Card
+  sectionFoundCard: {
+    backgroundColor: `${colors.success}10`,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: `${colors.success}30`,
+  },
+  sectionFoundHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionFoundTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  sectionFoundDetails: {
+    marginLeft: 32,
+  },
+  sectionNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionEmoji: {
+    fontSize: 24,
+  },
+  sectionFoundName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  sectionFoundType: {
+    fontSize: 13,
+    color: colors.neutral,
+    marginTop: 2,
+    marginLeft: 32,
+  },
+  unitInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    marginLeft: 32,
+  },
+  unitFoundName: {
+    fontSize: 13,
+    color: colors.neutral,
+  },
+
+  // Info Card
+  infoCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.mist,
+    marginBottom: 16,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  infoSteps: {
+    gap: 12,
+  },
+  infoStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoStepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoStepNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  infoStepText: {
+    fontSize: 14,
+    color: colors.neutral,
+    flex: 1,
+  },
+  infoNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.mist,
+  },
+  infoNoteText: {
+    fontSize: 13,
+    color: colors.accent,
+    flex: 1,
+    fontStyle: 'italic',
+  },
+
+  // Code Examples Card
+  codeExamplesCard: {
+    backgroundColor: colors.accentLight,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  codeExamplesTitle: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.dark,
-    letterSpacing: 1,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  codeExamplesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  codeExample: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.cardBg,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  codeExamplePrefix: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.primary,
+  },
+  codeExampleLabel: {
+    fontSize: 11,
+    color: colors.neutral,
   },
 
   // Spacer

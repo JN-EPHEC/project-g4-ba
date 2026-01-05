@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ScrollView, StyleSheet, View, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,42 +17,49 @@ export default function ScoutsScreen() {
   const { user } = useAuth();
   const animator = user as Animator;
   const [scouts, setScouts] = useState<Scout[]>([]);
+  const [animators, setAnimators] = useState<Animator[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const iconColor = useThemeColor({}, 'icon');
 
-  // Recharger les scouts quand on revient sur la page
+  // Recharger les membres quand on revient sur la page
   useFocusEffect(
     useCallback(() => {
       if (animator?.unitId) {
-        loadScouts();
+        loadMembers();
       }
     }, [animator?.unitId])
   );
 
-  const loadScouts = async () => {
+  const loadMembers = async () => {
     try {
       setLoading(true);
       setError(null);
 
       if (animator?.unitId) {
-        const scoutsData = await UnitService.getScoutsByUnit(animator.unitId);
+        const [scoutsData, animatorsData] = await Promise.all([
+          UnitService.getScoutsByUnit(animator.unitId),
+          UnitService.getAnimatorsByUnit(animator.unitId),
+        ]);
         setScouts(scoutsData);
+        setAnimators(animatorsData);
       }
     } catch (err: any) {
-      console.error('Erreur lors du chargement des scouts:', err);
-      setError(err.message || 'Impossible de charger les scouts');
+      console.error('Erreur lors du chargement des membres:', err);
+      setError(err.message || 'Impossible de charger les membres');
     } finally {
       setLoading(false);
     }
   };
+
+  const totalMembers = scouts.length + animators.length;
 
   if (loading) {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={BrandColors.primary[500]} />
-          <Text style={styles.loadingText}>Chargement des scouts...</Text>
+          <Text style={styles.loadingText}>Chargement des membres...</Text>
         </View>
       </ThemedView>
     );
@@ -73,7 +80,7 @@ export default function ScoutsScreen() {
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
-          Scouts
+          Membres
         </ThemedText>
 
         <Card style={styles.statsCard}>
@@ -81,12 +88,58 @@ export default function ScoutsScreen() {
             Total
           </ThemedText>
           <ThemedText type="title" style={styles.totalScouts}>
-            {scouts.length}
+            {totalMembers}
           </ThemedText>
-          <ThemedText style={styles.statsSubtitle}>
-            scouts dans votre unité
-          </ThemedText>
+          <View style={styles.statsBreakdown}>
+            <ThemedText style={styles.statsSubtitle}>
+              {scouts.length} scouts
+            </ThemedText>
+            <ThemedText style={[styles.statsSubtitle, { color: BrandColors.accent[500] }]}>
+              {animators.length} animateurs
+            </ThemedText>
+          </View>
         </Card>
+
+        {/* Section Animateurs */}
+        {animators.length > 0 && (
+          <>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Animateurs ({animators.length})
+            </ThemedText>
+            <View style={styles.scoutsList}>
+              {animators.map((anim) => (
+                <Card key={anim.id} style={[styles.scoutCard, styles.animatorCard]}>
+                  <View style={styles.scoutHeader}>
+                    <View style={[styles.scoutAvatar, styles.animatorAvatar]}>
+                      <Text style={styles.avatarText}>
+                        {anim.firstName.charAt(0)}
+                        {anim.lastName.charAt(0)}
+                      </Text>
+                    </View>
+                    <View style={styles.scoutInfo}>
+                      <View style={styles.nameRow}>
+                        <ThemedText type="defaultSemiBold" style={[styles.scoutName, { color: BrandColors.accent[500] }]}>
+                          {anim.firstName} {anim.lastName}
+                        </ThemedText>
+                        {(anim as any).isUnitLeader && (
+                          <View style={styles.leaderBadge}>
+                            <ThemedText style={styles.leaderBadgeText}>Chef</ThemedText>
+                          </View>
+                        )}
+                      </View>
+                      <ThemedText style={styles.scoutEmail}>{anim.email}</ThemedText>
+                    </View>
+                  </View>
+                </Card>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Section Scouts */}
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Scouts ({scouts.length})
+        </ThemedText>
 
         {scouts.length === 0 ? (
           <Card style={styles.emptyCard}>
@@ -200,6 +253,34 @@ const styles = StyleSheet.create({
   statsSubtitle: {
     fontSize: 14,
     opacity: 0.7,
+  },
+  statsBreakdown: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+  },
+  sectionTitle: {
+    marginTop: 24,
+    marginBottom: 12,
+    color: BrandColors.primary[600],
+  },
+  animatorCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: BrandColors.accent[500],
+  },
+  animatorAvatar: {
+    backgroundColor: BrandColors.accent[500],
+  },
+  leaderBadge: {
+    backgroundColor: BrandColors.accent[100],
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  leaderBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: BrandColors.accent[600],
   },
   emptyCard: {
     padding: 40,

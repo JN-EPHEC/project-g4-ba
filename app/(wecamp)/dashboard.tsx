@@ -27,7 +27,9 @@ import { ChallengeService } from '@/src/features/challenges/services/challenge-s
 import { AdminStatsService, GlobalStats, ChallengeStats, UnitStats } from '@/services/admin-stats-service';
 import { PartnerService } from '@/services/partner-service';
 import { BadgeService } from '@/services/badge-service';
-import { Challenge, BadgeDefinition, BadgeCategory, BadgeCondition } from '@/types';
+import { UnitService } from '@/services/unit-service';
+import { SectionService } from '@/services/section-service';
+import { Challenge, BadgeDefinition, BadgeCategory, BadgeCondition, UnitCategory, Section, SectionType, SECTION_LABELS, SECTION_EMOJIS, SECTION_PREFIXES } from '@/types';
 import { Partner, PartnerOffer, Redemption } from '@/types/partners';
 
 // Design System
@@ -100,6 +102,32 @@ export default function WeCampDashboard() {
   // Unit detail modal
   const [selectedUnit, setSelectedUnit] = useState<UnitStats | null>(null);
   const [showUnitModal, setShowUnitModal] = useState(false);
+
+  // Unit creation form
+  const [showUnitForm, setShowUnitForm] = useState(false);
+  const [unitForm, setUnitForm] = useState({
+    name: '',
+    category: 'scouts' as 'scouts' | 'guides' | 'patro' | 'sgp' | 'faucons',
+    description: '',
+    logo: '',
+  });
+  const [createdUnitCode, setCreatedUnitCode] = useState<string | null>(null);
+  const [isUploadingUnitLogo, setIsUploadingUnitLogo] = useState(false);
+  const [savingUnit, setSavingUnit] = useState(false);
+
+  // Section management
+  const [unitSections, setUnitSections] = useState<Record<string, Section[]>>({});
+  const [showSectionForm, setShowSectionForm] = useState(false);
+  const [sectionFormUnitId, setSectionFormUnitId] = useState<string | null>(null);
+  const [sectionFormUnitName, setSectionFormUnitName] = useState<string>('');
+  const [sectionForm, setSectionForm] = useState({
+    name: '',
+    sectionType: SectionType.LOUVETEAUX,
+    description: '',
+  });
+  const [createdSectionCode, setCreatedSectionCode] = useState<string | null>(null);
+  const [savingSection, setSavingSection] = useState(false);
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
 
   // Partner context menu
   const [selectedPartnerForMenu, setSelectedPartnerForMenu] = useState<Partner | null>(null);
@@ -775,9 +803,415 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
     </View>
   );
 
+  // ==================== UNIT HANDLERS ====================
+  const resetUnitForm = () => {
+    setUnitForm({
+      name: '',
+      category: 'scouts',
+      description: '',
+      logo: '',
+    });
+    setCreatedUnitCode(null);
+  };
+
+  const resetSectionForm = () => {
+    setSectionForm({
+      name: '',
+      sectionType: SectionType.LOUVETEAUX,
+      description: '',
+    });
+    setCreatedSectionCode(null);
+    setSectionFormUnitId(null);
+    setSectionFormUnitName('');
+  };
+
+  const handleOpenSectionForm = (unitId: string, unitName: string) => {
+    resetSectionForm();
+    setSectionFormUnitId(unitId);
+    setSectionFormUnitName(unitName);
+    setShowSectionForm(true);
+  };
+
+  const handleSaveSection = async () => {
+    if (!sectionForm.name.trim() || !sectionFormUnitId) {
+      Alert.alert('Erreur', 'Le nom de la section est requis');
+      return;
+    }
+
+    setSavingSection(true);
+    try {
+      const newSection = await SectionService.createSection(
+        sectionFormUnitId,
+        sectionForm.name.trim(),
+        sectionForm.sectionType,
+        sectionForm.description.trim() || undefined
+      );
+
+      setCreatedSectionCode(newSection.accessCode || null);
+
+      // Mettre à jour les sections de l'unité
+      setUnitSections((prev) => ({
+        ...prev,
+        [sectionFormUnitId]: [...(prev[sectionFormUnitId] || []), newSection],
+      }));
+
+      Alert.alert(
+        'Section créée !',
+        `La section "${newSection.name}" a été créée.\n\nCode d'accès: ${newSection.accessCode}\n\nPartagez ce code aux animateurs de cette section.`
+      );
+    } catch (error) {
+      console.error('Erreur création section:', error);
+      Alert.alert('Erreur', 'Impossible de créer la section');
+    } finally {
+      setSavingSection(false);
+    }
+  };
+
+  const loadSectionsForUnit = async (unitId: string) => {
+    try {
+      const sections = await SectionService.getSectionsByUnit(unitId);
+      setUnitSections((prev) => ({
+        ...prev,
+        [unitId]: sections,
+      }));
+    } catch (error) {
+      console.error('Erreur chargement sections:', error);
+    }
+  };
+
+  const toggleExpandUnit = (unitId: string) => {
+    const newExpanded = new Set(expandedUnits);
+    if (newExpanded.has(unitId)) {
+      newExpanded.delete(unitId);
+    } else {
+      newExpanded.add(unitId);
+      // Charger les sections si pas encore chargées
+      if (!unitSections[unitId]) {
+        loadSectionsForUnit(unitId);
+      }
+    }
+    setExpandedUnits(newExpanded);
+  };
+
+  const handleShareSectionCode = async (sectionName: string, code: string) => {
+    try {
+      await Share.share({
+        message: `Rejoins la section "${sectionName}" sur WeCamp !\n\nCode d'accès: ${code}\n\nTélécharge l'app WeCamp et utilise ce code lors de ton inscription.`,
+      });
+    } catch (error) {
+      console.error('Erreur partage:', error);
+    }
+  };
+
+  const handleRegenerateSectionCode = async (sectionId: string, sectionName: string) => {
+    Alert.alert(
+      'Régénérer le code ?',
+      `L'ancien code de la section "${sectionName}" ne sera plus valide.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Régénérer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const newCode = await SectionService.regenerateAccessCode(sectionId);
+              // Rafraîchir les sections
+              const section = Object.values(unitSections)
+                .flat()
+                .find((s) => s.id === sectionId);
+              if (section) {
+                loadSectionsForUnit(section.unitId);
+              }
+              Alert.alert('Nouveau code', `Le nouveau code d'accès est: ${newCode}`);
+            } catch (error) {
+              console.error('Erreur régénération:', error);
+              Alert.alert('Erreur', 'Impossible de régénérer le code');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const pickUnitLogo = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setIsUploadingUnitLogo(true);
+        const uploadedUrl = await StorageService.uploadImage(
+          result.assets[0].uri,
+          `units/logos/${Date.now()}.jpg`,
+          { contentType: 'image/jpeg' }
+        );
+        setUnitForm({ ...unitForm, logo: uploadedUrl });
+        setIsUploadingUnitLogo(false);
+      }
+    } catch (error) {
+      console.error('Erreur upload logo:', error);
+      Alert.alert('Erreur', 'Impossible de charger le logo');
+      setIsUploadingUnitLogo(false);
+    }
+  };
+
+  const handleSaveUnit = async () => {
+    if (!unitForm.name.trim()) {
+      Alert.alert('Erreur', 'Le nom de l\'unité est requis');
+      return;
+    }
+
+    setSavingUnit(true);
+    try {
+      const newUnit = await UnitService.createUnitByAdmin(
+        unitForm.name.trim(),
+        unitForm.category as UnitCategory,
+        unitForm.description.trim() || undefined,
+        unitForm.logo || undefined
+      );
+
+      setCreatedUnitCode(newUnit.accessCode || null);
+
+      // Rafraîchir les données
+      const [updatedUnitRanking] = await Promise.all([
+        AdminStatsService.getUnitRanking(),
+      ]);
+      setUnitRanking(updatedUnitRanking);
+
+      Alert.alert(
+        'Unité créée !',
+        `L'unité "${newUnit.name}" a été créée.\n\nCode d'accès: ${newUnit.accessCode}\n\nPartagez ce code aux animateurs pour qu'ils puissent rejoindre l'unité.`
+      );
+    } catch (error) {
+      console.error('Erreur création unité:', error);
+      Alert.alert('Erreur', 'Impossible de créer l\'unité');
+    } finally {
+      setSavingUnit(false);
+    }
+  };
+
+  const handleCopyCode = async (code: string) => {
+    try {
+      await Clipboard.setStringAsync(code);
+      Alert.alert('Copié !', 'Le code d\'accès a été copié dans le presse-papiers');
+    } catch (error) {
+      console.error('Erreur copie:', error);
+    }
+  };
+
+  const handleShareCode = async (unitName: string, code: string) => {
+    try {
+      await Share.share({
+        message: `Rejoins l'unité "${unitName}" sur WeCamp !\n\nCode d'accès: ${code}\n\nTélécharge l'app WeCamp et utilise ce code lors de ton inscription en tant qu'animateur.`,
+      });
+    } catch (error) {
+      console.error('Erreur partage:', error);
+    }
+  };
+
+  const handleRegenerateCode = async (unitId: string, unitName: string) => {
+    Alert.alert(
+      'Régénérer le code ?',
+      `L'ancien code de l'unité "${unitName}" ne sera plus valide. Les nouveaux animateurs devront utiliser le nouveau code.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Régénérer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const newCode = await UnitService.regenerateAccessCode(unitId);
+              // Rafraîchir
+              const updatedRanking = await AdminStatsService.getUnitRanking();
+              setUnitRanking(updatedRanking);
+              Alert.alert('Nouveau code', `Le nouveau code d'accès est: ${newCode}`);
+            } catch (error) {
+              console.error('Erreur régénération:', error);
+              Alert.alert('Erreur', 'Impossible de régénérer le code');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // ==================== RENDER UNITES ====================
   const renderUnites = () => (
     <View style={styles.section}>
+      {/* Create Unit Button */}
+      <TouchableOpacity
+        style={styles.createUnitButton}
+        onPress={() => {
+          resetUnitForm();
+          setShowUnitForm(true);
+        }}
+      >
+        <Ionicons name="add-circle" size={20} color={colors.canvas} />
+        <Text style={styles.createUnitButtonText}>Nouvelle unité</Text>
+      </TouchableOpacity>
+
+      {/* Unit Creation Form */}
+      {showUnitForm && (
+        <View style={styles.formCard}>
+          <View style={styles.formHeader}>
+            <Text style={styles.formTitle}>
+              {createdUnitCode ? 'Unité créée !' : 'Nouvelle unité'}
+            </Text>
+            <TouchableOpacity onPress={() => {
+              setShowUnitForm(false);
+              resetUnitForm();
+            }}>
+              <Ionicons name="close" size={24} color={colors.neutral} />
+            </TouchableOpacity>
+          </View>
+
+          {createdUnitCode ? (
+            // Affichage du code après création
+            <View style={styles.createdCodeContainer}>
+              <Ionicons name="checkmark-circle" size={64} color={colors.success} />
+              <Text style={styles.createdCodeTitle}>Code d'accès</Text>
+              <Text style={styles.createdCodeValue}>{createdUnitCode}</Text>
+              <Text style={styles.createdCodeHint}>
+                Partagez ce code aux animateurs pour qu'ils rejoignent l'unité.
+              </Text>
+              <View style={styles.createdCodeActions}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, { flex: 1, marginRight: spacing.xs }]}
+                  onPress={() => handleCopyCode(createdUnitCode)}
+                >
+                  <Ionicons name="copy" size={18} color={colors.canvas} />
+                  <Text style={[styles.primaryButtonText, { marginLeft: spacing.xs }]}>Copier</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { flex: 1 }]}
+                  onPress={() => handleShareCode(unitForm.name, createdUnitCode)}
+                >
+                  <Ionicons name="share" size={18} color={colors.primary} />
+                  <Text style={[styles.secondaryButtonText, { marginLeft: spacing.xs }]}>Partager</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.tertiaryButton, { marginTop: spacing.md }]}
+                onPress={() => {
+                  setShowUnitForm(false);
+                  resetUnitForm();
+                }}
+              >
+                <Text style={styles.tertiaryButtonText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // Formulaire de création
+            <>
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Nom de l'unité *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={unitForm.name}
+                  onChangeText={(text) => setUnitForm({ ...unitForm, name: text })}
+                  placeholder="Ex: 15ème Bruxelles"
+                />
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Fédération</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.categoryChips}>
+                    {[
+                      { key: 'scouts', label: 'Scouts', emoji: '⚜️' },
+                      { key: 'guides', label: 'Guides', emoji: '🌸' },
+                      { key: 'patro', label: 'Patro', emoji: '🔵' },
+                      { key: 'sgp', label: 'SGP', emoji: '🟢' },
+                      { key: 'faucons', label: 'Faucons', emoji: '🔴' },
+                    ].map((fed) => (
+                      <TouchableOpacity
+                        key={fed.key}
+                        style={[
+                          styles.categoryChip,
+                          unitForm.category === fed.key && styles.categoryChipActive,
+                        ]}
+                        onPress={() => setUnitForm({ ...unitForm, category: fed.key as typeof unitForm.category })}
+                      >
+                        <Text style={styles.categoryChipEmoji}>{fed.emoji}</Text>
+                        <Text
+                          style={[
+                            styles.categoryChipText,
+                            unitForm.category === fed.key && styles.categoryChipTextActive,
+                          ]}
+                        >
+                          {fed.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Description (optionnel)</Text>
+                <TextInput
+                  style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+                  value={unitForm.description}
+                  onChangeText={(text) => setUnitForm({ ...unitForm, description: text })}
+                  placeholder="Description de l'unité..."
+                  multiline
+                />
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Logo (optionnel)</Text>
+                {unitForm.logo ? (
+                  <View style={styles.logoPreviewContainer}>
+                    <Image
+                      source={{ uri: unitForm.logo }}
+                      style={styles.logoPreview}
+                      contentFit="contain"
+                    />
+                    <TouchableOpacity
+                      style={styles.removeLogoButton}
+                      onPress={() => setUnitForm({ ...unitForm, logo: '' })}
+                    >
+                      <Ionicons name="close-circle" size={24} color={colors.danger} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.logoPickerButton}
+                    onPress={pickUnitLogo}
+                    disabled={isUploadingUnitLogo}
+                  >
+                    {isUploadingUnitLogo ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="image-outline" size={32} color={colors.neutral} />
+                        <Text style={styles.logoPickerText}>Cliquez pour uploader</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.primaryButton, { marginTop: spacing.md }]}
+                onPress={handleSaveUnit}
+                disabled={savingUnit}
+              >
+                {savingUnit ? (
+                  <ActivityIndicator size="small" color={colors.canvas} />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Créer l'unité</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
+
       {/* Search */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={18} color={colors.neutral} />
@@ -872,11 +1306,221 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                   <Text style={styles.unitStatLabel}>pts</Text>
                 </View>
               </View>
+
+              {/* Sections Management */}
+              <View style={styles.sectionsContainer}>
+                <TouchableOpacity
+                  style={styles.sectionsHeader}
+                  onPress={() => toggleExpandUnit(unit.unitId)}
+                >
+                  <View style={styles.sectionsHeaderLeft}>
+                    <Ionicons name="people" size={16} color={colors.primary} />
+                    <Text style={styles.sectionsHeaderText}>
+                      Sections ({unitSections[unit.unitId]?.length || 0})
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={expandedUnits.has(unit.unitId) ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={colors.neutral}
+                  />
+                </TouchableOpacity>
+
+                {expandedUnits.has(unit.unitId) && (
+                  <View style={styles.sectionsContent}>
+                    {/* Liste des sections */}
+                    {(unitSections[unit.unitId] || []).map((section) => (
+                      <View key={section.id} style={styles.sectionItem}>
+                        <View style={styles.sectionItemHeader}>
+                          <Text style={styles.sectionEmoji}>
+                            {SECTION_EMOJIS[section.sectionType]}
+                          </Text>
+                          <View style={styles.sectionItemInfo}>
+                            <Text style={styles.sectionItemName}>{section.name}</Text>
+                            <Text style={styles.sectionItemType}>
+                              {SECTION_LABELS[section.sectionType]}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.sectionCodeRow}>
+                          <Text style={styles.sectionCodeValue}>{section.accessCode}</Text>
+                          <View style={styles.sectionCodeActions}>
+                            <TouchableOpacity
+                              style={styles.sectionCodeButton}
+                              onPress={() => handleCopyCode(section.accessCode)}
+                            >
+                              <Ionicons name="copy-outline" size={14} color={colors.primary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.sectionCodeButton}
+                              onPress={() => handleShareSectionCode(section.name, section.accessCode)}
+                            >
+                              <Ionicons name="share-outline" size={14} color={colors.primary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.sectionCodeButton, { backgroundColor: colors.warningLight }]}
+                              onPress={() => handleRegenerateSectionCode(section.id, section.name)}
+                            >
+                              <Ionicons name="refresh" size={14} color={colors.warning} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+
+                    {/* Bouton ajouter section */}
+                    <TouchableOpacity
+                      style={styles.addSectionButton}
+                      onPress={() => handleOpenSectionForm(unit.unitId, unit.unitName)}
+                    >
+                      <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                      <Text style={styles.addSectionButtonText}>Ajouter une section</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             </View>
           );
         })
       )}
     </View>
+  );
+
+  // ==================== SECTION CREATION MODAL ====================
+  const renderSectionFormModal = () => (
+    <Modal
+      visible={showSectionForm}
+      transparent
+      animationType="slide"
+      onRequestClose={() => {
+        setShowSectionForm(false);
+        resetSectionForm();
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.formHeader}>
+            <Text style={styles.formTitle}>
+              {createdSectionCode ? 'Section créée !' : `Nouvelle section - ${sectionFormUnitName}`}
+            </Text>
+            <TouchableOpacity onPress={() => {
+              setShowSectionForm(false);
+              resetSectionForm();
+            }}>
+              <Ionicons name="close" size={24} color={colors.neutral} />
+            </TouchableOpacity>
+          </View>
+
+          {createdSectionCode ? (
+            // Affichage du code après création
+            <View style={styles.createdCodeContainer}>
+              <Ionicons name="checkmark-circle" size={64} color={colors.success} />
+              <Text style={styles.createdCodeTitle}>Code d'accès</Text>
+              <Text style={styles.createdCodeValue}>{createdSectionCode}</Text>
+              <Text style={styles.createdCodeHint}>
+                Partagez ce code aux animateurs de cette section.
+              </Text>
+              <View style={styles.createdCodeActions}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, { flex: 1, marginRight: spacing.xs }]}
+                  onPress={() => handleCopyCode(createdSectionCode)}
+                >
+                  <Ionicons name="copy" size={18} color={colors.canvas} />
+                  <Text style={[styles.primaryButtonText, { marginLeft: spacing.xs }]}>Copier</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { flex: 1 }]}
+                  onPress={() => handleShareSectionCode(sectionForm.name, createdSectionCode)}
+                >
+                  <Ionicons name="share" size={18} color={colors.primary} />
+                  <Text style={[styles.secondaryButtonText, { marginLeft: spacing.xs }]}>Partager</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.tertiaryButton, { marginTop: spacing.md }]}
+                onPress={() => {
+                  setShowSectionForm(false);
+                  resetSectionForm();
+                }}
+              >
+                <Text style={styles.tertiaryButtonText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // Formulaire de création
+            <ScrollView style={{ maxHeight: 400 }}>
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Nom de la section *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={sectionForm.name}
+                  onChangeText={(text) => setSectionForm({ ...sectionForm, name: text })}
+                  placeholder="Ex: Louveteaux de Thuin"
+                />
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Type de section *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.categoryChips}>
+                    {Object.values(SectionType).map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[
+                          styles.categoryChip,
+                          sectionForm.sectionType === type && styles.categoryChipActive,
+                        ]}
+                        onPress={() => setSectionForm({ ...sectionForm, sectionType: type })}
+                      >
+                        <Text style={styles.categoryChipEmoji}>{SECTION_EMOJIS[type]}</Text>
+                        <Text
+                          style={[
+                            styles.categoryChipText,
+                            sectionForm.sectionType === type && styles.categoryChipTextActive,
+                          ]}
+                        >
+                          {SECTION_LABELS[type]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              <View style={styles.sectionCodePreview}>
+                <Text style={styles.sectionCodePreviewLabel}>Préfixe du code:</Text>
+                <Text style={styles.sectionCodePreviewValue}>
+                  {SECTION_PREFIXES[sectionForm.sectionType]}-XXXXXX
+                </Text>
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Description (optionnel)</Text>
+                <TextInput
+                  style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+                  value={sectionForm.description}
+                  onChangeText={(text) => setSectionForm({ ...sectionForm, description: text })}
+                  placeholder="Description de la section..."
+                  multiline
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.primaryButton, { marginTop: spacing.md }]}
+                onPress={handleSaveSection}
+                disabled={savingSection}
+              >
+                {savingSection ? (
+                  <ActivityIndicator size="small" color={colors.canvas} />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Créer la section</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
   );
 
   // ==================== RENDER CLASSEMENT ====================
@@ -2479,6 +3123,9 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Section Creation Modal */}
+      {renderSectionFormModal()}
     </SafeAreaView>
   );
 }
@@ -3074,6 +3721,111 @@ const styles = StyleSheet.create({
   unitStatLabel: {
     fontSize: 13,
     color: colors.neutral,
+  },
+
+  // Unit Creation Button
+  createUnitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  createUnitButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // Access Code Section
+  accessCodeSection: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.mist,
+  },
+  accessCodeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  accessCodeLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.neutral,
+  },
+  accessCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  accessCodeValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  accessCodeActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  accessCodeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Created Code Display
+  createdCodeContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+  },
+  createdCodeTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.neutral,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  createdCodeValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.primary,
+    letterSpacing: 2,
+    marginBottom: spacing.sm,
+  },
+  createdCodeHint: {
+    fontSize: 13,
+    color: colors.neutral,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  createdCodeActions: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: spacing.sm,
+  },
+
+  // Tertiary Button
+  tertiaryButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  tertiaryButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.neutral,
+    textAlign: 'center',
   },
 
   // Classement
@@ -3918,5 +4670,123 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.neutral,
     lineHeight: 18,
+  },
+
+  // Section styles
+  sectionsContainer: {
+    marginTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.mist,
+    paddingTop: spacing.md,
+  },
+  sectionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xs,
+  },
+  sectionsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  sectionsHeaderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.dark,
+  },
+  sectionsContent: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  sectionItem: {
+    backgroundColor: colors.mist,
+    borderRadius: 12,
+    padding: spacing.sm,
+  },
+  sectionItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  sectionEmoji: {
+    fontSize: 24,
+  },
+  sectionItemInfo: {
+    flex: 1,
+  },
+  sectionItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.dark,
+  },
+  sectionItemType: {
+    fontSize: 12,
+    color: colors.neutral,
+  },
+  sectionCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.canvas,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  sectionCodeValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  sectionCodeActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  sectionCodeButton: {
+    padding: 6,
+    backgroundColor: colors.mist,
+    borderRadius: 6,
+  },
+  addSectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    backgroundColor: `${colors.primary}08`,
+  },
+  addSectionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  sectionCodePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mist,
+    borderRadius: 8,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  sectionCodePreviewLabel: {
+    fontSize: 13,
+    color: colors.neutral,
+  },
+  sectionCodePreviewValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.primary,
+    letterSpacing: 1,
   },
 });

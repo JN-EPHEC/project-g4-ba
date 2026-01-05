@@ -7,7 +7,12 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { AnimatorChallengeCard } from '@/src/features/challenges/components/animator-challenge-card';
-import { useChallenges } from '@/src/features/challenges/hooks';
+import { useChallenges, useSectionLeaderboard, useLeaderboard } from '@/src/features/challenges/hooks';
+import { LeaderboardSubTabs, LeaderboardTab } from '@/src/features/challenges/components/leaderboard-sub-tabs';
+import { LeaderboardPodium } from '@/src/features/challenges/components/leaderboard-podium';
+import { LeaderboardList } from '@/src/features/challenges/components/leaderboard-list';
+import { SectionLeaderboardPodium } from '@/src/features/challenges/components/section-leaderboard-podium';
+import { SectionLeaderboardList } from '@/src/features/challenges/components/section-leaderboard-list';
 import { useAuth } from '@/context/auth-context';
 import { Challenge, ChallengeStatus } from '@/types';
 import { Animator } from '@/types';
@@ -40,7 +45,7 @@ const rewardColors = {
   warning: '#F5A623',
 };
 
-type MainTab = 'defis' | 'recompenses';
+type MainTab = 'defis' | 'recompenses' | 'classement';
 type AnimatorFilter = 'active' | 'completed' | 'archived';
 
 export default function AnimatorChallengesScreen() {
@@ -51,15 +56,34 @@ export default function AnimatorChallengesScreen() {
   // Onglet principal
   const [mainTab, setMainTab] = useState<MainTab>('defis');
 
+  // Sous-onglet classement
+  const [leaderboardSubTab, setLeaderboardSubTab] = useState<LeaderboardTab>('individual');
+
+  // Hooks leaderboard
+  const { podiumUsers, otherUsers, loading: leaderboardLoading } = useLeaderboard({ unitId: animator?.unitId });
+  const { podiumSections, otherSections, loading: sectionLeaderboardLoading } = useSectionLeaderboard({ unitId: animator?.unitId });
+
   useFocusEffect(
     useCallback(() => {
       refetch();
       loadUnitStats();
+      loadUnitBalance();
       if (mainTab === 'recompenses') {
         loadRewardsData();
       }
     }, [mainTab])
   );
+
+  // Charger uniquement le solde de points (léger)
+  const loadUnitBalance = useCallback(async () => {
+    if (!animator?.unitId) return;
+    try {
+      const balance = await PartnerService.getUnitPointsBalance(animator.unitId);
+      setUnitBalance(balance);
+    } catch (error) {
+      console.error('Erreur chargement solde points:', error);
+    }
+  }, [animator?.unitId]);
 
   const [activeFilter, setActiveFilter] = useState<AnimatorFilter>('active');
   const [pendingValidations, setPendingValidations] = useState(0);
@@ -295,37 +319,18 @@ export default function AnimatorChallengesScreen() {
             <Ionicons name="chevron-back" size={24} color={textColor} />
           </TouchableOpacity>
           <ThemedText type="title" style={styles.headerTitle}>
-            {mainTab === 'defis' ? 'Défis' : 'Récompenses'}
+            Défis
           </ThemedText>
-          <View style={styles.headerActions}>
-            {mainTab === 'defis' ? (
-              <>
-                <TouchableOpacity
-                  style={styles.statsButton}
-                  onPress={() => router.push('/(animator)/challenges/kpi')}
-                >
-                  <Ionicons name="stats-chart" size={22} color={textColor} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.createButton}
-                  onPress={() => router.push('/(animator)/challenges/create')}
-                >
-                  <Ionicons name="add" size={18} color="#FFFFFF" />
-                  <ThemedText style={styles.createButtonText}>Créer</ThemedText>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={styles.historyButton}
-                onPress={() => router.push('/(animator)/partners/history')}
-              >
-                <Ionicons name="time-outline" size={22} color={textColor} />
-              </TouchableOpacity>
-            )}
-          </View>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => router.push('/(animator)/challenges/create')}
+          >
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <ThemedText style={styles.createButtonText}>Créer</ThemedText>
+          </TouchableOpacity>
         </View>
 
-        {/* Onglets principaux Défis / Récompenses */}
+        {/* Onglets principaux */}
         <View style={styles.mainTabs}>
           <TouchableOpacity
             style={[
@@ -334,11 +339,7 @@ export default function AnimatorChallengesScreen() {
             ]}
             onPress={() => setMainTab('defis')}
           >
-            <Ionicons
-              name="trophy"
-              size={18}
-              color={mainTab === 'defis' ? BrandColors.primary[600] : textSecondary}
-            />
+            <Text style={styles.tabEmoji}>🏆</Text>
             <ThemedText
               style={[
                 styles.mainTabText,
@@ -351,19 +352,32 @@ export default function AnimatorChallengesScreen() {
           <TouchableOpacity
             style={[
               styles.mainTab,
+              mainTab === 'classement' && styles.mainTabActive,
+            ]}
+            onPress={() => setMainTab('classement')}
+          >
+            <Text style={styles.tabEmoji}>🏅</Text>
+            <ThemedText
+              style={[
+                styles.mainTabText,
+                { color: mainTab === 'classement' ? BrandColors.primary[600] : textSecondary },
+              ]}
+            >
+              Classement
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.mainTab,
               mainTab === 'recompenses' && styles.mainTabActive,
             ]}
             onPress={() => setMainTab('recompenses')}
           >
-            <Ionicons
-              name="gift"
-              size={18}
-              color={mainTab === 'recompenses' ? BrandColors.accent[600] : textSecondary}
-            />
+            <Text style={styles.tabEmoji}>🎁</Text>
             <ThemedText
               style={[
                 styles.mainTabText,
-                { color: mainTab === 'recompenses' ? BrandColors.accent[600] : textSecondary },
+                { color: mainTab === 'recompenses' ? BrandColors.primary[600] : textSecondary },
               ]}
             >
               Récompenses
@@ -374,6 +388,25 @@ export default function AnimatorChallengesScreen() {
         {/* === CONTENU DÉFIS === */}
         {mainTab === 'defis' && (
           <>
+            {/* Carte Points de l'unité */}
+            <TouchableOpacity
+              style={styles.pointsCard}
+              onPress={() => setMainTab('recompenses')}
+              activeOpacity={0.9}
+            >
+              <View>
+                <Text style={styles.pointsCardLabel}>Points de l'unité</Text>
+                <View style={styles.pointsCardValue}>
+                  <Ionicons name="star" size={20} color={BrandColors.accent[500]} />
+                  <Text style={styles.pointsCardNumber}>{unitBalance.toLocaleString()}</Text>
+                </View>
+              </View>
+              <View style={styles.pointsCardButton}>
+                <Text style={styles.pointsCardButtonText}>Voir récompenses</Text>
+                <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+
             {/* Bandeau Validations */}
             {pendingValidations > 0 && (
               <TouchableOpacity
@@ -441,29 +474,6 @@ export default function AnimatorChallengesScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Filter Tabs */}
-            <View style={styles.filterTabs}>
-              {(['active', 'completed', 'archived'] as AnimatorFilter[]).map((filter) => (
-                <TouchableOpacity
-                  key={filter}
-                  style={[
-                    styles.filterTab,
-                    activeFilter === filter && styles.filterTabActive,
-                  ]}
-                  onPress={() => setActiveFilter(filter)}
-                >
-                  <ThemedText
-                    style={[
-                      styles.filterTabText,
-                      { color: activeFilter === filter ? '#FFFFFF' : textSecondary },
-                    ]}
-                  >
-                    {filter === 'active' ? 'Actifs' : filter === 'completed' ? 'Terminés' : 'Archivés'}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
-
             {/* Challenges List */}
             {filteredChallenges.length === 0 ? (
               <View style={styles.emptyContainer}>
@@ -499,6 +509,73 @@ export default function AnimatorChallengesScreen() {
                   );
                 })}
               </View>
+            )}
+          </>
+        )}
+
+        {/* === CONTENU CLASSEMENT === */}
+        {mainTab === 'classement' && (
+          <>
+            {/* Sous-onglets Individuel / Sections */}
+            <LeaderboardSubTabs
+              activeTab={leaderboardSubTab}
+              onTabChange={setLeaderboardSubTab}
+            />
+
+            {leaderboardSubTab === 'individual' ? (
+              // Classement individuel
+              leaderboardLoading ? (
+                <View style={styles.rewardsLoadingContainer}>
+                  <ActivityIndicator size="large" color={BrandColors.primary[500]} />
+                </View>
+              ) : (
+                <>
+                  {podiumUsers.length >= 3 && (
+                    <LeaderboardPodium users={podiumUsers} />
+                  )}
+                  {otherUsers.length > 0 && (
+                    <LeaderboardList users={otherUsers} startRank={4} />
+                  )}
+                  {podiumUsers.length === 0 && otherUsers.length === 0 && (
+                    <View style={styles.emptyContainer}>
+                      <ThemedText style={styles.emptyIcon}>🏆</ThemedText>
+                      <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                        Pas encore de classement
+                      </ThemedText>
+                      <ThemedText color="secondary" style={styles.emptyText}>
+                        Les scouts apparaîtront ici quand ils auront des points.
+                      </ThemedText>
+                    </View>
+                  )}
+                </>
+              )
+            ) : (
+              // Classement par sections
+              sectionLeaderboardLoading ? (
+                <View style={styles.rewardsLoadingContainer}>
+                  <ActivityIndicator size="large" color={BrandColors.primary[500]} />
+                </View>
+              ) : (
+                <>
+                  {podiumSections.length >= 3 && (
+                    <SectionLeaderboardPodium sections={podiumSections} />
+                  )}
+                  {otherSections.length > 0 && (
+                    <SectionLeaderboardList sections={otherSections} startRank={4} />
+                  )}
+                  {podiumSections.length === 0 && otherSections.length === 0 && (
+                    <View style={styles.emptyContainer}>
+                      <ThemedText style={styles.emptyIcon}>🏕️</ThemedText>
+                      <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                        Pas encore de sections
+                      </ThemedText>
+                      <ThemedText color="secondary" style={styles.emptyText}>
+                        Les sections apparaîtront ici quand elles auront des points.
+                      </ThemedText>
+                    </View>
+                  )}
+                </>
+              )
             )}
           </>
         )}
@@ -683,17 +760,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statsButton: {
-    padding: 8,
-  },
-  historyButton: {
-    padding: 8,
-  },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -714,7 +780,7 @@ const styles = StyleSheet.create({
     backgroundColor: NeutralColors.gray[100],
     borderRadius: 14,
     padding: 4,
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 4,
   },
   mainTab: {
@@ -736,8 +802,51 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   mainTabText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
+  },
+  tabEmoji: {
+    fontSize: 14,
+  },
+  // Points Card
+  pointsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: BrandColors.primary[600],
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  pointsCardLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 2,
+  },
+  pointsCardValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pointsCardNumber: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  pointsCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  pointsCardButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   // Validation Banner
   validationBanner: {
@@ -810,25 +919,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 13,
     marginTop: 4,
-  },
-  // Filter Tabs
-  filterTabs: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-  },
-  filterTab: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    backgroundColor: NeutralColors.gray[100],
-  },
-  filterTabActive: {
-    backgroundColor: BrandColors.primary[500],
-  },
-  filterTabText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   // List
   listContainer: {

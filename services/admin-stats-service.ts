@@ -21,6 +21,7 @@ export interface UnitStats {
   unitId: string;
   unitName: string;
   category: string;
+  accessCode?: string;
   totalScouts: number;
   totalAnimators: number;
   totalMembers: number;
@@ -179,13 +180,14 @@ export class AdminStatsService {
     try {
       // Récupérer toutes les unités
       const unitsSnapshot = await getDocs(collection(db, 'units'));
-      const units = new Map<string, { name: string; category: string; createdAt?: Date }>();
+      const units = new Map<string, { name: string; category: string; accessCode?: string; createdAt?: Date }>();
 
       unitsSnapshot.docs.forEach((doc) => {
         const data = doc.data();
         units.set(doc.id, {
           name: data.name,
           category: data.category || 'Autre',
+          accessCode: data.accessCode,
           createdAt: data.createdAt?.toDate(),
         });
       });
@@ -268,6 +270,7 @@ export class AdminStatsService {
           unitId,
           unitName: unitInfo.name,
           category: unitInfo.category,
+          accessCode: unitInfo.accessCode,
           totalScouts: memberInfo.scouts,
           totalAnimators: memberInfo.animators,
           totalMembers: memberInfo.scouts + memberInfo.animators,

@@ -178,6 +178,12 @@ export default function AnimatorLayout() {
           href: null, // Accessible depuis Défis > Rewards
         }}
       />
+      <Tabs.Screen
+        name="section-logo"
+        options={{
+          href: null, // Accessible depuis Gestion > Ma section
+        }}
+      />
     </Tabs>
   );
 }

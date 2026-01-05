@@ -48,6 +48,7 @@ export default function AnimatorDashboardScreen() {
   const animator = user as Animator;
   const [unit, setUnit] = useState<Unit | null>(null);
   const [scoutsCount, setScoutsCount] = useState(0);
+  const [animatorsCount, setAnimatorsCount] = useState(0);
   const [eventsCount, setEventsCount] = useState(0);
   const [challengesCount, setChallengesCount] = useState(0);
   const [upcomingEvents, setUpcomingEvents] = useState<(Event & { attendeesCount?: number })[]>([]);
@@ -89,8 +90,13 @@ export default function AnimatorDashboardScreen() {
         setUnit(unitData);
 
         if (unitData) {
-          const scouts = await UnitService.getScoutsByUnit(unitData.id);
+          // Charger scouts et animateurs en parallèle
+          const [scouts, animators] = await Promise.all([
+            UnitService.getScoutsByUnit(unitData.id),
+            UnitService.getAnimatorsByUnit(unitData.id),
+          ]);
           setScoutsCount(scouts.length);
+          setAnimatorsCount(animators.length);
 
           // Charger le classement
           try {
@@ -254,8 +260,10 @@ export default function AnimatorDashboardScreen() {
             {/* Stats Row */}
             <View style={styles.statsRow}>
               <AnimatedPressable style={styles.statCard} onPress={() => router.push('/(animator)/scouts')}>
-                <ThemedText style={styles.statValue}>{isLoading ? '...' : scoutsCount}</ThemedText>
-                <ThemedText style={styles.statLabel}>Scouts</ThemedText>
+                <ThemedText style={styles.statValue}>
+                  {isLoading ? '...' : scoutsCount + animatorsCount}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Membres</ThemedText>
               </AnimatedPressable>
               <AnimatedPressable style={styles.statCard} onPress={() => router.push('/(animator)/events')}>
                 <ThemedText style={styles.statValue}>{isLoading ? '...' : eventsCount}</ThemedText>
@@ -737,6 +745,9 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 24, fontWeight: '600', color: '#FFFFFF', writingDirection: 'ltr' },
   statLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2, writingDirection: 'ltr' },
+  membersBreakdown: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  membersScouts: { fontSize: 10, color: '#FFFFFF', fontWeight: '500' },
+  membersAnimators: { fontSize: 10, color: BrandColors.accent[400], fontWeight: '600' },
 
   // Alerts
   alertCard: {

@@ -31,6 +31,7 @@ export interface Scout extends User {
   role: UserRole.SCOUT;
   parentIds: string[];
   unitId: string;
+  sectionId?: string; // Section d'appartenance (ex: louveteaux, pionniers)
   points: number;
   rank?: string;
   dateOfBirth: Date;
@@ -59,7 +60,9 @@ export interface Parent extends User {
 export interface Animator extends User {
   role: UserRole.ANIMATOR;
   unitId: string;
-  isUnitLeader: boolean;
+  sectionId?: string; // Section gérée par l'animateur
+  isUnitLeader: boolean; // Chef d'unité (supervise toutes les sections)
+  isSectionLeader?: boolean; // Chef de section
   specialties?: string[];
   totemName?: string; // Nom de totem
   totemAnimal?: string; // Animal du totem (pour compatibilité)

@@ -10,12 +10,15 @@ import { ChallengeCardCompact } from '@/src/features/challenges/components/chall
 import { ChallengesHeroHeader, getScoutLevelInfo } from '@/src/features/challenges/components/challenges-hero-header';
 import { ChallengesMainTabs, MainTab } from '@/src/features/challenges/components/challenges-main-tabs';
 import { ChallengesFilterTabs, ChallengeFilter } from '@/src/features/challenges/components/challenges-filter-tabs';
-import { useChallenges, useBadges } from '@/src/features/challenges/hooks';
+import { useChallenges, useBadges, useSectionLeaderboard } from '@/src/features/challenges/hooks';
 import { useAllChallengeProgress } from '@/src/features/challenges/hooks/use-all-challenge-progress';
 import { useChallengeProgress } from '@/src/features/challenges/hooks/use-challenge-progress';
 import { useAuth } from '@/context/auth-context';
 import { LeaderboardPodium } from '@/src/features/challenges/components/leaderboard-podium';
 import { LeaderboardList } from '@/src/features/challenges/components/leaderboard-list';
+import { LeaderboardSubTabs, LeaderboardTab } from '@/src/features/challenges/components/leaderboard-sub-tabs';
+import { SectionLeaderboardPodium } from '@/src/features/challenges/components/section-leaderboard-podium';
+import { SectionLeaderboardList } from '@/src/features/challenges/components/section-leaderboard-list';
 import { BadgesGrid } from '@/src/features/challenges/components/badges-grid';
 import { CompletedChallengesSection } from '@/src/features/challenges/components/completed-challenges-section';
 import { StartedChallengesSection } from '@/src/features/challenges/components/started-challenges-section';
@@ -40,12 +43,19 @@ export default function ChallengesScreen() {
     loading: leaderboardLoading
   } = useLeaderboard();
   const {
+    podiumSections,
+    otherSections,
+    mySectionRank,
+    loading: sectionLeaderboardLoading
+  } = useSectionLeaderboard();
+  const {
     badgesForGrid,
     loading: badgesLoading
   } = useBadges({ scoutId: scout?.id });
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [activeFilter, setActiveFilter] = useState<ChallengeFilter>('all');
   const [activeMainTab, setActiveMainTab] = useState<MainTab>('challenges');
+  const [activeLeaderboardTab, setActiveLeaderboardTab] = useState<LeaderboardTab>('individual');
   const [userRank, setUserRank] = useState<number | null>(null);
   const [showLevelModal, setShowLevelModal] = useState(false);
 
@@ -205,36 +215,71 @@ export default function ChallengesScreen() {
   const renderTabContent = () => {
     switch (activeMainTab) {
       case 'leaderboard':
-        if (leaderboardLoading) {
-          return (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={tintColor} />
-              <ThemedText color="secondary" style={styles.loadingText}>Chargement du classement...</ThemedText>
-            </View>
-          );
-        }
-
-        if (podiumUsers.length === 0) {
-          return (
-            <View style={styles.emptyContainer}>
-              <ThemedText style={styles.emptyIcon}>🏆</ThemedText>
-              <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
-                Aucun scout dans le classement
-              </ThemedText>
-              <ThemedText color="secondary" style={styles.emptyText}>
-                Les scouts de votre unité apparaîtront ici une fois qu'ils auront des points.
-              </ThemedText>
-            </View>
-          );
-        }
-
         return (
           <>
-            {/* Podium */}
-            <LeaderboardPodium users={podiumUsers} />
-            {/* Full list (starting from rank 4) */}
-            {otherUsers.length > 0 && (
-              <LeaderboardList users={otherUsers} startRank={4} />
+            {/* Sous-onglets Individuel / Sections */}
+            <LeaderboardSubTabs
+              activeTab={activeLeaderboardTab}
+              onTabChange={setActiveLeaderboardTab}
+            />
+
+            {activeLeaderboardTab === 'individual' ? (
+              // Classement individuel
+              <>
+                {leaderboardLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={tintColor} />
+                    <ThemedText color="secondary" style={styles.loadingText}>Chargement du classement...</ThemedText>
+                  </View>
+                ) : podiumUsers.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <ThemedText style={styles.emptyIcon}>🏆</ThemedText>
+                    <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                      Aucun scout dans le classement
+                    </ThemedText>
+                    <ThemedText color="secondary" style={styles.emptyText}>
+                      Les scouts de votre unité apparaîtront ici une fois qu'ils auront des points.
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <>
+                    <LeaderboardPodium users={podiumUsers} />
+                    {otherUsers.length > 0 && (
+                      <LeaderboardList users={otherUsers} startRank={4} />
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              // Classement par sections
+              <>
+                {sectionLeaderboardLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={tintColor} />
+                    <ThemedText color="secondary" style={styles.loadingText}>Chargement du classement...</ThemedText>
+                  </View>
+                ) : podiumSections.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <ThemedText style={styles.emptyIcon}>🏕️</ThemedText>
+                    <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                      Aucune section dans le classement
+                    </ThemedText>
+                    <ThemedText color="secondary" style={styles.emptyText}>
+                      Les sections de votre unité apparaîtront ici une fois qu'elles auront des scouts avec des points.
+                    </ThemedText>
+                  </View>
+                ) : podiumSections.length < 3 ? (
+                  // Pas assez de sections pour le podium, afficher uniquement la liste
+                  <SectionLeaderboardList sections={podiumSections} startRank={1} />
+                ) : (
+                  <>
+                    <SectionLeaderboardPodium sections={podiumSections} />
+                    {otherSections.length > 0 && (
+                      <SectionLeaderboardList sections={otherSections} startRank={4} />
+                    )}
+                  </>
+                )}
+              </>
             )}
           </>
         );
