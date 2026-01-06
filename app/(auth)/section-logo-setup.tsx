@@ -97,51 +97,75 @@ export default function SectionLogoSetupScreen() {
   };
 
   const handleSaveLogo = async () => {
-    if (!generatedLogo || !sectionId) return;
+    if (!generatedLogo || !sectionId) {
+      console.log('❌ handleSaveLogo - données manquantes:', { generatedLogo: !!generatedLogo, sectionId });
+      return;
+    }
 
+    console.log('🔄 Début sauvegarde logo pour section:', sectionId);
     setIsSaving(true);
 
     try {
       // Upload l'image vers Firebase Storage (utiliser uploadBase64Image pour les images base64)
+      console.log('📤 Upload de l\'image base64...');
       const logoUrl = await StorageService.uploadBase64Image(
         generatedLogo,
         `sections/${sectionId}/logo_${Date.now()}.png`,
         'image/png'
       );
+      console.log('✅ Image uploadée, URL:', logoUrl);
 
       // Mettre à jour la section avec l'URL du logo
+      console.log('📝 Mise à jour de la section...');
       await SectionService.updateSection(sectionId, { logoUrl });
+      console.log('✅ Section mise à jour avec succès');
 
-      Alert.alert(
-        'Logo enregistré !',
-        'Le logo de ta section a été sauvegardé avec succès.',
-        [
-          {
-            text: 'Continuer',
-            onPress: () => router.replace('/(animator)/dashboard'),
-          },
-        ]
-      );
+      // Utiliser alert() pour le web au lieu de Alert.alert()
+      if (Platform.OS === 'web') {
+        alert('Logo enregistré ! Le logo de ta section a été sauvegardé avec succès.');
+        router.replace('/(animator)/dashboard');
+      } else {
+        Alert.alert(
+          'Logo enregistré !',
+          'Le logo de ta section a été sauvegardé avec succès.',
+          [
+            {
+              text: 'Continuer',
+              onPress: () => router.replace('/(animator)/dashboard'),
+            },
+          ]
+        );
+      }
     } catch (error) {
-      console.error('Erreur sauvegarde logo:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder le logo.');
+      console.error('❌ Erreur sauvegarde logo:', error);
+      if (Platform.OS === 'web') {
+        alert('Erreur: Impossible de sauvegarder le logo.');
+      } else {
+        Alert.alert('Erreur', 'Impossible de sauvegarder le logo.');
+      }
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleSkip = () => {
-    Alert.alert(
-      'Passer cette étape ?',
-      'Tu pourras toujours personnaliser le logo plus tard depuis les paramètres.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Passer',
-          onPress: () => router.replace('/(animator)/dashboard'),
-        },
-      ]
-    );
+    if (Platform.OS === 'web') {
+      if (confirm('Passer cette étape ? Tu pourras toujours personnaliser le logo plus tard depuis les paramètres.')) {
+        router.replace('/(animator)/dashboard');
+      }
+    } else {
+      Alert.alert(
+        'Passer cette étape ?',
+        'Tu pourras toujours personnaliser le logo plus tard depuis les paramètres.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Passer',
+            onPress: () => router.replace('/(animator)/dashboard'),
+          },
+        ]
+      );
+    }
   };
 
   return (

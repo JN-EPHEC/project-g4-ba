@@ -182,7 +182,6 @@ export default function AnimatorLayout() {
         name="section-logo"
         options={{
           href: null,
-          tabBarButton: () => null, // Cache complètement l'onglet
         }}
       />
     </Tabs>

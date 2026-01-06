@@ -216,6 +216,20 @@ export default function WeCampDashboard() {
       setAllOffers(offersData);
       setBadges(badgesData);
       setTotalBadgesAwarded(badgesAwarded);
+
+      // Charger les sections pour chaque unité au démarrage
+      if (ranking && ranking.length > 0) {
+        const sectionsPromises = ranking.map(unit =>
+          SectionService.getSectionsByUnit(unit.unitId)
+            .then(sections => ({ unitId: unit.unitId, sections }))
+            .catch(() => ({ unitId: unit.unitId, sections: [] as Section[] }))
+        );
+
+        const results = await Promise.all(sectionsPromises);
+        const sectionsMap: Record<string, Section[]> = {};
+        results.forEach(r => { sectionsMap[r.unitId] = r.sections; });
+        setUnitSections(sectionsMap);
+      }
     } catch (error) {
       console.error('Erreur chargement données:', error);
     } finally {

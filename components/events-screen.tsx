@@ -161,9 +161,11 @@ export function EventsScreen({ userRole, canCreate = false, canDelete = false, c
   const handleCreateEvent = async (eventData: EventFormData) => {
     if (!user) return;
 
-    const unitId = (user as any).unitId;
-    if (!unitId) {
-      throw new Error('Unité non trouvée');
+    // Utiliser l'unitId de l'utilisateur ou une valeur par défaut
+    const unitId = (user as any).unitId || 'default-unit';
+
+    if (!(user as any).unitId) {
+      console.warn('⚠️ Pas de unitId pour cet animateur, utilisation de "default-unit"');
     }
 
     await EventService.createEvent(
@@ -441,7 +443,9 @@ function EventCardWithAttendance({
         isRegistered={isRegistered}
         imageUrl={event.imageUrl}
         onPress={() => {
-          console.log(`Event ${event.title} clicked`);
+          // Navigate to event detail page based on user role
+          const basePath = canDelete ? '/(animator)' : '/(scout)';
+          router.push(`${basePath}/events/${event.id}`);
         }}
         onAttendancePress={toggleAttendance}
         canDelete={canDelete}
