@@ -21,6 +21,13 @@ export interface SectionLogoGenerationResult {
   error?: string;
 }
 
+export interface UnitLogoGenerationResult {
+  success: boolean;
+  imageBase64?: string;
+  imageUrl?: string;
+  error?: string;
+}
+
 interface CloudFunctionResponse {
   success: boolean;
   imageUrl?: string;
@@ -224,6 +231,116 @@ export class AIImageService {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       console.log(`[AIImageService] Tentative logo ${attempt + 1}/${maxRetries}`);
       const result = await this.generateSectionLogo(sectionType, sectionName, style);
+
+      if (result.success) {
+        return result;
+      }
+
+      lastError = result.error || 'Erreur inconnue';
+
+      if (result.error?.includes('chargement') || result.error?.includes('loading')) {
+        await this.delay(5000);
+      } else if (attempt < maxRetries - 1) {
+        await this.delay(2000);
+      }
+    }
+
+    return {
+      success: false,
+      error: lastError,
+    };
+  }
+
+  /**
+   * Génère un logo d'unité via la Cloud Function
+   * @param unitName Nom de l'unité
+   * @param unitCategory Catégorie de l'unité (scouts, guides, patro, etc.)
+   * @param style Style du logo (nature, moderne, classique)
+   */
+  static async generateUnitLogo(
+    unitName: string,
+    unitCategory: string,
+    style: 'nature' | 'moderne' | 'classique' = 'nature'
+  ): Promise<UnitLogoGenerationResult> {
+    try {
+      console.log(`[AIImageService] Génération de logo pour unité: ${unitName} (${unitCategory})`);
+
+      // Mapping des catégories vers des éléments visuels
+      const categoryVisuals: Record<string, string> = {
+        scouts: 'fleur de lys, tent, compass, nature',
+        guides: 'trefoil, flower, compass, nature',
+        patro: 'shield, cross, community, strength',
+        sgp: 'fleur de lys, star, adventure',
+        faucons: 'falcon, wings, sky, freedom',
+      };
+
+      const visualElements = categoryVisuals[unitCategory] || 'scout, nature, adventure, community';
+
+      // Réutiliser la Cloud Function generateSectionLogo avec les paramètres adaptés
+      const functions = getFunctions(app, 'europe-west1');
+      const generateSectionLogoFn = httpsCallable<
+        { sectionType: string; sectionName: string; style: string; visualElements: string },
+        CloudFunctionResponse
+      >(functions, 'generateSectionLogo');
+
+      const result = await generateSectionLogoFn({
+        sectionType: unitCategory,
+        sectionName: unitName,
+        style,
+        visualElements,
+      });
+
+      if (result.data.success && result.data.imageBase64) {
+        console.log('[AIImageService] Logo d\'unité généré avec succès');
+        return {
+          success: true,
+          imageBase64: result.data.imageBase64,
+          imageUrl: result.data.imageUrl,
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Réponse invalide du serveur',
+      };
+
+    } catch (error: any) {
+      console.error('[AIImageService] Erreur génération logo unité:', error);
+
+      if (error.code) {
+        switch (error.code) {
+          case 'functions/unauthenticated':
+            return { success: false, error: 'Vous devez être connecté pour générer un logo' };
+          case 'functions/unavailable':
+            return { success: false, error: error.message || 'Service temporairement indisponible' };
+          case 'functions/not-found':
+            return { success: false, error: 'Service de génération non disponible' };
+          default:
+            return { success: false, error: error.message || 'Erreur lors de la génération' };
+        }
+      }
+
+      return {
+        success: false,
+        error: error.message || 'Erreur inconnue',
+      };
+    }
+  }
+
+  /**
+   * Génère un logo d'unité avec retry automatique
+   */
+  static async generateUnitLogoWithRetry(
+    unitName: string,
+    unitCategory: string,
+    style: 'nature' | 'moderne' | 'classique' = 'nature',
+    maxRetries: number = 2
+  ): Promise<UnitLogoGenerationResult> {
+    let lastError = '';
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      console.log(`[AIImageService] Tentative logo unité ${attempt + 1}/${maxRetries}`);
+      const result = await this.generateUnitLogo(unitName, unitCategory, style);
 
       if (result.success) {
         return result;

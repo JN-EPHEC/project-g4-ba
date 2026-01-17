@@ -35,6 +35,7 @@ interface LeaderboardUser {
   firstName: string;
   lastName: string;
   totemAnimal?: string;
+  totemEmoji?: string;
   points: number;
   avatarUrl?: string;
 }
@@ -86,13 +87,17 @@ export default function AnimatorDashboardScreen() {
   // Charger les données de la section
   useEffect(() => {
     const loadSection = async () => {
+      console.log('[Dashboard] animator.sectionId:', animator?.sectionId);
       if (animator?.sectionId) {
         try {
           const sectionData = await SectionService.getSectionById(animator.sectionId);
+          console.log('[Dashboard] Section chargée:', sectionData?.name);
           setSection(sectionData);
         } catch (error) {
           console.error('Erreur chargement section:', error);
         }
+      } else {
+        console.log('[Dashboard] Pas de sectionId pour cet animateur');
       }
     };
     loadSection();
@@ -123,6 +128,7 @@ export default function AnimatorDashboardScreen() {
               firstName: entry.scout.firstName,
               lastName: entry.scout.lastName,
               totemAnimal: entry.scout.totemAnimal,
+              totemEmoji: entry.scout.totemEmoji,
               points: entry.points,
               avatarUrl: entry.scout.profilePicture,
             })));
@@ -279,12 +285,29 @@ export default function AnimatorDashboardScreen() {
                 </TouchableOpacity>
               )}
               {unit && !section && (
-                <>
-                  <ThemedText style={styles.unitName}>{unit.name}</ThemedText>
-                  {unit.scoutGroup?.name && (
-                    <ThemedText style={styles.unitGroup}>{unit.scoutGroup.name}</ThemedText>
-                  )}
-                </>
+                <View style={styles.unitBadge}>
+                  <TouchableOpacity
+                    onPress={() => router.push('/(animator)/unit-logo')}
+                    activeOpacity={0.7}
+                  >
+                    {unit.logoUrl ? (
+                      <Image source={{ uri: unit.logoUrl }} style={styles.unitBadgeLogo} />
+                    ) : (
+                      <View style={styles.unitBadgeLogoPlaceholder}>
+                        <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.7)" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => router.push('/(animator)/unit-overview')}
+                    activeOpacity={0.7}
+                  >
+                    <ThemedText style={styles.unitName}>{unit.name}</ThemedText>
+                    {unit.scoutGroup?.name && (
+                      <ThemedText style={styles.unitGroup}>{unit.scoutGroup.name}</ThemedText>
+                    )}
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
 
@@ -726,6 +749,13 @@ const styles = StyleSheet.create({
   sectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   sectionBadgeLogo: { width: 24, height: 24, borderRadius: 6 },
   sectionBadgeText: { fontSize: 20, fontWeight: '600', color: '#FFFFFF' },
+  unitBadge: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 8 },
+  unitBadgeLogo: { width: 64, height: 64, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)' },
+  unitBadgeLogoPlaceholder: {
+    width: 64, height: 64, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, direction: 'ltr' },
   notificationButton: {
     width: 44, height: 44, borderRadius: 22,
@@ -859,12 +889,12 @@ const styles = StyleSheet.create({
   widgetsRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md, direction: 'ltr' },
 
   // Weather Widget
-  weatherWidget: { flex: 1, borderRadius: Radius.xl, padding: Spacing.lg },
+  weatherWidget: { flex: 1, borderRadius: Radius.xl, padding: Spacing.lg, minHeight: 120, overflow: 'hidden' },
   weatherHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs, direction: 'ltr' },
-  weatherIcon: { fontSize: 32 },
-  weatherTemp: { fontSize: 36, fontWeight: '300', color: '#FFFFFF' },
-  weatherDesc: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', marginBottom: Spacing.sm },
-  weatherRain: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
+  weatherIcon: { fontSize: 32, lineHeight: 40, textAlign: 'center' },
+  weatherTemp: { fontSize: 36, fontWeight: '300', color: '#FFFFFF', lineHeight: 42 },
+  weatherDesc: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', marginBottom: Spacing.sm, lineHeight: 18 },
+  weatherRain: { fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 16 },
 
   // Birthday Widget
   birthdayWidget: { flex: 1, borderRadius: Radius.xl, padding: Spacing.lg, borderWidth: 1 },
@@ -877,10 +907,10 @@ const styles = StyleSheet.create({
   birthdayBadgeText: { fontSize: 11, fontWeight: '600', color: '#FFFFFF' },
 
   // Rewards Section
-  rewardsCard: { marginHorizontal: Spacing.xl, borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg },
+  rewardsCard: { marginHorizontal: Spacing.xl, borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, overflow: 'hidden' },
   rewardsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg, direction: 'ltr' },
   rewardsBalance: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, direction: 'ltr' },
-  rewardsEmoji: { fontSize: 28 },
+  rewardsEmoji: { fontSize: 28, lineHeight: 36, textAlign: 'center' },
   rewardsBalanceLabel: { fontSize: 12, marginBottom: 2 },
   rewardsBalanceValue: { fontSize: 20, fontWeight: '700' },
   rewardsHistoryButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },

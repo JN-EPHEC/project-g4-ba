@@ -124,9 +124,31 @@ export function isValidSectionCode(code: string): boolean {
 }
 
 /**
+ * Valide le format d'un code d'accès d'unité
+ * Format attendu: UNIT-XXXXXX (ex: UNIT-A1B2C3)
+ */
+export function isValidUnitCode(code: string): boolean {
+  const pattern = /^UNIT-[A-Z0-9]{6}$/;
+  return pattern.test(code.toUpperCase());
+}
+
+/**
+ * Vérifie si un code est un code d'unité ou de section valide
+ */
+export function isValidAccessCode(code: string): { valid: boolean; type: 'unit' | 'section' | null } {
+  if (isValidUnitCode(code)) {
+    return { valid: true, type: 'unit' };
+  }
+  if (isValidSectionCode(code)) {
+    return { valid: true, type: 'section' };
+  }
+  return { valid: false, type: null };
+}
+
+/**
  * Extrait le préfixe d'un code d'accès
  */
 export function extractPrefixFromCode(code: string): string | null {
-  const match = code.toUpperCase().match(/^(BAL|LOUV|LUT|ECL|GUI|PIO|ROU)-/);
+  const match = code.toUpperCase().match(/^(BAL|LOUV|LUT|ECL|GUI|PIO|ROU|UNIT)-/);
   return match ? match[1] : null;
 }

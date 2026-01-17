@@ -41,7 +41,6 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
 
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
-  const overlayColor = useThemeColor({}, 'overlay');
   const textColor = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
@@ -116,7 +115,7 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { backgroundColor: overlayColor }]}>
+      <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: cardColor, borderColor: cardBorder }]}>
           {/* Header */}
           <View style={styles.header}>
@@ -248,12 +247,15 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: Spacing.xl,
-    maxHeight: '80%',
+    paddingBottom: 40,
+    maxHeight: '85%',
+    minHeight: 300,
     borderWidth: 1,
     borderBottomWidth: 0,
   },
@@ -270,6 +272,7 @@ const styles = StyleSheet.create({
   },
   headerIcon: {
     fontSize: 24,
+    lineHeight: 32,
   },
   title: {
     fontSize: 22,
@@ -302,6 +305,7 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 48,
+    lineHeight: 56,
     marginBottom: Spacing.md,
   },
   emptyTitle: {
@@ -331,6 +335,8 @@ const styles = StyleSheet.create({
   },
   notificationEmoji: {
     fontSize: 24,
+    lineHeight: 32,
+    textAlign: 'center',
   },
   notificationContent: {
     flex: 1,

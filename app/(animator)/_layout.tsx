@@ -184,6 +184,12 @@ export default function AnimatorLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="unit-logo"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

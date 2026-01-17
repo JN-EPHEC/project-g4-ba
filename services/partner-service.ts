@@ -323,6 +323,7 @@ export class PartnerService {
    */
   static async getUnitPointsBalance(unitId: string): Promise<number> {
     try {
+      // 1. Calculer le total des points gagnés par les scouts
       const usersQuery = query(
         collection(db, 'users'),
         where('unitId', '==', unitId),
@@ -330,12 +331,29 @@ export class PartnerService {
       );
       const usersSnapshot = await getDocs(usersQuery);
 
-      let totalPoints = 0;
+      let totalEarnedPoints = 0;
       usersSnapshot.docs.forEach((doc) => {
-        totalPoints += doc.data().points || 0;
+        totalEarnedPoints += doc.data().points || 0;
       });
 
-      return totalPoints;
+      // 2. Calculer le total des points dépensés (redemptions actives ou utilisées)
+      const redemptionsQuery = query(
+        collection(db, this.REDEMPTIONS_COLLECTION),
+        where('unitId', '==', unitId)
+      );
+      const redemptionsSnapshot = await getDocs(redemptionsQuery);
+
+      let totalSpentPoints = 0;
+      redemptionsSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        // Compter seulement les redemptions actives ou utilisées (pas rejected/expired)
+        if (data.status === 'active' || data.status === 'used') {
+          totalSpentPoints += data.pointsSpent || 0;
+        }
+      });
+
+      // 3. Solde disponible = points gagnés - points dépensés
+      return Math.max(0, totalEarnedPoints - totalSpentPoints);
     } catch (error) {
       console.error('Erreur getUnitPointsBalance:', error);
       return 0;
@@ -348,8 +366,11 @@ export class PartnerService {
   static readonly REQUIRED_APPROVALS = 3;
 
   /**
-   * Déduit des points de l'unité en les répartissant sur les scouts
-   * Les points sont déduits proportionnellement au solde de chaque scout
+   * @deprecated Cette fonction n'est plus utilisée.
+   * Les points des scouts ne sont plus modifiés lors des échanges.
+   * Le solde disponible est calculé dynamiquement: points gagnés - points dépensés (redemptions).
+   *
+   * Anciennement: Déduit des points de l'unité en les répartissant sur les scouts
    */
   static async deductUnitPoints(unitId: string, pointsToDeduct: number): Promise<void> {
     try {
@@ -459,10 +480,9 @@ export class PartnerService {
 
       const redemptionRef = await addDoc(collection(db, this.REDEMPTIONS_COLLECTION), redemptionData);
 
-      // 7. Déduire les points de l'unité
-      await this.deductUnitPoints(unitId, offer.pointsCost);
-
-      // 8. Incrémenter le compteur de rédemptions de l'offre
+      // 7. Incrémenter le compteur de rédemptions de l'offre
+      // Note: Les points ne sont plus déduits des scouts individuellement.
+      // Le solde est calculé dynamiquement: points gagnés - points dépensés (redemptions)
       await updateDoc(doc(db, this.OFFERS_COLLECTION, offerId), {
         currentRedemptions: (offer.currentRedemptions || 0) + 1,
       });

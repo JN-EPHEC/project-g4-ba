@@ -63,11 +63,11 @@ export default function ParentLayout() {
         }}
       />
       <Tabs.Screen
-        name="challenges"
+        name="events"
         options={{
-          title: 'Validations',
+          title: 'Événements',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="checkmark-circle" size={size} color={color} />
+            <Ionicons name="calendar" size={size} color={color} />
           ),
         }}
       />
@@ -90,6 +90,12 @@ export default function ParentLayout() {
         }}
       />
       {/* Routes cachées */}
+      <Tabs.Screen
+        name="challenges"
+        options={{
+          href: null, // Accessible depuis Plus
+        }}
+      />
       <Tabs.Screen
         name="documents"
         options={{

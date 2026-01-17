@@ -260,6 +260,65 @@ export class ParentScoutService {
   }
 
   /**
+   * Lie un parent à un scout via le code de liaison sécurisé
+   * C'est la méthode recommandée pour la liaison parent-scout
+   */
+  static async linkParentToScoutByCode(
+    parentId: string,
+    linkCode: string
+  ): Promise<{ success: boolean; scout?: Scout; error?: string }> {
+    try {
+      // Normaliser le code (majuscules, supprimer espaces)
+      const normalizedCode = linkCode.toUpperCase().trim();
+
+      // Valider le format du code (ABC-123-XYZ)
+      const codePattern = /^[A-Z]{3}-\d{3}-[A-Z]{3}$/;
+      if (!codePattern.test(normalizedCode)) {
+        return {
+          success: false,
+          error: 'Format de code invalide. Le code doit être au format ABC-123-XYZ',
+        };
+      }
+
+      // Rechercher le scout avec ce code
+      const scout = await UserService.getScoutByLinkCode(normalizedCode);
+
+      if (!scout) {
+        return {
+          success: false,
+          error: 'Code de liaison invalide. Vérifiez le code et réessayez.',
+        };
+      }
+
+      // Vérifier si la relation existe déjà
+      const existingRelation = await this.getRelation(parentId, scout.id);
+      if (existingRelation) {
+        return {
+          success: false,
+          error: 'Vous êtes déjà lié(e) à ce scout.',
+        };
+      }
+
+      // Créer la liaison
+      await this.linkParentToScout(parentId, scout.id, true); // verified: true car code valide
+
+      return {
+        success: true,
+        scout,
+      };
+    } catch (error: any) {
+      console.error('Erreur linkParentToScoutByCode:', error);
+      return {
+        success: false,
+        error: error?.message || 'Une erreur est survenue lors de la liaison.',
+      };
+    }
+  }
+
+  /**
+   * @deprecated Utilisez linkParentToScoutByCode à la place pour plus de sécurité.
+   * Cette méthode expose les données des scouts à n'importe quel parent.
+   *
    * Recherche des scouts par nom/prénom (pour la liaison parent)
    * Exclut les scouts déjà liés au parent
    */
@@ -267,61 +326,9 @@ export class ParentScoutService {
     searchQuery: string,
     parentId: string
   ): Promise<Scout[]> {
-    try {
-      if (!searchQuery || searchQuery.trim().length < 2) {
-        return [];
-      }
-
-      const normalizedQuery = searchQuery.toLowerCase().trim();
-
-      // Récupérer tous les scouts
-      const usersRef = collection(db, 'users');
-      const scoutsQuery = query(usersRef, where('role', '==', 'scout'));
-      const querySnapshot = await getDocs(scoutsQuery);
-
-      // Récupérer les scouts déjà liés à ce parent
-      const linkedScouts = await this.getScoutsByParent(parentId);
-      const linkedScoutIds = new Set(linkedScouts.map(s => s.id));
-
-      // Filtrer par nom/prénom et exclure les déjà liés
-      const results: Scout[] = [];
-      querySnapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        const scout = {
-          id: docSnap.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          dateOfBirth: data.dateOfBirth?.toDate() || new Date(),
-        } as Scout;
-
-        // Vérifier si déjà lié
-        if (linkedScoutIds.has(scout.id)) {
-          return;
-        }
-
-        // Recherche par nom, prénom ou totem
-        const firstName = (scout.firstName || '').toLowerCase();
-        const lastName = (scout.lastName || '').toLowerCase();
-        const totemName = (scout.totemName || '').toLowerCase();
-        const fullName = `${firstName} ${lastName}`;
-
-        if (
-          firstName.includes(normalizedQuery) ||
-          lastName.includes(normalizedQuery) ||
-          fullName.includes(normalizedQuery) ||
-          totemName.includes(normalizedQuery)
-        ) {
-          results.push(scout);
-        }
-      });
-
-      // Limiter à 10 résultats
-      return results.slice(0, 10);
-    } catch (error) {
-      console.error('Erreur lors de la recherche de scouts:', error);
-      throw error;
-    }
+    // Méthode dépréciée - retourne toujours un tableau vide
+    console.warn('searchScouts est déprécié. Utilisez linkParentToScoutByCode.');
+    return [];
   }
 }
 

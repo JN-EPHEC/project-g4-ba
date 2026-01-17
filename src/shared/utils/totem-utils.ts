@@ -51,15 +51,23 @@ export function getDisplayName(
   options: {
     showTotem?: boolean;
     firstNameOnly?: boolean;
+    lastNameInitial?: boolean;
   } = {}
 ): string {
-  const { showTotem = true, firstNameOnly = false } = options;
+  const { showTotem = true, firstNameOnly = false, lastNameInitial = false } = options;
 
   if (!user) return '';
 
-  const name = firstNameOnly
-    ? user.firstName || ''
-    : `${user.firstName || ''} ${user.lastName || ''}`.trim();
+  let name = '';
+  if (firstNameOnly && lastNameInitial) {
+    // Prénom + initiale du nom (ex: "Jean D.")
+    const initial = user.lastName ? `${user.lastName.charAt(0).toUpperCase()}.` : '';
+    name = `${user.firstName || ''} ${initial}`.trim();
+  } else if (firstNameOnly) {
+    name = user.firstName || '';
+  } else {
+    name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+  }
 
   if (!name) return '';
 

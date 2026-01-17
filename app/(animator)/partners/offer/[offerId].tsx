@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Text,
   Alert,
+  Image,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -50,6 +52,7 @@ export default function OfferDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState(false);
   const [redemption, setRedemption] = useState<Redemption | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!offerId || !user || !('unitId' in user)) return;
@@ -79,37 +82,50 @@ export default function OfferDetailScreen() {
     }, [loadData])
   );
 
-  const handleRedeem = async () => {
+  const handleRedeem = () => {
+    console.log('[handleRedeem] Appelé');
+    if (!offer || !user || !('unitId' in user)) {
+      console.log('[handleRedeem] Condition non remplie, return early');
+      return;
+    }
+    console.log('[handleRedeem] Ouverture modal de confirmation');
+    setShowConfirmModal(true);
+  };
+
+  const confirmRedeem = async () => {
     if (!offer || !user || !('unitId' in user)) return;
 
-    Alert.alert(
-      'Confirmer l\'échange',
-      `Voulez-vous échanger ${offer.pointsCost} points contre cette offre ?\n\nCette action est irréversible.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Échanger',
-          style: 'default',
-          onPress: async () => {
-            setRedeeming(true);
-            try {
-              const result = await PartnerService.redeemOffer(offer.id, user.id, user.unitId);
+    console.log('[confirmRedeem] Confirmation appelée');
+    setShowConfirmModal(false);
+    setRedeeming(true);
 
-              if (result.success && result.redemption) {
-                setRedemption(result.redemption);
-                setUnitBalance((prev) => prev - offer.pointsCost);
-              } else {
-                Alert.alert('Erreur', result.error || 'Impossible d\'échanger l\'offre');
-              }
-            } catch (error: any) {
-              Alert.alert('Erreur', error?.message || 'Une erreur est survenue');
-            } finally {
-              setRedeeming(false);
-            }
-          },
-        },
-      ]
-    );
+    try {
+      const userName = `${user.firstName} ${user.lastName}`;
+      console.log('[confirmRedeem] Appel requestRedemption avec:', { offerId: offer.id, userId: user.id, userName, unitId: user.unitId });
+      const result = await PartnerService.requestRedemption(
+        offer.id,
+        user.id,
+        userName,
+        user.unitId
+      );
+      console.log('[confirmRedeem] Résultat:', result);
+
+      if (result.success && result.redemption) {
+        setRedemption(result.redemption);
+        setUnitBalance((prev) => prev - offer.pointsCost);
+      } else {
+        Alert.alert('Erreur', result.error || 'Impossible d\'échanger l\'offre');
+        // Rafraîchir les données en cas d'erreur (solde peut être obsolète)
+        loadData();
+      }
+    } catch (error: any) {
+      console.error('[confirmRedeem] Erreur:', error);
+      Alert.alert('Erreur', error?.message || 'Une erreur est survenue');
+      // Rafraîchir les données en cas d'erreur
+      loadData();
+    } finally {
+      setRedeeming(false);
+    }
   };
 
   const formatDiscount = () => {
@@ -263,7 +279,11 @@ export default function OfferDetailScreen() {
       >
         {/* Partner Info */}
         <View style={styles.partnerBanner}>
-          <Text style={styles.partnerLogo}>{partner.logo}</Text>
+          {partner.logo?.startsWith('http') ? (
+            <Image source={{ uri: partner.logo }} style={styles.partnerLogoImage} />
+          ) : (
+            <Text style={styles.partnerLogo}>{partner.logo}</Text>
+          )}
           <Text style={styles.partnerName}>{partner.name}</Text>
         </View>
 
@@ -352,6 +372,42 @@ export default function OfferDetailScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Modal de confirmation */}
+      <Modal
+        visible={showConfirmModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="gift" size={48} color={colors.accent} />
+            </View>
+            <Text style={styles.modalTitle}>Confirmer l'échange</Text>
+            <Text style={styles.modalMessage}>
+              Voulez-vous échanger {offer?.pointsCost} points contre cette offre ?
+            </Text>
+            <Text style={styles.modalWarning}>Cette action est irréversible.</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowConfirmModal(false)}
+              >
+                <Text style={styles.modalCancelButtonText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={confirmRedeem}
+              >
+                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                <Text style={styles.modalConfirmButtonText}>Échanger</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -400,6 +456,12 @@ const styles = StyleSheet.create({
   },
   partnerLogo: {
     fontSize: 32,
+  },
+  partnerLogoImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.mist,
   },
   partnerName: {
     fontSize: 18,
@@ -687,5 +749,82 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.dark,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 20,
+    padding: spacing.lg,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.accentLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.dark,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: colors.neutral,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  modalWarning: {
+    fontSize: 13,
+    color: colors.warning,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    width: '100%',
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.mist,
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.neutral,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  modalConfirmButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

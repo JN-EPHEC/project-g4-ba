@@ -14,7 +14,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/auth-context';
-import { UserRole, SECTION_LABELS, SECTION_EMOJIS, isValidSectionCode, extractPrefixFromCode, getSectionTypeFromPrefix } from '@/types';
+import { UserRole, SECTION_LABELS, SECTION_EMOJIS, isValidSectionCode, isValidUnitCode, extractPrefixFromCode, getSectionTypeFromPrefix } from '@/types';
 import { SectionService } from '@/services/section-service';
 import { UnitService } from '@/services/unit-service';
 
@@ -39,12 +39,18 @@ export default function AnimatorUnitSelectionScreen() {
   const { register, isLoading: authLoading } = useAuth();
   const [accessCode, setAccessCode] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  // Type 'section' ou 'unit' selon le code
+  const [codeType, setCodeType] = useState<'section' | 'unit' | null>(null);
   const [foundSection, setFoundSection] = useState<{
     id: string;
     name: string;
     sectionType: string;
     unitId: string;
     unitName: string;
+  } | null>(null);
+  const [foundUnit, setFoundUnit] = useState<{
+    id: string;
+    name: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,12 +59,35 @@ export default function AnimatorUnitSelectionScreen() {
     setAccessCode(formattedCode);
     setError(null);
     setFoundSection(null);
+    setFoundUnit(null);
+    setCodeType(null);
 
     // Extraire le préfixe pour validation
     const prefix = extractPrefixFromCode(formattedCode);
 
+    // Valider le format du code d'unité (UNIT-XXXXXX)
+    if (prefix === 'UNIT' && formattedCode.length >= 11 && isValidUnitCode(formattedCode)) {
+      setIsValidating(true);
+      try {
+        const unit = await UnitService.getUnitByAccessCode(formattedCode);
+        if (unit) {
+          setFoundUnit({
+            id: unit.id,
+            name: unit.name,
+          });
+          setCodeType('unit');
+        } else {
+          setError('Code d\'unité invalide. Vérifie le code fourni par l\'admin WeCamp.');
+        }
+      } catch (err) {
+        console.error('Erreur validation code unité:', err);
+        setError('Erreur de validation. Réessaie.');
+      } finally {
+        setIsValidating(false);
+      }
+    }
     // Valider le format du code de section (PREFIXE-XXXXXX)
-    if (prefix && formattedCode.length >= 10 && isValidSectionCode(formattedCode)) {
+    else if (prefix && formattedCode.length >= 10 && isValidSectionCode(formattedCode)) {
       setIsValidating(true);
       try {
         const section = await SectionService.getSectionByAccessCode(formattedCode);
@@ -72,6 +101,7 @@ export default function AnimatorUnitSelectionScreen() {
             unitId: section.unitId,
             unitName: unit?.name || 'Unité',
           });
+          setCodeType('section');
         } else {
           setError('Code invalide. Vérifie le code fourni par l\'admin WeCamp.');
         }
@@ -84,57 +114,98 @@ export default function AnimatorUnitSelectionScreen() {
     }
   };
 
+  const showError = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message, [{ text: 'OK', style: 'default' }]);
+    }
+  };
+
   const handleContinue = async () => {
-    if (!foundSection) {
-      Alert.alert('Erreur', 'Entre un code de section valide pour continuer.');
+    // Vérifier qu'on a trouvé soit une section soit une unité
+    if (!foundSection && !foundUnit) {
+      showError('Erreur', 'Entre un code valide pour continuer.');
       return;
     }
 
     try {
-      console.log('🚀 Inscription animateur avec la section:', foundSection.name, 'ID:', foundSection.id);
+      // Cas 1: Code d'unité (UNIT-XXXXXX) - rejoindre l'unité directement
+      if (codeType === 'unit' && foundUnit) {
+        console.log('🚀 Inscription animateur avec l\'unité:', foundUnit.name, 'ID:', foundUnit.id);
 
-      // Créer le compte animateur avec l'unitId (sectionId sera mis à jour après)
-      const newUser = await register(
-        params.email as string,
-        params.password as string,
-        params.firstName as string,
-        params.lastName as string,
-        UserRole.ANIMATOR,
-        foundSection.unitId
-      );
+        // Créer le compte animateur avec l'unitId
+        const newUser = await register(
+          params.email as string,
+          params.password as string,
+          params.firstName as string,
+          params.lastName as string,
+          UserRole.ANIMATOR,
+          foundUnit.id
+        );
 
-      console.log('✅ Compte créé avec ID:', newUser.id);
+        console.log('✅ Compte créé avec ID:', newUser.id);
 
-      // Rejoindre la section (le premier animateur devient chef de section)
-      const result = await SectionService.joinSectionAsAnimator(
-        newUser.id,
-        accessCode
-      );
+        // Rejoindre l'unité (le premier animateur devient chef d'unité)
+        const result = await UnitService.joinUnitAsAnimator(
+          newUser.id,
+          accessCode
+        );
 
-      console.log('✅ Inscription réussie, isSectionLeader:', result.isLeader);
+        console.log('✅ Inscription réussie, isUnitLeader:', result.isLeader);
 
-      // Si l'animateur est devenu chef de section, proposer de personnaliser le logo
-      if (result.isLeader) {
-        setTimeout(() => {
-          router.replace({
-            pathname: '/(auth)/section-logo-setup',
-            params: {
-              sectionId: result.section.id,
-              sectionName: result.section.name,
-              sectionType: result.section.sectionType,
-            },
-          });
-        }, 500);
-      } else {
-        // Sinon, rediriger vers le dashboard
+        // Rediriger vers le dashboard
         setTimeout(() => {
           router.replace('/(animator)/dashboard');
         }, 500);
       }
+      // Cas 2: Code de section (LOUV-XXXXXX, etc.) - rejoindre une section
+      else if (codeType === 'section' && foundSection) {
+        console.log('🚀 Inscription animateur avec la section:', foundSection.name, 'ID:', foundSection.id);
+
+        // Créer le compte animateur avec l'unitId (sectionId sera mis à jour après)
+        const newUser = await register(
+          params.email as string,
+          params.password as string,
+          params.firstName as string,
+          params.lastName as string,
+          UserRole.ANIMATOR,
+          foundSection.unitId
+        );
+
+        console.log('✅ Compte créé avec ID:', newUser.id);
+
+        // Rejoindre la section (le premier animateur devient chef de section)
+        const result = await SectionService.joinSectionAsAnimator(
+          newUser.id,
+          accessCode
+        );
+
+        console.log('✅ Inscription réussie, isSectionLeader:', result.isLeader);
+
+        // Si l'animateur est devenu chef de section, proposer de personnaliser le logo
+        if (result.isLeader) {
+          setTimeout(() => {
+            router.replace({
+              pathname: '/(auth)/section-logo-setup',
+              params: {
+                sectionId: result.section.id,
+                sectionName: result.section.name,
+                sectionType: result.section.sectionType,
+              },
+            });
+          }, 500);
+        } else {
+          // Sinon, rediriger vers le dashboard
+          setTimeout(() => {
+            router.replace('/(animator)/dashboard');
+          }, 500);
+        }
+      }
     } catch (error: any) {
       console.error('❌ Erreur d\'inscription:', error);
       const errorMessage = error?.message || 'Impossible de créer ton compte';
-      Alert.alert('Erreur', errorMessage, [{ text: 'OK', style: 'default' }]);
+      showError('Erreur', errorMessage);
     }
   };
 
@@ -164,9 +235,9 @@ export default function AnimatorUnitSelectionScreen() {
           <View style={styles.iconContainer}>
             <Ionicons name="key" size={40} color={colors.primary} />
           </View>
-          <ThemedText style={styles.title}>Rejoins ta section</ThemedText>
+          <ThemedText style={styles.title}>Rejoins ton unité</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Entre le code d'accès fourni par l'admin WeCamp pour ta section
+            Entre le code d'accès fourni par l'admin WeCamp
           </ThemedText>
         </View>
 
@@ -175,7 +246,7 @@ export default function AnimatorUnitSelectionScreen() {
           <View style={styles.codeInputContainer}>
             <TextInput
               style={styles.codeInput}
-              placeholder="LOUV-XXXXXX"
+              placeholder="UNIT-XXXXXX"
               placeholderTextColor={colors.neutralLight}
               value={accessCode}
               onChangeText={handleCodeChange}
@@ -196,7 +267,25 @@ export default function AnimatorUnitSelectionScreen() {
             </View>
           )}
 
-          {foundSection && (
+          {/* Unité trouvée */}
+          {foundUnit && codeType === 'unit' && (
+            <View style={styles.sectionFoundCard}>
+              <View style={styles.sectionFoundHeader}>
+                <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                <ThemedText style={styles.sectionFoundTitle}>Unité trouvée !</ThemedText>
+              </View>
+              <View style={styles.sectionFoundDetails}>
+                <View style={styles.sectionNameRow}>
+                  <Ionicons name="people" size={24} color={colors.primary} />
+                  <ThemedText style={styles.sectionFoundName}>{foundUnit.name}</ThemedText>
+                </View>
+                <ThemedText style={styles.sectionFoundType}>Tu rejoindras l'unité entière</ThemedText>
+              </View>
+            </View>
+          )}
+
+          {/* Section trouvée */}
+          {foundSection && codeType === 'section' && (
             <View style={styles.sectionFoundCard}>
               <View style={styles.sectionFoundHeader}>
                 <Ionicons name="checkmark-circle" size={24} color={colors.success} />
@@ -237,7 +326,7 @@ export default function AnimatorUnitSelectionScreen() {
                 <ThemedText style={styles.infoStepNumberText}>2</ThemedText>
               </View>
               <ThemedText style={styles.infoStepText}>
-                Entre le code (ex: LOUV-A1B2C3, PIO-X7Y8Z9)
+                Entre le code (ex: UNIT-A1B2C3 ou LOUV-X7Y8Z9)
               </ThemedText>
             </View>
             <View style={styles.infoStep}>
@@ -245,22 +334,26 @@ export default function AnimatorUnitSelectionScreen() {
                 <ThemedText style={styles.infoStepNumberText}>3</ThemedText>
               </View>
               <ThemedText style={styles.infoStepText}>
-                Tu rejoins automatiquement la section
+                Tu rejoins automatiquement l'unité ou la section
               </ThemedText>
             </View>
           </View>
           <View style={styles.infoNote}>
             <Ionicons name="star" size={14} color={colors.accent} />
             <ThemedText style={styles.infoNoteText}>
-              Le premier animateur à rejoindre devient automatiquement chef de section.
+              Le premier animateur à rejoindre devient automatiquement chef d'unité ou de section.
             </ThemedText>
           </View>
         </View>
 
         {/* Code Examples */}
         <View style={styles.codeExamplesCard}>
-          <ThemedText style={styles.codeExamplesTitle}>Préfixes par section</ThemedText>
+          <ThemedText style={styles.codeExamplesTitle}>Préfixes de codes</ThemedText>
           <View style={styles.codeExamplesGrid}>
+            <View style={[styles.codeExample, { backgroundColor: `${colors.primary}15` }]}>
+              <ThemedText style={[styles.codeExamplePrefix, { color: colors.primary }]}>UNIT-</ThemedText>
+              <ThemedText style={styles.codeExampleLabel}>Unité</ThemedText>
+            </View>
             <View style={styles.codeExample}>
               <ThemedText style={styles.codeExamplePrefix}>BAL-</ThemedText>
               <ThemedText style={styles.codeExampleLabel}>Baladins</ThemedText>
@@ -270,16 +363,8 @@ export default function AnimatorUnitSelectionScreen() {
               <ThemedText style={styles.codeExampleLabel}>Louveteaux</ThemedText>
             </View>
             <View style={styles.codeExample}>
-              <ThemedText style={styles.codeExamplePrefix}>LUT-</ThemedText>
-              <ThemedText style={styles.codeExampleLabel}>Lutins</ThemedText>
-            </View>
-            <View style={styles.codeExample}>
               <ThemedText style={styles.codeExamplePrefix}>ECL-</ThemedText>
               <ThemedText style={styles.codeExampleLabel}>Éclaireurs</ThemedText>
-            </View>
-            <View style={styles.codeExample}>
-              <ThemedText style={styles.codeExamplePrefix}>GUI-</ThemedText>
-              <ThemedText style={styles.codeExampleLabel}>Guides</ThemedText>
             </View>
             <View style={styles.codeExample}>
               <ThemedText style={styles.codeExamplePrefix}>PIO-</ThemedText>
@@ -296,10 +381,10 @@ export default function AnimatorUnitSelectionScreen() {
           <TouchableOpacity
             style={[
               styles.continueButton,
-              (!foundSection || authLoading) && styles.continueButtonDisabled,
+              ((!foundSection && !foundUnit) || authLoading) && styles.continueButtonDisabled,
             ]}
             onPress={handleContinue}
-            disabled={!foundSection || authLoading}
+            disabled={(!foundSection && !foundUnit) || authLoading}
             activeOpacity={0.8}
           >
             {authLoading ? (
@@ -308,10 +393,10 @@ export default function AnimatorUnitSelectionScreen() {
               <ThemedText
                 style={[
                   styles.continueButtonText,
-                  (!foundSection || authLoading) && styles.continueButtonTextDisabled,
+                  ((!foundSection && !foundUnit) || authLoading) && styles.continueButtonTextDisabled,
                 ]}
               >
-                Rejoindre la section
+                {codeType === 'unit' ? 'Rejoindre l\'unité' : 'Rejoindre la section'}
               </ThemedText>
             )}
           </TouchableOpacity>

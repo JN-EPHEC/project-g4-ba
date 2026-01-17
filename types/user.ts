@@ -43,6 +43,8 @@ export interface Scout extends User {
   validatedAt?: Date; // Date de validation
   validatedBy?: string; // ID de l'animateur qui a validé
   lastNewsViewedAt?: Date; // Date de dernière consultation des nouveautés
+  linkCode?: string; // Code de liaison pour les parents (ex: "WCP-482-KLM")
+  linkCodeGeneratedAt?: Date; // Date de génération du code
 }
 
 /**

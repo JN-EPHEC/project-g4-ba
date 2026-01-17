@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 
 import { AvatarUploader } from '@/components/avatar-uploader';
 import { ThemedText } from '@/components/themed-text';
@@ -12,15 +13,18 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Scout } from '@/types';
 import { RankProgressBar } from '@/components/rank-progress-bar';
 import { TOTEM_ANIMALS } from '@/components/totem-selector';
-import { BrandColors } from '@/constants/theme';
+import { BrandColors, NeutralColors } from '@/constants/theme';
 import { Radius } from '@/constants/design-tokens';
+import { UserService } from '@/services/user-service';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const scout = user as Scout;
   const iconColor = useThemeColor({}, 'icon');
   const borderColor = useThemeColor({}, 'border');
   const [themeExpanded, setThemeExpanded] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
 
   const handleLogout = () => {
     console.log('🔘 Bouton Déconnexion cliqué!');
@@ -55,6 +59,57 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push('/(scout)/edit-profile');
+  };
+
+  const handleCopyCode = async () => {
+    if (!scout?.linkCode) return;
+    try {
+      await Clipboard.setStringAsync(scout.linkCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch (error) {
+      console.error('Erreur copie:', error);
+    }
+  };
+
+  const handleRegenerateCode = () => {
+    const doRegenerate = async () => {
+      if (!scout?.id) return;
+      setIsRegeneratingCode(true);
+      try {
+        await UserService.regenerateLinkCode(scout.id);
+        await refreshUser?.();
+        if (Platform.OS === 'web') {
+          window.alert('Nouveau code généré avec succès !');
+        } else {
+          Alert.alert('Succès', 'Nouveau code généré avec succès !');
+        }
+      } catch (error) {
+        console.error('Erreur régénération:', error);
+        if (Platform.OS === 'web') {
+          window.alert('Erreur lors de la génération du code');
+        } else {
+          Alert.alert('Erreur', 'Impossible de générer un nouveau code');
+        }
+      } finally {
+        setIsRegeneratingCode(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Voulez-vous générer un nouveau code ?\nL\'ancien code ne fonctionnera plus.')) {
+        doRegenerate();
+      }
+    } else {
+      Alert.alert(
+        'Nouveau code',
+        'Voulez-vous générer un nouveau code ?\nL\'ancien code ne fonctionnera plus.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Générer', onPress: doRegenerate },
+        ]
+      );
+    }
   };
 
   // Calculer l'âge
@@ -172,6 +227,53 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
+        </Card>
+
+        {/* Code de liaison pour les parents */}
+        <Card style={styles.linkCodeCard}>
+          <View style={styles.linkCodeHeader}>
+            <View style={styles.linkCodeIconContainer}>
+              <Ionicons name="key" size={24} color={BrandColors.primary[500]} />
+            </View>
+            <View style={styles.linkCodeHeaderText}>
+              <ThemedText type="defaultSemiBold">Code de liaison parent</ThemedText>
+              <ThemedText style={styles.linkCodeDescription}>
+                Partagez ce code avec vos parents pour qu'ils puissent vous suivre sur l'app.
+              </ThemedText>
+            </View>
+          </View>
+
+          <View style={styles.linkCodeDisplay}>
+            <ThemedText style={styles.linkCodeText}>
+              {scout?.linkCode || 'Chargement...'}
+            </ThemedText>
+            <TouchableOpacity
+              style={[styles.copyButton, codeCopied && styles.copyButtonSuccess]}
+              onPress={handleCopyCode}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={codeCopied ? 'checkmark' : 'copy-outline'}
+                size={20}
+                color={codeCopied ? '#FFFFFF' : BrandColors.primary[500]}
+              />
+              <ThemedText style={[styles.copyButtonText, codeCopied && styles.copyButtonTextSuccess]}>
+                {codeCopied ? 'Copié !' : 'Copier'}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.regenerateButton}
+            onPress={handleRegenerateCode}
+            disabled={isRegeneratingCode}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh-outline" size={16} color={NeutralColors.gray[500]} />
+            <ThemedText style={styles.regenerateButtonText}>
+              {isRegeneratingCode ? 'Génération...' : 'Générer un nouveau code'}
+            </ThemedText>
+          </TouchableOpacity>
         </Card>
 
         {/* Fiche Santé */}
@@ -416,5 +518,79 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 16,
+  },
+  // Link Code Styles
+  linkCodeCard: {
+    padding: 20,
+    marginBottom: 20,
+  },
+  linkCodeHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+  },
+  linkCodeIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: BrandColors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  linkCodeHeaderText: {
+    flex: 1,
+  },
+  linkCodeDescription: {
+    fontSize: 13,
+    opacity: 0.7,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  linkCodeDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: NeutralColors.gray[50],
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  linkCodeText: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: BrandColors.primary[50],
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  copyButtonSuccess: {
+    backgroundColor: BrandColors.primary[500],
+  },
+  copyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: BrandColors.primary[500],
+  },
+  copyButtonTextSuccess: {
+    color: '#FFFFFF',
+  },
+  regenerateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  regenerateButtonText: {
+    fontSize: 13,
+    color: NeutralColors.gray[500],
   },
 });

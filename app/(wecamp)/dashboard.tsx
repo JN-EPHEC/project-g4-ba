@@ -320,32 +320,6 @@ export default function WeCampDashboard() {
     return 'Bronze';
   };
 
-  // Export stats to clipboard/share
-  const handleExportStats = async () => {
-    const stats = `📊 Statistiques WeCamp - ${new Date().toLocaleDateString('fr-FR')}
-
-🏕️ Unités: ${globalStats?.totalUnits || 0}
-👥 Scouts: ${globalStats?.totalScouts || 0}
-🎯 Défis actifs: ${challenges.length}
-✅ Défis complétés: ${globalStats?.totalChallengesCompleted || 0}
-
-🏆 Top 3 Unités:
-${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoints} pts`).join('\n')}
-`;
-
-    try {
-      if (Platform.OS === 'web') {
-        await Clipboard.setStringAsync(stats);
-        Alert.alert('Exporté!', 'Les statistiques ont été copiées dans le presse-papier.');
-      } else {
-        await Share.share({ message: stats, title: 'Statistiques WeCamp' });
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      Alert.alert('Erreur', "Impossible d'exporter les statistiques");
-    }
-  };
-
   // Show unit detail modal
   const handleViewUnit = (unit: UnitStats) => {
     setSelectedUnit(unit);
@@ -623,11 +597,6 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
         >
           <Text style={styles.primaryButtonIcon}>🎯</Text>
           <Text style={styles.primaryButtonText}>Nouveau défi</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleExportStats}>
-          <Text style={styles.secondaryButtonIcon}>📊</Text>
-          <Text style={styles.secondaryButtonText}>Exporter</Text>
         </TouchableOpacity>
       </View>
 
@@ -1051,6 +1020,26 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
         },
       ]
     );
+  };
+
+  // Alias pour la modal d'unité
+  const handleShareUnitCode = handleShareCode;
+
+  const handleGenerateUnitCode = async (unitId: string) => {
+    try {
+      const newCode = await UnitService.regenerateAccessCode(unitId);
+      // Rafraîchir les données
+      const updatedRanking = await AdminStatsService.getUnitRanking();
+      setUnitRanking(updatedRanking);
+      // Mettre à jour la modal si elle est ouverte
+      if (selectedUnit && selectedUnit.unitId === unitId) {
+        setSelectedUnit({ ...selectedUnit, accessCode: newCode });
+      }
+      Alert.alert('Code généré !', `Le code d'accès est: ${newCode}`);
+    } catch (error) {
+      console.error('Erreur génération code:', error);
+      Alert.alert('Erreur', 'Impossible de générer le code');
+    }
   };
 
   // ==================== RENDER UNITES ====================
@@ -2368,6 +2357,10 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
   };
 
   const handleDeleteBadge = async (badge: BadgeDefinition) => {
+    // Fermer le menu d'abord
+    setSelectedBadgeForMenu(null);
+
+    // Puis afficher l'alerte de confirmation
     Alert.alert(
       'Supprimer le badge',
       `Êtes-vous sûr de vouloir supprimer définitivement "${badge.name}" ? Les badges déjà attribués aux scouts seront conservés.`,
@@ -2382,13 +2375,13 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
               setBadges(badges.filter(b => b.id !== badge.id));
               Alert.alert('Succès', 'Badge supprimé définitivement');
             } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer le badge');
+              console.error('Erreur suppression badge:', error);
+              Alert.alert('Erreur', 'Impossible de supprimer le badge. Vérifiez vos permissions.');
             }
           },
         },
       ]
     );
-    setSelectedBadgeForMenu(null);
   };
 
   const handleDeleteAllBadges = async () => {
@@ -2725,6 +2718,45 @@ ${unitRanking.slice(0, 3).map((u, i) => `${i + 1}. ${u.unitName} - ${u.totalPoin
                   <Text style={styles.modalInfoText}>
                     {selectedUnit.totalMembers} membres au total
                   </Text>
+                </View>
+
+                {/* Code d'accès de l'unité */}
+                <View style={styles.unitAccessCodeSection}>
+                  <View style={styles.unitAccessCodeHeader}>
+                    <Ionicons name="key-outline" size={18} color={colors.primary} />
+                    <Text style={styles.unitAccessCodeLabel}>Code d'accès animateurs</Text>
+                  </View>
+                  {selectedUnit.accessCode ? (
+                    <View style={styles.unitAccessCodeRow}>
+                      <Text style={styles.unitAccessCodeValue}>{selectedUnit.accessCode}</Text>
+                      <View style={styles.unitAccessCodeActions}>
+                        <TouchableOpacity
+                          style={styles.unitAccessCodeButton}
+                          onPress={() => handleCopyCode(selectedUnit.accessCode!)}
+                        >
+                          <Ionicons name="copy-outline" size={18} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.unitAccessCodeButton}
+                          onPress={() => handleShareUnitCode(selectedUnit.unitName, selectedUnit.accessCode!)}
+                        >
+                          <Ionicons name="share-outline" size={18} color={colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.unitAccessCodeRow}>
+                      <Text style={[styles.unitAccessCodeValue, { color: colors.neutral, fontStyle: 'italic' }]}>
+                        Aucun code généré
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.unitAccessCodeButton, { backgroundColor: colors.primary }]}
+                        onPress={() => handleGenerateUnitCode(selectedUnit.unitId)}
+                      >
+                        <Ionicons name="add" size={18} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
 
                 <TouchableOpacity
@@ -4764,6 +4796,49 @@ const styles = StyleSheet.create({
     padding: 6,
     backgroundColor: colors.mist,
     borderRadius: 6,
+  },
+  // Styles pour le code d'accès unité dans la modal
+  unitAccessCodeSection: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    backgroundColor: colors.mist,
+    borderRadius: 12,
+  },
+  unitAccessCodeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  unitAccessCodeLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  unitAccessCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.canvas,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  unitAccessCodeValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.primary,
+    letterSpacing: 1.5,
+  },
+  unitAccessCodeActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  unitAccessCodeButton: {
+    padding: 8,
+    backgroundColor: colors.mist,
+    borderRadius: 8,
   },
   addSectionButton: {
     flexDirection: 'row',

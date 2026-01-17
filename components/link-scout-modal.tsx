@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,9 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  FlatList,
   Platform,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -34,36 +34,18 @@ export function LinkScoutModal({
   parentId,
   onScoutLinked,
 }: LinkScoutModalProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Scout[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [linkCode, setLinkCode] = useState('');
   const [isLinking, setIsLinking] = useState(false);
-  const [selectedScout, setSelectedScout] = useState<Scout | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [linkedScout, setLinkedScout] = useState<Scout | null>(null);
+
+  const inputRef = useRef<TextInput>(null);
 
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
   const textColor = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const backgroundColor = useThemeColor({}, 'background');
-
-  const handleSearch = useCallback(async (query: string) => {
-    setSearchQuery(query);
-
-    if (query.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const results = await ParentScoutService.searchScouts(query, parentId);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Erreur lors de la recherche:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [parentId]);
 
   const showAlert = (title: string, message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
@@ -74,90 +56,124 @@ export function LinkScoutModal({
     }
   };
 
-  const showConfirm = (
-    title: string,
-    message: string,
-    onConfirm: () => void
-  ) => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(`${title}\n\n${message}`)) {
-        onConfirm();
-      }
+  // Formater le code automatiquement (ABC-123-XYZ)
+  const formatCode = (text: string): string => {
+    // Supprimer tout ce qui n'est pas lettre ou chiffre
+    const cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    // Formater avec les tirets
+    if (cleaned.length <= 3) {
+      return cleaned;
+    } else if (cleaned.length <= 6) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
     } else {
-      Alert.alert(title, message, [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Confirmer', onPress: onConfirm },
-      ]);
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 9)}`;
     }
   };
 
-  const handleSelectScout = (scout: Scout) => {
-    setSelectedScout(scout);
-    showConfirm(
-      'Confirmer la liaison',
-      `Voulez-vous lier ${scout.firstName} ${scout.lastName} à votre compte ?`,
-      () => handleLinkScout(scout)
-    );
+  const handleCodeChange = (text: string) => {
+    const formatted = formatCode(text);
+    setLinkCode(formatted);
+    setError(null);
   };
 
-  const handleLinkScout = async (scout: Scout) => {
+  const handleLinkScout = async () => {
+    if (linkCode.length !== 11) {
+      setError('Le code doit être au format ABC-123-XYZ');
+      return;
+    }
+
     setIsLinking(true);
+    setError(null);
+
     try {
-      await ParentScoutService.linkParentToScout(parentId, scout.id);
-      showAlert(
-        'Succès',
-        `${scout.firstName} ${scout.lastName} a été lié à votre compte.`,
-        () => {
-          handleClose();
-          onScoutLinked();
-        }
-      );
+      const result = await ParentScoutService.linkParentToScoutByCode(parentId, linkCode);
+
+      if (result.success && result.scout) {
+        setLinkedScout(result.scout);
+      } else {
+        setError(result.error || 'Code invalide');
+      }
     } catch (error) {
       console.error('Erreur lors de la liaison:', error);
-      showAlert('Erreur', 'Impossible de lier ce scout. Veuillez réessayer.');
+      setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setIsLinking(false);
-      setSelectedScout(null);
     }
   };
 
   const handleClose = () => {
-    setSearchQuery('');
-    setSearchResults([]);
-    setSelectedScout(null);
+    setLinkCode('');
+    setError(null);
+    setLinkedScout(null);
     onClose();
   };
 
-  const renderScoutItem = ({ item, index }: { item: Scout; index: number }) => (
-    <Animated.View entering={FadeInDown.duration(200).delay(index * 50)}>
-      <TouchableOpacity
-        style={[
-          styles.scoutItem,
-          { backgroundColor: cardColor, borderColor: cardBorder },
-        ]}
-        onPress={() => handleSelectScout(item)}
-        activeOpacity={0.7}
-        disabled={isLinking}
+  const handleSuccess = () => {
+    handleClose();
+    onScoutLinked();
+  };
+
+  // Affichage après liaison réussie
+  if (linkedScout) {
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleClose}
       >
-        <Avatar
-          source={item.profilePicture}
-          name={`${item.firstName} ${item.lastName}`}
-          size="medium"
-        />
-        <View style={styles.scoutInfo}>
-          <ThemedText style={[styles.scoutName, { color: textColor }]}>
-            {item.firstName} {item.lastName}
-          </ThemedText>
-          {item.totemName && (
-            <ThemedText style={[styles.scoutTotem, { color: textSecondary }]}>
-              {item.totemEmoji || '🦊'} {item.totemName}
-            </ThemedText>
-          )}
+        <View style={styles.overlay}>
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            style={[styles.modalContainer, { backgroundColor }]}
+          >
+            <View style={styles.successContainer}>
+              <Animated.View entering={FadeInDown.duration(300).delay(100)}>
+                <View style={styles.successIcon}>
+                  <Ionicons name="checkmark-circle" size={64} color={BrandColors.primary[500]} />
+                </View>
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.duration(300).delay(200)}>
+                <ThemedText type="subtitle" style={[styles.successTitle, { color: textColor }]}>
+                  Scout lié avec succès !
+                </ThemedText>
+              </Animated.View>
+
+              <Animated.View
+                entering={FadeInDown.duration(300).delay(300)}
+                style={[styles.scoutCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+              >
+                <Avatar
+                  source={linkedScout.profilePicture}
+                  name={`${linkedScout.firstName} ${linkedScout.lastName}`}
+                  size="large"
+                />
+                <ThemedText style={[styles.scoutName, { color: textColor }]}>
+                  {linkedScout.firstName} {linkedScout.lastName}
+                </ThemedText>
+                {linkedScout.totemName && (
+                  <ThemedText style={[styles.scoutTotem, { color: textSecondary }]}>
+                    {linkedScout.totemEmoji || '🦊'} {linkedScout.totemName}
+                  </ThemedText>
+                )}
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.duration(300).delay(400)} style={styles.successActions}>
+                <TouchableOpacity
+                  style={styles.successButton}
+                  onPress={handleSuccess}
+                >
+                  <ThemedText style={styles.successButtonText}>Continuer</ThemedText>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          </Animated.View>
         </View>
-        <Ionicons name="add-circle" size={28} color={BrandColors.primary[500]} />
-      </TouchableOpacity>
-    </Animated.View>
-  );
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -166,7 +182,10 @@ export function LinkScoutModal({
       animationType="fade"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
         <Animated.View
           entering={FadeIn.duration(200)}
           style={[styles.modalContainer, { backgroundColor }]}
@@ -181,76 +200,80 @@ export function LinkScoutModal({
             </TouchableOpacity>
           </View>
 
-          {/* Search Input */}
-          <View style={[styles.searchContainer, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-            <Ionicons name="search" size={20} color={textSecondary} />
-            <TextInput
-              style={[styles.searchInput, { color: textColor }]}
-              placeholder="Rechercher par nom, prénom ou totem..."
-              placeholderTextColor={textSecondary}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => handleSearch('')}>
-                <Ionicons name="close-circle" size={20} color={textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Results */}
-          <View style={styles.resultsContainer}>
-            {isSearching ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={BrandColors.primary[500]} />
-                <ThemedText style={[styles.loadingText, { color: textSecondary }]}>
-                  Recherche en cours...
-                </ThemedText>
+          {/* Content */}
+          <View style={styles.content}>
+            {/* Instructions */}
+            <View style={styles.instructions}>
+              <View style={styles.instructionIcon}>
+                <Ionicons name="key-outline" size={32} color={BrandColors.primary[500]} />
               </View>
-            ) : searchQuery.length < 2 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="person-add-outline" size={48} color={textSecondary} />
-                <ThemedText style={[styles.emptyTitle, { color: textColor }]}>
-                  Rechercher un scout
-                </ThemedText>
-                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
-                  Entrez au moins 2 caractères pour rechercher un scout par son nom, prénom ou totem.
-                </ThemedText>
-              </View>
-            ) : searchResults.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={48} color={textSecondary} />
-                <ThemedText style={[styles.emptyTitle, { color: textColor }]}>
-                  Aucun résultat
-                </ThemedText>
-                <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
-                  Aucun scout trouvé pour "{searchQuery}". Vérifiez l'orthographe ou essayez un autre nom.
-                </ThemedText>
-              </View>
-            ) : (
-              <FlatList
-                data={searchResults}
-                renderItem={renderScoutItem}
-                keyExtractor={(item) => item.id}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listContent}
-              />
-            )}
-          </View>
-
-          {/* Loading overlay when linking */}
-          {isLinking && (
-            <View style={styles.linkingOverlay}>
-              <ActivityIndicator size="large" color={BrandColors.primary[500]} />
-              <ThemedText style={[styles.linkingText, { color: textColor }]}>
-                Liaison en cours...
+              <ThemedText style={[styles.instructionTitle, { color: textColor }]}>
+                Code de liaison
+              </ThemedText>
+              <ThemedText style={[styles.instructionText, { color: textSecondary }]}>
+                Demandez le code de liaison à votre enfant ou à son animateur.
+                Ce code se trouve dans le profil du scout.
               </ThemedText>
             </View>
-          )}
+
+            {/* Code Input */}
+            <View style={styles.codeInputWrapper}>
+              <TextInput
+                ref={inputRef}
+                style={[
+                  styles.codeInput,
+                  {
+                    backgroundColor: cardColor,
+                    borderColor: error ? '#E53935' : cardBorder,
+                    color: textColor,
+                  },
+                ]}
+                placeholder="ABC-123-XYZ"
+                placeholderTextColor={textSecondary}
+                value={linkCode}
+                onChangeText={handleCodeChange}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={11}
+                keyboardType="default"
+                textAlign="center"
+              />
+              {error && (
+                <Animated.View entering={FadeIn.duration(200)}>
+                  <ThemedText style={styles.errorText}>{error}</ThemedText>
+                </Animated.View>
+              )}
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                linkCode.length !== 11 && styles.submitButtonDisabled,
+              ]}
+              onPress={handleLinkScout}
+              disabled={linkCode.length !== 11 || isLinking}
+            >
+              {isLinking ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="link" size={20} color="#FFFFFF" />
+                  <ThemedText style={styles.submitButtonText}>Lier le scout</ThemedText>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Help */}
+            <View style={styles.helpContainer}>
+              <Ionicons name="help-circle-outline" size={18} color={textSecondary} />
+              <ThemedText style={[styles.helpText, { color: textSecondary }]}>
+                Le code est unique à chaque scout et garantit la sécurité de vos enfants.
+              </ThemedText>
+            </View>
+          </View>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -265,8 +288,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '100%',
-    maxWidth: 500,
-    maxHeight: '80%',
+    maxWidth: 420,
     borderRadius: Radius.xl,
     overflow: 'hidden',
   },
@@ -284,84 +306,125 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: Spacing.xs,
   },
-  searchContainer: {
-    flexDirection: 'row',
+  content: {
+    padding: Spacing.lg,
+    gap: Spacing.lg,
+  },
+  instructions: {
     alignItems: 'center',
-    margin: Spacing.lg,
-    marginTop: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  instructionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: BrandColors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  instructionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  instructionText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: Spacing.md,
+  },
+  codeInputWrapper: {
     gap: Spacing.sm,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 0,
+  codeInput: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 2,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
-  resultsContainer: {
-    flex: 1,
-    minHeight: 200,
+  errorText: {
+    color: '#E53935',
+    fontSize: 13,
+    textAlign: 'center',
   },
-  listContent: {
-    padding: Spacing.lg,
-    paddingTop: 0,
-  },
-  scoutItem: {
+  submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: BrandColors.primary[500],
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
   },
-  scoutInfo: {
-    flex: 1,
+  submitButtonDisabled: {
+    backgroundColor: NeutralColors.gray[300],
   },
-  scoutName: {
+  submitButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  scoutTotem: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  helpContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: Spacing.sm,
+    paddingTop: Spacing.sm,
   },
-  loadingText: {
-    fontSize: 14,
-  },
-  emptyState: {
+  helpText: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  // Success state
+  successContainer: {
     padding: Spacing.xl,
-    gap: Spacing.sm,
+    alignItems: 'center',
+    gap: Spacing.md,
   },
-  emptyTitle: {
+  successIcon: {
+    marginBottom: Spacing.sm,
+  },
+  successTitle: {
+    fontSize: 20,
+    textAlign: 'center',
+  },
+  scoutCard: {
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.sm,
+    marginVertical: Spacing.md,
+    width: '100%',
+  },
+  scoutName: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: Spacing.sm,
   },
-  emptyText: {
+  scoutTotem: {
     fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
   },
-  linkingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center',
+  successActions: {
+    width: '100%',
+    marginTop: Spacing.md,
+  },
+  successButton: {
+    backgroundColor: BrandColors.primary[500],
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
     alignItems: 'center',
-    gap: Spacing.md,
   },
-  linkingText: {
+  successButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

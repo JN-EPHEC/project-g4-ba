@@ -20,6 +20,23 @@ export class UserService {
   private static readonly COLLECTION_NAME = 'users';
 
   /**
+   * Génère un code de liaison unique pour les scouts
+   * Format: ABC-123-XYZ (3 lettres - 3 chiffres - 3 lettres)
+   */
+  static generateLinkCode(): string {
+    const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // Sans I et O pour éviter confusion
+    const digits = '0123456789';
+
+    const randomLetters = (count: number) =>
+      Array.from({ length: count }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
+
+    const randomDigits = (count: number) =>
+      Array.from({ length: count }, () => digits[Math.floor(Math.random() * digits.length)]).join('');
+
+    return `${randomLetters(3)}-${randomDigits(3)}-${randomLetters(3)}`;
+  }
+
+  /**
    * Convertit un objet Firestore en utilisateur avec les dates converties
    */
   static convertFirestoreUser(data: DocumentData): AnyUser {
@@ -53,6 +70,8 @@ export class UserService {
           validatedAt: data.validatedAt?.toDate(),
           validatedBy: data.validatedBy,
           lastNewsViewedAt: data.lastNewsViewedAt?.toDate(),
+          linkCode: data.linkCode,
+          linkCodeGeneratedAt: data.linkCodeGeneratedAt?.toDate(),
         } as Scout;
 
       case UserRole.PARENT:
@@ -184,6 +203,8 @@ export class UserService {
                   ? Timestamp.fromDate((additionalData as any).dateOfBirth)
                   : (additionalData as any).dateOfBirth)
               : Timestamp.fromDate(new Date()),
+            linkCode: this.generateLinkCode(),
+            linkCodeGeneratedAt: Timestamp.fromDate(now),
           };
           break;
 
@@ -239,6 +260,93 @@ export class UserService {
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Régénère le code de liaison d'un scout
+   * Utile si le code a été compromis
+   */
+  static async regenerateLinkCode(scoutId: string): Promise<string> {
+    const newCode = this.generateLinkCode();
+    const userRef = doc(db, this.COLLECTION_NAME, scoutId);
+
+    await updateDoc(userRef, {
+      linkCode: newCode,
+      linkCodeGeneratedAt: Timestamp.fromDate(new Date()),
+      updatedAt: Timestamp.fromDate(new Date()),
+    });
+
+    return newCode;
+  }
+
+  /**
+   * Récupère un scout par son code de liaison
+   */
+  static async getScoutByLinkCode(linkCode: string): Promise<Scout | null> {
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('linkCode', '==', linkCode.toUpperCase()),
+        where('role', '==', UserRole.SCOUT)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        return null;
+      }
+
+      const docData = snapshot.docs[0];
+      return this.convertFirestoreUser({ id: docData.id, ...docData.data() }) as Scout;
+    } catch (error) {
+      console.error('Erreur getScoutByLinkCode:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Génère des codes de liaison pour tous les scouts qui n'en ont pas
+   * Utile pour la migration des scouts existants
+   */
+  static async generateMissingLinkCodes(): Promise<{ updated: number; errors: number }> {
+    let updated = 0;
+    let errors = 0;
+
+    try {
+      // Récupérer tous les scouts sans code de liaison
+      const scoutsQuery = query(
+        collection(db, this.COLLECTION_NAME),
+        where('role', '==', UserRole.SCOUT)
+      );
+
+      const snapshot = await getDocs(scoutsQuery);
+
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+
+        // Si le scout n'a pas de code, en générer un
+        if (!data.linkCode) {
+          try {
+            const newCode = this.generateLinkCode();
+            await updateDoc(doc(db, this.COLLECTION_NAME, docSnap.id), {
+              linkCode: newCode,
+              linkCodeGeneratedAt: Timestamp.fromDate(new Date()),
+            });
+            updated++;
+            console.log(`Code généré pour ${data.firstName} ${data.lastName}: ${newCode}`);
+          } catch (error) {
+            console.error(`Erreur pour ${docSnap.id}:`, error);
+            errors++;
+          }
+        }
+      }
+
+      console.log(`Migration terminée: ${updated} codes générés, ${errors} erreurs`);
+      return { updated, errors };
+    } catch (error) {
+      console.error('Erreur generateMissingLinkCodes:', error);
+      return { updated, errors };
     }
   }
 }

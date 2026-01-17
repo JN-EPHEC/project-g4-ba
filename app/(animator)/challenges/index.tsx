@@ -613,6 +613,18 @@ export default function AnimatorChallengesScreen() {
                   </Text>
                 </View>
 
+                {/* Bouton Historique */}
+                <TouchableOpacity
+                  style={styles.historyButton}
+                  onPress={() => router.push('/(animator)/partners/history')}
+                >
+                  <View style={styles.historyButtonLeft}>
+                    <Ionicons name="receipt-outline" size={20} color={rewardColors.primary} />
+                    <Text style={styles.historyButtonText}>Historique des échanges</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={rewardColors.neutralLight} />
+                </TouchableOpacity>
+
                 {/* Offres populaires */}
                 <Text style={styles.rewardSectionTitle}>🔥 Offres populaires</Text>
                 <ScrollView
@@ -1153,5 +1165,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: rewardColors.neutral,
     textAlign: 'center',
+  },
+  // History Button
+  historyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: rewardColors.cardBg,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: rewardColors.mist,
+  },
+  historyButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historyButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: rewardColors.dark,
   },
 });
