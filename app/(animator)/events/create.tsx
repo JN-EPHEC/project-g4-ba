@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +15,20 @@ import { StorageService } from '@/src/shared/services/storage-service';
 import { EventType, Animator } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors, NeutralColors } from '@/constants/theme';
+
+// Helper pour formater la date
+const formatDateForInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatDateDisplay = (dateStr: string): string => {
+  if (!dateStr) return 'Sélectionner une date';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
 
 export default function CreateEventScreen() {
   const { user } = useAuth();
@@ -32,9 +47,27 @@ export default function CreateEventScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+
   const iconColor = useThemeColor({}, 'icon');
   const cardColor = useThemeColor({}, 'card');
+  const textColor = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
+
+  const onStartDateChange = (event: any, selectedDate?: Date) => {
+    setShowStartPicker(false);
+    if (selectedDate) {
+      setFormData({ ...formData, startDate: formatDateForInput(selectedDate) });
+    }
+  };
+
+  const onEndDateChange = (event: any, selectedDate?: Date) => {
+    setShowEndPicker(false);
+    if (selectedDate) {
+      setFormData({ ...formData, endDate: formatDateForInput(selectedDate) });
+    }
+  };
 
   const pickImage = async () => {
     try {
@@ -264,49 +297,57 @@ export default function CreateEventScreen() {
               error={errors.location}
             />
 
-            <View style={styles.row}>
-              <View style={styles.halfWidth}>
-                <ThemedText style={styles.label}>Date de début</ThemedText>
-                <input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    border: errors.startDate ? '2px solid #ef4444' : '1px solid #d1d5db',
-                    fontSize: 16,
-                    width: '100%',
-                    backgroundColor: '#fff',
-                    color: '#000',
-                  }}
-                />
-                {errors.startDate && (
-                  <ThemedText style={styles.errorText}>{errors.startDate}</ThemedText>
-                )}
-              </View>
-
-              <View style={styles.halfWidth}>
-                <ThemedText style={styles.label}>Date de fin</ThemedText>
-                <input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    border: errors.endDate ? '2px solid #ef4444' : '1px solid #d1d5db',
-                    fontSize: 16,
-                    width: '100%',
-                    backgroundColor: '#fff',
-                    color: '#000',
-                  }}
-                />
-                {errors.endDate && (
-                  <ThemedText style={styles.errorText}>{errors.endDate}</ThemedText>
-                )}
-              </View>
+            {/* Date de début */}
+            <View style={styles.dateSection}>
+              <ThemedText style={styles.label}>Date de début *</ThemedText>
+              <TouchableOpacity
+                style={[styles.dateButton, { backgroundColor: cardColor, borderColor: errors.startDate ? '#ef4444' : NeutralColors.gray[300] }]}
+                onPress={() => setShowStartPicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color={iconColor} />
+                <ThemedText style={{ color: formData.startDate ? textColor : textSecondary }}>
+                  {formatDateDisplay(formData.startDate)}
+                </ThemedText>
+              </TouchableOpacity>
+              {errors.startDate && (
+                <ThemedText style={styles.errorText}>{errors.startDate}</ThemedText>
+              )}
             </View>
+
+            {/* Date de fin */}
+            <View style={styles.dateSection}>
+              <ThemedText style={styles.label}>Date de fin *</ThemedText>
+              <TouchableOpacity
+                style={[styles.dateButton, { backgroundColor: cardColor, borderColor: errors.endDate ? '#ef4444' : NeutralColors.gray[300] }]}
+                onPress={() => setShowEndPicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color={iconColor} />
+                <ThemedText style={{ color: formData.endDate ? textColor : textSecondary }}>
+                  {formatDateDisplay(formData.endDate)}
+                </ThemedText>
+              </TouchableOpacity>
+              {errors.endDate && (
+                <ThemedText style={styles.errorText}>{errors.endDate}</ThemedText>
+              )}
+            </View>
+
+            {showStartPicker && (
+              <DateTimePicker
+                value={formData.startDate ? new Date(formData.startDate) : new Date()}
+                mode="date"
+                display="default"
+                onChange={onStartDateChange}
+              />
+            )}
+
+            {showEndPicker && (
+              <DateTimePicker
+                value={formData.endDate ? new Date(formData.endDate) : new Date()}
+                mode="date"
+                display="default"
+                onChange={onEndDateChange}
+              />
+            )}
 
             <Input
               label="Nombre maximum de participants (optionnel)"
@@ -517,5 +558,18 @@ const styles = StyleSheet.create({
     right: 8,
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 14,
+  },
+  // Styles pour les sélecteurs de date
+  dateSection: {
+    marginBottom: 16,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
 });
