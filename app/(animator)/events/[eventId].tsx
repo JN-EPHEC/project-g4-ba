@@ -308,7 +308,7 @@ export default function EventDetailScreen() {
                     {canEdit && (
                       <>
                         <TouchableOpacity
-                          onPress={() => router.push(`/(animator)/events/edit/${eventId}`)}
+                          onPress={() => router.push(`/(animator)/events/${eventId}/edit`)}
                           style={[styles.heroButton, { backgroundColor: 'rgba(255,255,255,0.9)' }]}
                         >
                           <Ionicons name="create-outline" size={24} color={BrandColors.primary[600]} />
@@ -369,7 +369,7 @@ export default function EventDetailScreen() {
                 {canEdit && (
                   <>
                     <TouchableOpacity
-                      onPress={() => router.push(`/(animator)/events/edit/${eventId}`)}
+                      onPress={() => router.push(`/(animator)/events/${eventId}/edit`)}
                       style={[styles.heroButton, { backgroundColor: 'rgba(255,255,255,0.9)' }]}
                     >
                       <Ionicons name="create-outline" size={24} color={BrandColors.primary[600]} />
