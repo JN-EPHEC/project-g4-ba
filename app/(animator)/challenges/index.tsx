@@ -811,9 +811,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     borderRadius: 10,
-    gap: 8,
+    gap: 4,
   },
   mainTabActive: {
     backgroundColor: '#FFFFFF',
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   mainTabText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '600',
   },
   tabEmoji: {
