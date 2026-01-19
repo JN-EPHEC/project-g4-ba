@@ -27,8 +27,8 @@ export interface AnimatedPressableProps extends Omit<PressableProps, 'style'> {
   children: React.ReactNode;
 }
 
-// Propriétés de layout qui doivent être sur le Pressable parent
-const LAYOUT_PROPS = ['flex', 'flexGrow', 'flexShrink', 'flexBasis', 'alignSelf', 'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginHorizontal', 'marginVertical', 'position', 'top', 'bottom', 'left', 'right', 'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight'];
+// Propriétés de layout qui doivent être sur le Pressable parent (affectent le positionnement externe)
+const LAYOUT_PROPS = ['flex', 'flexGrow', 'flexShrink', 'flexBasis', 'alignSelf', 'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginHorizontal', 'marginVertical', 'position', 'top', 'bottom', 'left', 'right', 'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'aspectRatio', 'zIndex'];
 
 export function AnimatedPressable({
   style,
