@@ -10,8 +10,12 @@ import {
   RefreshControl,
   Text,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Helper pour vérifier si c'est une URL
+const isUrl = (str: string) => str?.startsWith('http://') || str?.startsWith('https://');
 
 import { useAuth } from '@/context/auth-context';
 import { PartnerService } from '@/services/partner-service';
@@ -180,7 +184,11 @@ export default function RedemptionHistoryScreen() {
                     <View key={redemption.id} style={styles.redemptionCard}>
                       <View style={styles.redemptionHeader}>
                         <View style={styles.partnerInfo}>
-                          <Text style={styles.partnerLogo}>{redemption.partner.logo}</Text>
+                          {isUrl(redemption.partner.logo) ? (
+                            <Image source={{ uri: redemption.partner.logo }} style={styles.partnerLogoImage} />
+                          ) : (
+                            <Text style={styles.partnerLogo}>{redemption.partner.logo}</Text>
+                          )}
                           <View>
                             <Text style={styles.partnerName}>{redemption.partner.name}</Text>
                             <Text style={styles.offerTitle}>{redemption.offer.title}</Text>
@@ -237,7 +245,11 @@ export default function RedemptionHistoryScreen() {
                     <View key={redemption.id} style={[styles.redemptionCard, styles.pastCard]}>
                       <View style={styles.redemptionHeader}>
                         <View style={styles.partnerInfo}>
-                          <Text style={styles.partnerLogo}>{redemption.partner.logo}</Text>
+                          {isUrl(redemption.partner.logo) ? (
+                            <Image source={{ uri: redemption.partner.logo }} style={styles.partnerLogoImage} />
+                          ) : (
+                            <Text style={styles.partnerLogo}>{redemption.partner.logo}</Text>
+                          )}
                           <View>
                             <Text style={[styles.partnerName, styles.pastText]}>
                               {redemption.partner.name}
@@ -344,6 +356,11 @@ const styles = StyleSheet.create({
   },
   partnerLogo: {
     fontSize: 32,
+  },
+  partnerLogoImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
   },
   partnerName: {
     fontSize: 16,
