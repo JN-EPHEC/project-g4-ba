@@ -763,15 +763,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   notificationBadge: {
-    position: 'absolute', top: 6, right: 6,
-    minWidth: 18, height: 18, borderRadius: 9,
+    position: 'absolute', top: 4, right: 4,
+    minWidth: 20, height: 20, borderRadius: 10,
     backgroundColor: BrandColors.accent[500],
-    borderWidth: 2, borderColor: BrandColors.primary[500],
+    borderWidth: 2, borderColor: BrandColors.primary[600],
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 4,
   },
   notificationBadgeText: {
-    fontSize: 10, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 11, fontWeight: '700', color: '#FFFFFF', lineHeight: 14,
   },
   avatarButton: {
     width: 44, height: 44, borderRadius: 22,
