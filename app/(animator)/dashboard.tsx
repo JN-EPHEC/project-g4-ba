@@ -291,7 +291,9 @@ export default function AnimatorDashboardScreen() {
                     activeOpacity={0.7}
                   >
                     {unit.logoUrl ? (
-                      <Image source={{ uri: unit.logoUrl }} style={styles.unitBadgeLogo} resizeMode="contain" />
+                      <View style={styles.unitBadgeLogoContainer}>
+                        <Image source={{ uri: unit.logoUrl }} style={styles.unitBadgeLogo} resizeMode="contain" />
+                      </View>
                     ) : (
                       <View style={styles.unitBadgeLogoPlaceholder}>
                         <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.7)" />
@@ -750,9 +752,16 @@ const styles = StyleSheet.create({
   sectionBadgeLogo: { width: 24, height: 24, borderRadius: 6 },
   sectionBadgeText: { fontSize: 20, fontWeight: '600', color: '#FFFFFF' },
   unitBadge: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 8 },
-  unitBadgeLogo: { width: 64, height: 64, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)' },
+  unitBadgeLogoContainer: {
+    width: 72, height: 72, borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    padding: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
+  },
+  unitBadgeLogo: { width: '100%', height: '100%', borderRadius: 10 },
   unitBadgeLogoPlaceholder: {
-    width: 64, height: 64, borderRadius: 14,
+    width: 72, height: 72, borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
   },
