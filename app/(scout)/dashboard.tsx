@@ -752,11 +752,9 @@ export default function ScoutDashboardScreen() {
           </Animated.View>
 
           {/* ==================== WIDGETS EXISTANTS ==================== */}
+          <WeatherWidget location="Belgique" delay={500} />
           {scout?.unitId && (
-            <>
-              <WeatherWidget location="Belgique" delay={500} />
-              <ActivityWidget unitId={scout.unitId} delay={600} />
-            </>
+            <ActivityWidget unitId={scout.unitId} delay={600} />
           )}
         </View>
       </ScrollView>
