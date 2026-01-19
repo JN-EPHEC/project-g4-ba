@@ -291,7 +291,7 @@ export default function AnimatorDashboardScreen() {
                     activeOpacity={0.7}
                   >
                     {unit.logoUrl ? (
-                      <Image source={{ uri: unit.logoUrl }} style={styles.unitBadgeLogo} />
+                      <Image source={{ uri: unit.logoUrl }} style={styles.unitBadgeLogo} resizeMode="contain" />
                     ) : (
                       <View style={styles.unitBadgeLogoPlaceholder}>
                         <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.7)" />
