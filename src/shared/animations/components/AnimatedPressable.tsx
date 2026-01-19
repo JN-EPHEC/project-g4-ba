@@ -1,6 +1,10 @@
 /**
  * AnimatedPressable - Composant pressable avec animations style Apple
  * Remplace TouchableOpacity avec des animations plus fluides
+ *
+ * Note: Utilise Animated.View wrappé dans Pressable au lieu de
+ * Animated.createAnimatedComponent(Pressable) pour éviter le bug
+ * "View config getter callback for component `input`"
  */
 
 import React, { useCallback } from 'react';
@@ -12,8 +16,6 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useAnimatedPress, UseAnimatedPressOptions } from '../hooks/useAnimatedPress';
-
-const AnimatedPressableComponent = Animated.createAnimatedComponent(Pressable);
 
 export interface AnimatedPressableProps extends Omit<PressableProps, 'style'> {
   /** Style du composant */
@@ -59,15 +61,16 @@ export function AnimatedPressable({
   );
 
   return (
-    <AnimatedPressableComponent
-      style={[style, animatedStyle]}
+    <Pressable
       onPressIn={onPressInHandler}
       onPressOut={onPressOutHandler}
       disabled={disabled}
       {...props}
     >
-      {children}
-    </AnimatedPressableComponent>
+      <Animated.View style={[style, animatedStyle]}>
+        {children}
+      </Animated.View>
+    </Pressable>
   );
 }
 
