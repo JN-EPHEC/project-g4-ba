@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { useFocusEffect } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -14,17 +15,30 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
 import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
 
+// Helper pour convertir un Timestamp Firestore en Date
+const toDate = (value: any): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (value?.toDate && typeof value.toDate === 'function') return value.toDate();
+  if (value?.seconds) return new Date(value.seconds * 1000);
+  return null;
+};
+
 export default function ValidateScoutsScreen() {
   const { user } = useAuth();
   const animator = user as Animator;
   const [pendingScouts, setPendingScouts] = useState<Scout[]>([]);
   const [validatedScouts, setValidatedScouts] = useState<Scout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const iconColor = useThemeColor({}, 'icon');
 
-  useEffect(() => {
-    loadScouts();
-  }, [animator?.unitId]);
+  // Rafraîchir quand la page devient visible
+  useFocusEffect(
+    useCallback(() => {
+      loadScouts();
+    }, [animator?.unitId])
+  );
 
   const loadScouts = async () => {
     try {
@@ -59,8 +73,14 @@ export default function ValidateScoutsScreen() {
       Alert.alert('Erreur', 'Impossible de charger les scouts');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadScouts();
+  }, [animator?.unitId]);
 
   const validateScout = async (scoutId: string) => {
     try {
@@ -120,9 +140,9 @@ export default function ValidateScoutsScreen() {
             {getDisplayName(scout)}
           </ThemedText>
           <ThemedText style={styles.scoutEmail}>{scout.email}</ThemedText>
-          {!isPending && scout.validatedAt && (
+          {!isPending && (scout as any).validatedAt && (
             <ThemedText style={styles.validatedDate}>
-              Validé le {new Date(scout.validatedAt).toLocaleDateString()}
+              Validé le {toDate((scout as any).validatedAt)?.toLocaleDateString('fr-FR') || 'date inconnue'}
             </ThemedText>
           )}
         </View>
@@ -163,7 +183,18 @@ export default function ValidateScoutsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[BrandColors.primary[500]]}
+            tintColor={BrandColors.primary[500]}
+          />
+        }
+      >
         <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Validation des scouts
         </ThemedText>

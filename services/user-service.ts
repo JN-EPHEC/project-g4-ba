@@ -51,6 +51,9 @@ export class UserService {
       phone: data.phone,
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
+      // RGPD - Consentement
+      consentGivenAt: data.consentGivenAt?.toDate(),
+      consentVersion: data.consentVersion,
     };
 
     switch (data.role) {
@@ -177,6 +180,11 @@ export class UserService {
         delete (safeAdditionalData as any).role;
       }
 
+      // Convertir consentGivenAt en Timestamp si présent
+      if (safeAdditionalData.consentGivenAt instanceof Date) {
+        (safeAdditionalData as any).consentGivenAt = Timestamp.fromDate(safeAdditionalData.consentGivenAt);
+      }
+
       const baseUserData = {
         email,
         firstName,
@@ -285,20 +293,30 @@ export class UserService {
    */
   static async getScoutByLinkCode(linkCode: string): Promise<Scout | null> {
     try {
+      // Chercher uniquement par linkCode (qui est unique)
+      // Puis vérifier le rôle après pour éviter les problèmes d'index composite
       const q = query(
         collection(db, this.COLLECTION_NAME),
-        where('linkCode', '==', linkCode.toUpperCase()),
-        where('role', '==', UserRole.SCOUT)
+        where('linkCode', '==', linkCode.toUpperCase())
       );
 
       const snapshot = await getDocs(q);
 
       if (snapshot.empty) {
+        console.log('getScoutByLinkCode: Aucun utilisateur trouvé avec le code:', linkCode);
         return null;
       }
 
       const docData = snapshot.docs[0];
-      return this.convertFirestoreUser({ id: docData.id, ...docData.data() }) as Scout;
+      const userData = { id: docData.id, ...docData.data() };
+
+      // Vérifier que c'est bien un scout
+      if (userData.role !== UserRole.SCOUT && userData.role !== 'scout') {
+        console.log('getScoutByLinkCode: Utilisateur trouvé mais pas un scout:', userData.role);
+        return null;
+      }
+
+      return this.convertFirestoreUser(userData) as Scout;
     } catch (error) {
       console.error('Erreur getScoutByLinkCode:', error);
       return null;

@@ -84,6 +84,8 @@ export default function SectionSelectionScreen() {
         role: params.role as string,
         unitId: unitId,
         sectionId: selectedSection,
+        consentGivenAt: params.consentGivenAt as string,
+        consentVersion: params.consentVersion as string,
       },
     });
   };

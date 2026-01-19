@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { PrimaryButton } from '@/components/ui';
@@ -82,13 +82,15 @@ export default function PendingApprovalScreen() {
           style={styles.button}
         />
 
-        <ThemedText
-          type="link"
+        <TouchableOpacity
           onPress={() => router.replace('/(auth)/welcome')}
-          style={[styles.link, { color: BrandColors.accent[500] }]}
+          style={styles.linkButton}
+          activeOpacity={0.7}
         >
-          Retour à l'accueil
-        </ThemedText>
+          <ThemedText style={[styles.link, { color: BrandColors.accent[500] }]}>
+            Retour à l'accueil
+          </ThemedText>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -196,7 +198,12 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 16,
   },
+  linkButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
   link: {
     fontSize: 16,
+    fontWeight: '600',
   },
 });

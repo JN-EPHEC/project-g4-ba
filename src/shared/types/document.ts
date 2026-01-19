@@ -74,6 +74,33 @@ export const FOLDER_LABELS: Record<FolderCategory, string> = {
   [FolderCategory.OTHER]: 'Autres',
 };
 
+/** Sous-catégories pour le dossier Photos */
+export enum PhotoSubcategory {
+  REUNIONS = 'reunions',
+  CAMPS = 'camps',
+  ACTIVITIES = 'activities',
+  EVENTS = 'events',
+  OTHER = 'other',
+}
+
+/** Labels français pour les sous-catégories Photos */
+export const PHOTO_SUBCATEGORY_LABELS: Record<PhotoSubcategory, string> = {
+  [PhotoSubcategory.REUNIONS]: 'Réunions',
+  [PhotoSubcategory.CAMPS]: 'Camps',
+  [PhotoSubcategory.ACTIVITIES]: 'Activités',
+  [PhotoSubcategory.EVENTS]: 'Événements',
+  [PhotoSubcategory.OTHER]: 'Autres',
+};
+
+/** Icônes pour les sous-catégories Photos */
+export const PHOTO_SUBCATEGORY_ICONS: Record<PhotoSubcategory, string> = {
+  [PhotoSubcategory.REUNIONS]: '🏠',
+  [PhotoSubcategory.CAMPS]: '⛺',
+  [PhotoSubcategory.ACTIVITIES]: '🎯',
+  [PhotoSubcategory.EVENTS]: '🎉',
+  [PhotoSubcategory.OTHER]: '📸',
+};
+
 /** Un dossier dans le système de stockage */
 export interface StorageFolder {
   id: string;

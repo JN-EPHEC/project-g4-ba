@@ -4,6 +4,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
@@ -29,6 +30,9 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+
+  const PRIVACY_POLICY_VERSION = '1.0';
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('fr-FR', {
@@ -80,6 +84,11 @@ export default function RegisterScreen() {
       isValid = false;
     }
 
+    if (!acceptedPrivacy) {
+      newErrors.privacy = 'Vous devez accepter la politique de confidentialité';
+      isValid = false;
+    }
+
     const today = new Date();
     const age = today.getFullYear() - formData.dateOfBirth.getFullYear();
     if (age < 5 || age > 100) {
@@ -104,6 +113,8 @@ export default function RegisterScreen() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         dateOfBirth: formData.dateOfBirth.toISOString(),
+        consentGivenAt: new Date().toISOString(),
+        consentVersion: PRIVACY_POLICY_VERSION,
       },
     });
     setIsLoading(false);
@@ -242,6 +253,9 @@ export default function RegisterScreen() {
               onChange={handleDateChange}
               maximumDate={new Date()}
               minimumDate={new Date(1920, 0, 1)}
+              themeVariant="light"
+              textColor="#000000"
+              accentColor="#2D5A3D"
             />
           )}
 
@@ -281,18 +295,46 @@ export default function RegisterScreen() {
             {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
           </View>
 
-          <TouchableOpacity
-            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+          {/* Consentement RGPD */}
+          <View style={styles.consentContainer}>
+            <TouchableOpacity
+              style={styles.checkboxContainer}
+              onPress={() => setAcceptedPrivacy(!acceptedPrivacy)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, acceptedPrivacy && styles.checkboxChecked]}>
+                {acceptedPrivacy && (
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                )}
+              </View>
+              <Text style={styles.consentText}>
+                J'ai lu et j'accepte la{' '}
+                <Text
+                  style={styles.privacyLink}
+                  onPress={() => router.push('/privacy-policy')}
+                >
+                  politique de confidentialité
+                </Text>
+              </Text>
+            </TouchableOpacity>
+            {errors.privacy ? <Text style={styles.errorText}>{errors.privacy}</Text> : null}
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryButton,
+              isLoading && styles.buttonDisabled,
+              pressed && { opacity: 0.8 }
+            ]}
             onPress={handleRegister}
             disabled={isLoading}
-            activeOpacity={0.8}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.primaryButtonText}>Continuer</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Lien vers connexion */}
@@ -407,15 +449,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
+    minHeight: 52,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    backgroundColor: '#9CA3AF',
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   loginContainer: {
     flexDirection: 'row',
@@ -431,5 +476,40 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#D97B4A',
+  },
+  consentContainer: {
+    marginBottom: 18,
+    marginTop: 8,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: '#2D5A3D',
+    borderColor: '#2D5A3D',
+  },
+  consentText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  privacyLink: {
+    color: '#D97B4A',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

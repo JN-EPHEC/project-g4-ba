@@ -18,6 +18,9 @@ import { UserRole, SECTION_LABELS, SECTION_EMOJIS, isValidSectionCode, isValidUn
 import { SectionService } from '@/services/section-service';
 import { UnitService } from '@/services/unit-service';
 
+// Code d'erreur pour email déjà utilisé
+const EMAIL_ALREADY_IN_USE = 'EMAIL_ALREADY_IN_USE';
+
 // Design System Colors
 const colors = {
   primary: '#2D5A45',
@@ -134,6 +137,10 @@ export default function AnimatorUnitSelectionScreen() {
       if (codeType === 'unit' && foundUnit) {
         console.log('🚀 Inscription animateur avec l\'unité:', foundUnit.name, 'ID:', foundUnit.id);
 
+        // Récupérer les données RGPD
+        const consentGivenAt = params.consentGivenAt ? new Date(params.consentGivenAt as string) : new Date();
+        const consentVersion = params.consentVersion as string || '1.0';
+
         // Créer le compte animateur avec l'unitId
         const newUser = await register(
           params.email as string,
@@ -141,7 +148,9 @@ export default function AnimatorUnitSelectionScreen() {
           params.firstName as string,
           params.lastName as string,
           UserRole.ANIMATOR,
-          foundUnit.id
+          foundUnit.id,
+          undefined, // dateOfBirth
+          { consentGivenAt, consentVersion } // totemData/additionalData
         );
 
         console.log('✅ Compte créé avec ID:', newUser.id);
@@ -163,6 +172,10 @@ export default function AnimatorUnitSelectionScreen() {
       else if (codeType === 'section' && foundSection) {
         console.log('🚀 Inscription animateur avec la section:', foundSection.name, 'ID:', foundSection.id);
 
+        // Récupérer les données RGPD
+        const consentGivenAt = params.consentGivenAt ? new Date(params.consentGivenAt as string) : new Date();
+        const consentVersion = params.consentVersion as string || '1.0';
+
         // Créer le compte animateur avec l'unitId (sectionId sera mis à jour après)
         const newUser = await register(
           params.email as string,
@@ -170,7 +183,9 @@ export default function AnimatorUnitSelectionScreen() {
           params.firstName as string,
           params.lastName as string,
           UserRole.ANIMATOR,
-          foundSection.unitId
+          foundSection.unitId,
+          undefined, // dateOfBirth
+          { consentGivenAt, consentVersion } // totemData/additionalData
         );
 
         console.log('✅ Compte créé avec ID:', newUser.id);
@@ -205,7 +220,43 @@ export default function AnimatorUnitSelectionScreen() {
     } catch (error: any) {
       console.error('❌ Erreur d\'inscription:', error);
       const errorMessage = error?.message || 'Impossible de créer ton compte';
-      showError('Erreur', errorMessage);
+
+      // Vérifier si c'est une erreur d'email déjà utilisé
+      if (errorMessage.includes('déjà enregistré') || errorMessage.includes('déjà utilisé')) {
+        // Afficher une alerte avec des options
+        if (Platform.OS === 'web') {
+          const goToLogin = window.confirm(
+            `${errorMessage}\n\nVoulez-vous aller à la page de connexion ?`
+          );
+          if (goToLogin) {
+            router.replace('/(auth)/login');
+          }
+        } else {
+          Alert.alert(
+            'Email déjà enregistré',
+            'Cet email existe déjà dans notre système. Que souhaitez-vous faire ?',
+            [
+              {
+                text: 'Se connecter',
+                onPress: () => router.replace('/(auth)/login'),
+              },
+              {
+                text: 'Mot de passe oublié',
+                onPress: () => router.replace({
+                  pathname: '/(auth)/forgot-password',
+                  params: { email: params.email as string }
+                }),
+              },
+              {
+                text: 'Annuler',
+                style: 'cancel',
+              },
+            ]
+          );
+        }
+      } else {
+        showError('Erreur', errorMessage);
+      }
     }
   };
 

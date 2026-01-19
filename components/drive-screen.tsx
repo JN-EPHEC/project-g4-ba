@@ -19,6 +19,7 @@ import {
   FileCard,
   FileUploader,
   FolderCreator,
+  ImageUploader,
 } from '@/src/features/drive/components';
 import { DriveService } from '@/src/shared/services/drive-service';
 import type { StorageFolder, StorageFile } from '@/src/shared/types/document';
@@ -58,11 +59,24 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
+  const [showImageUploader, setShowImageUploader] = useState(false);
   const [showFolderCreator, setShowFolderCreator] = useState(false);
   const [fileCounts, setFileCounts] = useState<Record<string, number>>({});
   const [selectedFilter, setSelectedFilter] = useState<FilterCategory>('all');
 
   const canManage = userRole === UserRole.ANIMATOR;
+
+  // Vérifier si on est dans un dossier Photos (ou sous-dossier d'un dossier Photos)
+  const isInPhotosFolder = useCallback(() => {
+    if (!currentFolder) return false;
+    // Vérifier le dossier courant
+    if (currentFolder.category === FolderCategory.PHOTOS) return true;
+    // Vérifier le chemin (si un parent est un dossier Photos)
+    return folderPath.some(f => f.category === FolderCategory.PHOTOS);
+  }, [currentFolder, folderPath]);
+
+  // Les scouts peuvent ajouter des photos dans les dossiers Photos
+  const canAddPhotos = isInPhotosFolder();
   const iconColor = useThemeColor({}, 'icon');
   const cardColor = useThemeColor({}, 'card');
   const cardBorder = useThemeColor({}, 'cardBorder');
@@ -201,6 +215,7 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
 
   const handleUploadComplete = () => {
     setShowUploader(false);
+    setShowImageUploader(false);
     if (currentFolder) {
       loadFolderContent(currentFolder);
     }
@@ -353,8 +368,8 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
           </Animated.View>
         )}
 
-        {/* Actions en vue contenu de dossier */}
-        {canManage && viewMode === 'folder-content' && !showUploader && !showFolderCreator && (
+        {/* Actions en vue contenu de dossier - Animateurs */}
+        {canManage && viewMode === 'folder-content' && !showUploader && !showImageUploader && !showFolderCreator && (
           <Animated.View entering={FadeIn.duration(300)} style={styles.actions}>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: `${BrandColors.accent[500]}15`, borderColor: BrandColors.accent[500] }]}
@@ -373,7 +388,20 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
           </Animated.View>
         )}
 
-        {/* Uploader */}
+        {/* Bouton Ajouter une photo - Scouts dans dossiers Photos */}
+        {!canManage && canAddPhotos && viewMode === 'folder-content' && !showImageUploader && (
+          <Animated.View entering={FadeIn.duration(300)}>
+            <TouchableOpacity
+              style={[styles.addPhotoButton, { backgroundColor: BrandColors.secondary[500] }]}
+              onPress={() => setShowImageUploader(true)}
+            >
+              <Ionicons name="camera" size={20} color="#fff" />
+              <ThemedText style={styles.addPhotoButtonText}>Ajouter une photo</ThemedText>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Uploader fichiers (animateurs) */}
         {showUploader && currentFolder && (
           <FileUploader
             folderId={currentFolder.id}
@@ -381,6 +409,17 @@ export function DriveScreen({ user, unitId, userRole }: DriveScreenProps) {
             userId={user.id}
             onUploadComplete={handleUploadComplete}
             onCancel={() => setShowUploader(false)}
+          />
+        )}
+
+        {/* Uploader photos (scouts dans dossiers Photos) */}
+        {showImageUploader && currentFolder && (
+          <ImageUploader
+            folderId={currentFolder.id}
+            unitId={unitId}
+            userId={user.id}
+            onUploadComplete={handleUploadComplete}
+            onCancel={() => setShowImageUploader(false)}
           />
         )}
 
@@ -689,6 +728,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   newFolderText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  addPhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  addPhotoButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -18,7 +18,7 @@ import { Radius } from '@/constants/design-tokens';
 import { UserService } from '@/services/user-service';
 
 export default function ProfileScreen() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const scout = user as Scout;
   const iconColor = useThemeColor({}, 'icon');
   const borderColor = useThemeColor({}, 'border');
@@ -72,43 +72,72 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleRegenerateCode = () => {
-    const doRegenerate = async () => {
-      if (!scout?.id) return;
-      setIsRegeneratingCode(true);
-      try {
-        await UserService.regenerateLinkCode(scout.id);
-        await refreshUser?.();
-        if (Platform.OS === 'web') {
-          window.alert('Nouveau code généré avec succès !');
-        } else {
-          Alert.alert('Succès', 'Nouveau code généré avec succès !');
-        }
-      } catch (error) {
-        console.error('Erreur régénération:', error);
-        if (Platform.OS === 'web') {
-          window.alert('Erreur lors de la génération du code');
-        } else {
-          Alert.alert('Erreur', 'Impossible de générer un nouveau code');
-        }
-      } finally {
-        setIsRegeneratingCode(false);
-      }
-    };
+  const handleRegenerateCode = async () => {
+    console.log('🔘 Bouton régénération cliqué!');
+
+    if (!scout?.id) {
+      console.log('❌ Pas de scout ID');
+      return;
+    }
+
+    // Demander confirmation
+    const confirmMessage = 'Voulez-vous générer un nouveau code ?\nL\'ancien code ne fonctionnera plus.';
+    let confirmed = false;
 
     if (Platform.OS === 'web') {
-      if (window.confirm('Voulez-vous générer un nouveau code ?\nL\'ancien code ne fonctionnera plus.')) {
-        doRegenerate();
-      }
+      confirmed = window.confirm(confirmMessage);
     } else {
-      Alert.alert(
-        'Nouveau code',
-        'Voulez-vous générer un nouveau code ?\nL\'ancien code ne fonctionnera plus.',
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Générer', onPress: doRegenerate },
-        ]
-      );
+      // Sur mobile, on utilise une Promise pour attendre la réponse
+      confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Nouveau code',
+          confirmMessage,
+          [
+            { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Générer', onPress: () => resolve(true) },
+          ]
+        );
+      });
+    }
+
+    if (!confirmed) {
+      console.log('❌ Annulé par l\'utilisateur');
+      return;
+    }
+
+    console.log('🔄 Début régénération code pour scout:', scout.id);
+    setIsRegeneratingCode(true);
+
+    try {
+      // Ajouter un timeout de 10 secondes
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout: la connexion prend trop de temps')), 10000);
+      });
+
+      const newCode = await Promise.race([
+        UserService.regenerateLinkCode(scout.id),
+        timeoutPromise
+      ]);
+      console.log('✅ Nouveau code généré:', newCode);
+
+      // Mettre à jour l'utilisateur local avec le nouveau code
+      await updateUser({ linkCode: newCode });
+      console.log('✅ State utilisateur mis à jour');
+
+      if (Platform.OS === 'web') {
+        window.alert(`Nouveau code généré avec succès !\n\nNouveau code: ${newCode}`);
+      } else {
+        Alert.alert('Succès', `Nouveau code généré avec succès !\n\nNouveau code: ${newCode}`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur régénération:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Erreur lors de la génération du code');
+      } else {
+        Alert.alert('Erreur', 'Impossible de générer un nouveau code');
+      }
+    } finally {
+      setIsRegeneratingCode(false);
     }
   };
 

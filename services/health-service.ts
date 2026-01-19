@@ -23,6 +23,26 @@ import {
 } from '@/types';
 
 /**
+ * Helper pour nettoyer les données avant envoi à Firestore
+ * Remplace undefined par null et nettoie les objets imbriqués
+ */
+function cleanForFirestore(obj: any): any {
+  if (obj === undefined) return null;
+  if (obj === null) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanForFirestore(item));
+  }
+  if (typeof obj === 'object' && !(obj instanceof Date) && !obj.toDate) {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      cleaned[key] = cleanForFirestore(value);
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+/**
  * Service pour gérer les fiches santé dans Firestore
  */
 export class HealthService {
@@ -79,14 +99,20 @@ export class HealthService {
   ): Promise<HealthRecord> {
     try {
       const now = new Date();
+
+      // Nettoyer les données pour Firestore (remplacer undefined par null)
+      const cleanedAllergies = cleanForFirestore(data.allergies || []);
+      const cleanedMedications = cleanForFirestore(data.medications || []);
+      const cleanedContacts = cleanForFirestore(data.emergencyContacts || []);
+
       const healthRecordData = {
         scoutId,
         bloodType: data.bloodType || null,
         insuranceName: data.insuranceName || null,
         insuranceNumber: data.insuranceNumber || null,
-        allergies: data.allergies || [],
-        medications: data.medications || [],
-        emergencyContacts: data.emergencyContacts || [],
+        allergies: cleanedAllergies,
+        medications: cleanedMedications,
+        emergencyContacts: cleanedContacts,
         additionalNotes: data.additionalNotes || null,
         lastUpdatedAt: Timestamp.fromDate(now),
         lastUpdatedBy: updatedBy,
@@ -115,11 +141,12 @@ export class HealthService {
     try {
       const docRef = doc(db, this.COLLECTION_NAME, scoutId);
 
-      // Filtrer les valeurs undefined
+      // Nettoyer et filtrer les valeurs undefined
       const updates: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(data)) {
         if (value !== undefined) {
-          updates[key] = value;
+          // Nettoyer les objets imbriqués pour Firestore
+          updates[key] = cleanForFirestore(value);
         }
       }
 

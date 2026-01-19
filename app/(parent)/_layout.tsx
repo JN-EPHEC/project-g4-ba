@@ -126,6 +126,12 @@ export default function ParentLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="delete-account"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

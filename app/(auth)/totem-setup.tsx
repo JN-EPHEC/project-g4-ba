@@ -128,6 +128,8 @@ export default function TotemSetupScreen() {
     try {
       const dateOfBirth = params.dateOfBirth ? new Date(params.dateOfBirth as string) : new Date();
       const sectionId = params.sectionId as string | undefined;
+      const consentGivenAt = params.consentGivenAt ? new Date(params.consentGivenAt as string) : new Date();
+      const consentVersion = params.consentVersion as string || '1.0';
 
       await register(
         params.email as string,
@@ -143,8 +145,13 @@ export default function TotemSetupScreen() {
               totemEmoji: emoji,
               totemTraits: traits,
               totemImageUrl: generatedImageUrl || undefined,
+              consentGivenAt,
+              consentVersion,
             }
-          : undefined,
+          : {
+              consentGivenAt,
+              consentVersion,
+            },
         sectionId
       );
 
@@ -160,6 +167,8 @@ export default function TotemSetupScreen() {
     try {
       const dateOfBirth = params.dateOfBirth ? new Date(params.dateOfBirth as string) : new Date();
       const sectionId = params.sectionId as string | undefined;
+      const consentGivenAt = params.consentGivenAt ? new Date(params.consentGivenAt as string) : new Date();
+      const consentVersion = params.consentVersion as string || '1.0';
 
       await register(
         params.email as string,
@@ -169,7 +178,10 @@ export default function TotemSetupScreen() {
         UserRole.SCOUT,
         params.unitId as string,
         dateOfBirth,
-        undefined,
+        {
+          consentGivenAt,
+          consentVersion,
+        },
         sectionId
       );
 

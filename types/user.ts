@@ -22,6 +22,9 @@ export interface User {
   phone?: string;
   createdAt: Date;
   updatedAt: Date;
+  // RGPD - Consentement
+  consentGivenAt?: Date; // Date d'acceptation de la politique de confidentialité
+  consentVersion?: string; // Version de la politique acceptée (ex: "1.0")
 }
 
 /**

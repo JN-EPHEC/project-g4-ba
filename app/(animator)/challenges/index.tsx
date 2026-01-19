@@ -514,7 +514,7 @@ export default function AnimatorChallengesScreen() {
                       onEdit={() => handleEdit(challenge)}
                       onDelete={() => handleDelete(challenge)}
                       onArchive={() => handleArchive(challenge)}
-                      canEdit={!!challenge.unitId}
+                      canEdit={!!challenge.unitId && challenge.createdBy === user?.id}
                     />
                   );
                 })}

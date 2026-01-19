@@ -25,6 +25,9 @@ import {
   FolderCategory,
   FOLDER_ICONS,
   getFileTypeFromMime,
+  PhotoSubcategory,
+  PHOTO_SUBCATEGORY_LABELS,
+  PHOTO_SUBCATEGORY_ICONS,
 } from '@/src/shared/types/document';
 
 /**
@@ -81,6 +84,11 @@ export class DriveService {
       const existingFolders = await this.getFolders(unitId);
       if (existingFolders.length > 0) {
         console.log('[Drive] Dossiers existants, pas de création');
+        // Vérifier si le dossier Photos a ses sous-dossiers
+        const photosFolder = existingFolders.find(f => f.category === FolderCategory.PHOTOS);
+        if (photosFolder) {
+          await this.ensurePhotoSubfolders(photosFolder.id, unitId, createdBy);
+        }
         return;
       }
 
@@ -107,11 +115,53 @@ export class DriveService {
 
         const folderRef = doc(collection(db, this.FOLDERS_COLLECTION));
         await setDoc(folderRef, folderData);
+
+        // Créer les sous-dossiers pour Photos
+        if (category === FolderCategory.PHOTOS) {
+          await this.ensurePhotoSubfolders(folderRef.id, unitId, createdBy);
+        }
       }
 
       console.log('[Drive] Dossiers par défaut créés');
     } catch (error) {
       console.error('[Drive] Erreur création dossiers par défaut:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Crée les sous-dossiers de catégories pour le dossier Photos
+   */
+  static async ensurePhotoSubfolders(photosFolderId: string, unitId: string, createdBy: string): Promise<void> {
+    try {
+      // Vérifier si des sous-dossiers existent déjà
+      const existingSubfolders = await this.getFolders(unitId, photosFolderId);
+      if (existingSubfolders.length > 0) {
+        console.log('[Drive] Sous-dossiers Photos existants');
+        return;
+      }
+
+      const now = new Date();
+
+      for (const subcategory of Object.values(PhotoSubcategory)) {
+        const subfolderData = {
+          name: PHOTO_SUBCATEGORY_LABELS[subcategory],
+          category: FolderCategory.PHOTOS,
+          icon: PHOTO_SUBCATEGORY_ICONS[subcategory],
+          unitId,
+          parentId: photosFolderId,
+          createdBy,
+          createdAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(now),
+        };
+
+        const subfolderRef = doc(collection(db, this.FOLDERS_COLLECTION));
+        await setDoc(subfolderRef, subfolderData);
+      }
+
+      console.log('[Drive] Sous-dossiers Photos créés');
+    } catch (error) {
+      console.error('[Drive] Erreur création sous-dossiers Photos:', error);
       throw error;
     }
   }

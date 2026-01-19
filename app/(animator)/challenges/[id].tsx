@@ -205,6 +205,24 @@ export default function EditChallengeScreen() {
     );
   }
 
+  // Vérifier que l'animateur est le créateur du défi
+  const canEdit = challenge.unitId && challenge.createdBy === user?.id;
+  if (!canEdit) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <ThemedText style={styles.errorIcon}>🔒</ThemedText>
+          <ThemedText style={styles.errorText}>
+            Vous ne pouvez pas modifier ce défi car vous n'en êtes pas le créateur.
+          </ThemedText>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+            <ThemedText style={{ color: tintColor }}>Retour</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <KeyboardAvoidingView

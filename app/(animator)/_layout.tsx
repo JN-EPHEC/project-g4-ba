@@ -190,6 +190,12 @@ export default function AnimatorLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="delete-account"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

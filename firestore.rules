@@ -45,27 +45,30 @@ service cloud.firestore {
 
     // Règles pour les défis
     // - Admin WeCamp: peut tout faire
-    // - Animateur: peut créer et modifier uniquement les défis de son unité (pas les défis globaux WeCamp)
+    // - Animateur: peut créer et modifier uniquement les défis qu'il a créés lui-même (pas les défis créés par WeCamp admin)
     match /challenges/{challengeId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['animator', 'wecamp_admin'];
 
-      // Séparation des règles update et delete pour plus de clarté
+      // Update: wecamp_admin peut tout modifier
+      // Animateur peut modifier uniquement les défis qu'il a créés lui-même
       allow update: if request.auth != null && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin' ||
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
          resource.data.unitId != null &&
-         resource.data.unitId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId)
+         resource.data.unitId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId &&
+         resource.data.createdBy == request.auth.uid)
       );
 
       // Delete: wecamp_admin peut supprimer n'importe quel défi
-      // Animateur peut supprimer uniquement les défis de son unité
+      // Animateur peut supprimer uniquement les défis qu'il a créés lui-même
       allow delete: if request.auth != null && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'wecamp_admin' ||
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' &&
          resource.data.unitId != null &&
-         resource.data.unitId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId)
+         resource.data.unitId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId &&
+         resource.data.createdBy == request.auth.uid)
       );
     }
 
@@ -174,10 +177,17 @@ service cloud.firestore {
     }
 
     // Règles pour les fichiers stockés (Drive)
+    // - Animateurs: peuvent créer/modifier/supprimer tous les fichiers de leur unité
+    // - Scouts: peuvent créer des fichiers (photos) dans leur unité (la restriction aux dossiers Photos est gérée côté app)
     match /storageFiles/{fileId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
+      allow create: if request.auth != null && (
+        // Animateurs peuvent créer des fichiers
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator' ||
+        // Scouts peuvent créer des fichiers dans leur unité
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'scout' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.unitId == request.resource.data.unitId)
+      );
       allow update, delete: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'animator';
     }

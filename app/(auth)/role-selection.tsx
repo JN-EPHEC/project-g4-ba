@@ -66,6 +66,8 @@ export default function RoleSelectionScreen() {
           lastName: params.lastName as string,
           dateOfBirth: params.dateOfBirth as string,
           role: selectedRole,
+          consentGivenAt: params.consentGivenAt as string,
+          consentVersion: params.consentVersion as string,
         },
       });
       return;
@@ -90,6 +92,8 @@ export default function RoleSelectionScreen() {
           lastName: params.lastName as string,
           dateOfBirth: params.dateOfBirth as string,
           role: selectedRole,
+          consentGivenAt: params.consentGivenAt as string,
+          consentVersion: params.consentVersion as string,
         },
       });
       return;

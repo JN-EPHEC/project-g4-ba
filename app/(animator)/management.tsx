@@ -671,6 +671,42 @@ export default function ManagementScreen() {
         </TouchableOpacity>
 
         <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
+          Confidentialite
+        </ThemedText>
+
+        <TouchableOpacity onPress={() => router.push('/privacy-policy')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: `${BrandColors.primary[500]}15` }]}>
+              <Ionicons name="shield-checkmark" size={28} color={BrandColors.primary[500]} />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold">Politique de confidentialite</ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Consulter nos engagements RGPD
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/(animator)/delete-account')}>
+          <Card style={styles.actionCard}>
+            <View style={[styles.actionIcon, { backgroundColor: '#dc262615' }]}>
+              <Ionicons name="trash" size={28} color="#dc2626" />
+            </View>
+            <View style={styles.actionContent}>
+              <ThemedText type="defaultSemiBold" style={{ color: '#dc2626' }}>
+                Supprimer mon compte
+              </ThemedText>
+              <ThemedText style={styles.actionDescription}>
+                Effacer toutes mes donnees
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </Card>
+        </TouchableOpacity>
+
+        <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
           Ma section
         </ThemedText>
 

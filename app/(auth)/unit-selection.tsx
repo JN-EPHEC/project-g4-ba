@@ -110,6 +110,8 @@ export default function UnitSelectionScreen() {
         role: params.role as string,
         unitId: selectedUnit,
         animatorCode: animatorCode || undefined,
+        consentGivenAt: params.consentGivenAt as string,
+        consentVersion: params.consentVersion as string,
       },
     });
   };

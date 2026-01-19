@@ -279,18 +279,32 @@ export class UnitService {
    */
   static async getScoutsByUnit(unitId: string): Promise<any[]> {
     try {
-      // Récupérer tous les utilisateurs et filtrer par unitId et rôle scout
+      console.log('🔍 getScoutsByUnit - Recherche pour unitId:', unitId);
+
+      // Récupérer tous les utilisateurs de l'unité, puis filtrer par rôle
+      // (évite les problèmes d'index composite Firestore)
       const q = query(
         collection(db, 'users'),
-        where('unitId', '==', unitId),
-        where('role', '==', UserRole.SCOUT)
+        where('unitId', '==', unitId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      console.log('📋 Utilisateurs trouvés dans l\'unité:', querySnapshot.docs.length);
+
+      // Filtrer pour ne garder que les scouts
+      const scouts = querySnapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((user: any) => user.role === UserRole.SCOUT || user.role === 'scout');
+
+      console.log('👦 Scouts filtrés:', scouts.length);
+      scouts.forEach((s: any) => {
+        console.log(`  - ${s.firstName} ${s.lastName}, validated: ${s.validated}`);
+      });
+
+      return scouts;
     } catch (error) {
       console.error('Erreur lors de la récupération des scouts:', error);
       throw error;
@@ -302,17 +316,22 @@ export class UnitService {
    */
   static async getAnimatorsByUnit(unitId: string): Promise<any[]> {
     try {
+      // Récupérer tous les utilisateurs de l'unité, puis filtrer par rôle
+      // (évite les problèmes d'index composite Firestore)
       const q = query(
         collection(db, 'users'),
-        where('unitId', '==', unitId),
-        where('role', '==', UserRole.ANIMATOR)
+        where('unitId', '==', unitId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+
+      // Filtrer pour ne garder que les animateurs
+      return querySnapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((user: any) => user.role === UserRole.ANIMATOR || user.role === 'animator');
     } catch (error) {
       console.error('Erreur lors de la récupération des animateurs:', error);
       throw error;

@@ -157,6 +157,12 @@ export default function ScoutLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="delete-account"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
