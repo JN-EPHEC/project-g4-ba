@@ -309,7 +309,7 @@ export default function ScoutDashboardScreen() {
     { value: scout?.points || 0, label: 'Points', isAccent: true },
     { value: `#${scoutRank}`, label: 'Rang', isAccent: false },
     { value: completedCount.toString(), label: 'Défis', isAccent: false },
-    { value: events.length.toString(), label: 'Événements', isAccent: false },
+    { value: events.length.toString(), label: 'Évén.', isAccent: false },
   ];
 
   // Vérifier si la fiche santé est manquante ou incomplète
