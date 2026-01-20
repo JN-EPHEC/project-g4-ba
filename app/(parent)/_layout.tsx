@@ -81,6 +81,15 @@ export default function ParentLayout() {
         }}
       />
       <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="more"
         options={{
           title: 'Plus',
@@ -92,12 +101,6 @@ export default function ParentLayout() {
       {/* Routes cachées */}
       <Tabs.Screen
         name="challenges"
-        options={{
-          href: null, // Accessible depuis Plus
-        }}
-      />
-      <Tabs.Screen
-        name="documents"
         options={{
           href: null, // Accessible depuis Plus
         }}
