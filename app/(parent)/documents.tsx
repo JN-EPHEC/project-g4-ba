@@ -16,13 +16,15 @@ import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-r
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Card, PrimaryButton } from '@/components/ui';
+import { DriveScreen } from '@/components/drive-screen';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
 import { ParentScoutService } from '@/services/parent-scout-service';
 import { DocumentService } from '@/services/document-service';
 import { HealthService } from '@/services/health-service';
-import { Parent, Scout, Document, HealthRecord } from '@/types';
+import { UnitService } from '@/services/unit-service';
+import { Parent, Scout, Document, HealthRecord, UserRole, Unit } from '@/types';
 
 interface ScoutDocuments {
   scout: Scout;
@@ -31,10 +33,20 @@ interface ScoutDocuments {
   healthRecord: HealthRecord | null;
 }
 
+interface ScoutUnit {
+  scout: Scout;
+  unit: Unit | null;
+}
+
+type TabType = 'signatures' | 'drive';
+
 export default function ParentDocumentsScreen() {
   const { user } = useAuth();
   const parent = user as Parent;
+  const [activeTab, setActiveTab] = useState<TabType>('signatures');
   const [scoutDocuments, setScoutDocuments] = useState<ScoutDocuments[]>([]);
+  const [scoutUnits, setScoutUnits] = useState<ScoutUnit[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState<{ doc: Document; scoutId: string } | null>(null);
   const [signatureModalVisible, setSignatureModalVisible] = useState(false);
@@ -61,41 +73,64 @@ export default function ParentDocumentsScreen() {
       // Récupérer tous les scouts du parent
       const scouts = await ParentScoutService.getScoutsByParent(parent.id);
 
-      // Pour chaque scout, récupérer les documents et la fiche santé
-      const documentsData: ScoutDocuments[] = await Promise.all(
-        scouts.map(async (scout) => {
-          let pendingDocuments: Document[] = [];
-          let signedDocuments: Document[] = [];
-          let healthRecord: HealthRecord | null = null;
+      // Pour chaque scout, récupérer les documents, la fiche santé et l'unité
+      const documentsData: ScoutDocuments[] = [];
+      const unitsData: ScoutUnit[] = [];
+      const unitIds = new Set<string>();
 
-          if (scout.unitId) {
-            // Documents en attente de signature
-            pendingDocuments = await DocumentService.getPendingDocumentsForScout(
-              scout.id,
-              scout.unitId
-            );
+      for (const scout of scouts) {
+        let pendingDocuments: Document[] = [];
+        let signedDocuments: Document[] = [];
+        let healthRecord: HealthRecord | null = null;
+        let unit: Unit | null = null;
 
-            // Documents déjà signés
-            const signed = await DocumentService.getSignedDocumentsForScout(
-              scout.id,
-              scout.unitId
-            );
-            signedDocuments = signed.map((s) => s.document);
+        if (scout.unitId) {
+          unitIds.add(scout.unitId);
+
+          // Documents en attente de signature
+          pendingDocuments = await DocumentService.getPendingDocumentsForScout(
+            scout.id,
+            scout.unitId
+          );
+
+          // Documents déjà signés
+          const signed = await DocumentService.getSignedDocumentsForScout(
+            scout.id,
+            scout.unitId
+          );
+          signedDocuments = signed.map((s) => s.document);
+
+          // Récupérer l'unité
+          try {
+            unit = await UnitService.getUnitById(scout.unitId);
+          } catch (error) {
+            console.error('Erreur chargement unité:', error);
           }
+        }
 
-          // Fiche santé
-          healthRecord = await HealthService.getHealthRecord(scout.id);
+        // Fiche santé
+        healthRecord = await HealthService.getHealthRecord(scout.id);
 
-          return {
-            scout,
-            pendingDocuments,
-            signedDocuments,
-            healthRecord,
-          };
-        })
-      );
+        documentsData.push({
+          scout,
+          pendingDocuments,
+          signedDocuments,
+          healthRecord,
+        });
+
+        unitsData.push({
+          scout,
+          unit,
+        });
+      }
 
       setScoutDocuments(documentsData);
+      setScoutUnits(unitsData);
+
+      // Sélectionner la première unité par défaut
+      if (unitIds.size > 0 && !selectedUnitId) {
+        setSelectedUnitId(Array.from(unitIds)[0]);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des documents:', error);
     } finally {
@@ -160,6 +195,25 @@ export default function ParentDocumentsScreen() {
     return { status: 'complete', label: 'Complète', color: '#059669' };
   };
 
+  // Obtenir les unités uniques
+  const getUniqueUnits = () => {
+    const unitMap = new Map<string, { unit: Unit; scoutNames: string[] }>();
+
+    scoutUnits.forEach(({ scout, unit }) => {
+      if (unit && scout.unitId) {
+        if (unitMap.has(scout.unitId)) {
+          unitMap.get(scout.unitId)!.scoutNames.push(scout.firstName);
+        } else {
+          unitMap.set(scout.unitId, { unit, scoutNames: [scout.firstName] });
+        }
+      }
+    });
+
+    return Array.from(unitMap.entries());
+  };
+
+  const uniqueUnits = getUniqueUnits();
+
   if (isLoading) {
     return (
       <ThemedView style={styles.container}>
@@ -172,6 +226,249 @@ export default function ParentDocumentsScreen() {
   }
 
   const totalPending = getTotalPendingCount();
+
+  // Rendu du contenu "À signer"
+  const renderSignaturesTab = () => (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+      {/* Résumé */}
+      {totalPending > 0 && (
+        <Card style={[styles.summaryCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+          <View style={styles.summaryContent}>
+            <View style={[styles.summaryIcon, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="document-text" size={24} color="#DC2626" />
+            </View>
+            <View style={styles.summaryText}>
+              <ThemedText style={[styles.summaryTitle, { color: '#DC2626' }]}>
+                {totalPending} {totalPending === 1 ? 'document' : 'documents'} en attente
+              </ThemedText>
+              <ThemedText style={[styles.summarySubtitle, { color: '#7F1D1D' }]}>
+                Veuillez signer les autorisations ci-dessous
+              </ThemedText>
+            </View>
+          </View>
+        </Card>
+      )}
+
+      {scoutDocuments.length === 0 ? (
+        <Card style={styles.emptyCard}>
+          <Ionicons name="person-outline" size={48} color={textSecondary} />
+          <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
+            Aucun enfant associé à votre compte
+          </ThemedText>
+        </Card>
+      ) : (
+        scoutDocuments.map((sd) => {
+          const healthStatus = getHealthRecordStatus(sd.healthRecord);
+
+          return (
+            <View key={sd.scout.id} style={styles.scoutSection}>
+              {/* En-tête scout */}
+              <View style={styles.scoutHeader}>
+                <View style={[styles.scoutAvatar, { backgroundColor: BrandColors.primary[100] }]}>
+                  <ThemedText style={styles.scoutAvatarText}>
+                    {sd.scout.firstName.charAt(0)}
+                  </ThemedText>
+                </View>
+                <View style={styles.scoutInfo}>
+                  <ThemedText type="subtitle" style={{ color: textColor }}>
+                    {sd.scout.firstName} {sd.scout.lastName}
+                  </ThemedText>
+                  {sd.scout.totemName && (
+                    <ThemedText style={[styles.totemName, { color: textSecondary }]}>
+                      {sd.scout.totemName}
+                    </ThemedText>
+                  )}
+                </View>
+              </View>
+
+              {/* Fiche santé */}
+              <Card style={[styles.healthCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
+                    <Ionicons name="medkit" size={20} color={BrandColors.primary[500]} />
+                    <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
+                      Fiche santé
+                    </ThemedText>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: `${healthStatus.color}15` }]}>
+                    <View style={[styles.statusDot, { backgroundColor: healthStatus.color }]} />
+                    <ThemedText style={[styles.statusText, { color: healthStatus.color }]}>
+                      {healthStatus.label}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {healthStatus.status === 'missing' && (
+                  <ThemedText style={[styles.healthDescription, { color: textSecondary }]}>
+                    La fiche santé de votre enfant n'a pas encore été remplie.
+                  </ThemedText>
+                )}
+                {healthStatus.status === 'unsigned' && (
+                  <ThemedText style={[styles.healthDescription, { color: textSecondary }]}>
+                    La fiche santé a été remplie mais nécessite votre signature.
+                  </ThemedText>
+                )}
+                {healthStatus.status === 'complete' && sd.healthRecord && (
+                  <ThemedText style={[styles.healthDescription, { color: textSecondary }]}>
+                    Signée le {sd.healthRecord.signedAt?.toLocaleDateString('fr-FR')} par {sd.healthRecord.signedByParentName}
+                  </ThemedText>
+                )}
+              </Card>
+
+              {/* Documents en attente */}
+              {sd.pendingDocuments.length > 0 && (
+                <View style={styles.documentsSection}>
+                  <ThemedText style={[styles.sectionLabel, { color: textSecondary }]}>
+                    DOCUMENTS EN ATTENTE
+                  </ThemedText>
+                  {sd.pendingDocuments.map((doc) => (
+                    <Card
+                      key={doc.id}
+                      style={[styles.documentCard, { backgroundColor: cardColor, borderColor: '#FBBF24' }]}
+                    >
+                      <View style={styles.documentContent}>
+                        <View style={[styles.documentIcon, { backgroundColor: '#FEF3C7' }]}>
+                          <Ionicons name="document-text" size={24} color="#D97706" />
+                        </View>
+                        <View style={styles.documentInfo}>
+                          <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
+                            {doc.title}
+                          </ThemedText>
+                          {doc.description && (
+                            <ThemedText
+                              style={[styles.documentDescription, { color: textSecondary }]}
+                              numberOfLines={2}
+                            >
+                              {doc.description}
+                            </ThemedText>
+                          )}
+                        </View>
+                      </View>
+                      <PrimaryButton
+                        title="Signer"
+                        onPress={() => openSignatureModal(doc, sd.scout.id)}
+                        style={styles.signButton}
+                      />
+                    </Card>
+                  ))}
+                </View>
+              )}
+
+              {/* Documents signés */}
+              {sd.signedDocuments.length > 0 && (
+                <View style={styles.documentsSection}>
+                  <ThemedText style={[styles.sectionLabel, { color: textSecondary }]}>
+                    DOCUMENTS SIGNÉS
+                  </ThemedText>
+                  {sd.signedDocuments.map((doc) => (
+                    <Card
+                      key={doc.id}
+                      style={[styles.documentCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
+                    >
+                      <View style={styles.documentContent}>
+                        <View style={[styles.documentIcon, { backgroundColor: '#D1FAE5' }]}>
+                          <Ionicons name="checkmark-circle" size={24} color="#059669" />
+                        </View>
+                        <View style={styles.documentInfo}>
+                          <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
+                            {doc.title}
+                          </ThemedText>
+                          <ThemedText style={[styles.signedText, { color: '#059669' }]}>
+                            Signé
+                          </ThemedText>
+                        </View>
+                      </View>
+                    </Card>
+                  ))}
+                </View>
+              )}
+
+              {sd.pendingDocuments.length === 0 && sd.signedDocuments.length === 0 && (
+                <Card style={[styles.noDocumentsCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+                  <Ionicons name="documents-outline" size={32} color={textSecondary} />
+                  <ThemedText style={[styles.noDocumentsText, { color: textSecondary }]}>
+                    Aucun document pour le moment
+                  </ThemedText>
+                </Card>
+              )}
+            </View>
+          );
+        })
+      )}
+    </ScrollView>
+  );
+
+  // Rendu du contenu "Documents de l'unité"
+  const renderDriveTab = () => {
+    if (uniqueUnits.length === 0) {
+      return (
+        <View style={styles.emptyDriveContainer}>
+          <Ionicons name="folder-outline" size={64} color={textSecondary} />
+          <ThemedText style={[styles.emptyDriveText, { color: textSecondary }]}>
+            Aucune unité disponible
+          </ThemedText>
+          <ThemedText style={[styles.emptyDriveSubtext, { color: textSecondary }]}>
+            Vos enfants doivent être inscrits dans une unité pour accéder aux documents partagés.
+          </ThemedText>
+        </View>
+      );
+    }
+
+    // Si plusieurs unités, afficher un sélecteur
+    if (uniqueUnits.length > 1) {
+      return (
+        <View style={{ flex: 1 }}>
+          {/* Sélecteur d'unité */}
+          <View style={[styles.unitSelector, { backgroundColor: cardColor, borderBottomColor: cardBorder }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.unitSelectorContent}>
+              {uniqueUnits.map(([unitId, { unit, scoutNames }]) => (
+                <TouchableOpacity
+                  key={unitId}
+                  style={[
+                    styles.unitChip,
+                    selectedUnitId === unitId && styles.unitChipActive,
+                    { borderColor: selectedUnitId === unitId ? BrandColors.primary[500] : cardBorder }
+                  ]}
+                  onPress={() => setSelectedUnitId(unitId)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.unitChipText,
+                      { color: selectedUnitId === unitId ? BrandColors.primary[500] : textColor }
+                    ]}
+                  >
+                    {unit?.name || 'Unité'}
+                  </ThemedText>
+                  <ThemedText style={[styles.unitChipSubtext, { color: textSecondary }]}>
+                    {scoutNames.join(', ')}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* DriveScreen pour l'unité sélectionnée */}
+          {selectedUnitId && (
+            <DriveScreen
+              user={user!}
+              unitId={selectedUnitId}
+              userRole={UserRole.PARENT}
+            />
+          )}
+        </View>
+      );
+    }
+
+    // Une seule unité
+    const [unitId] = uniqueUnits[0];
+    return (
+      <DriveScreen
+        user={user!}
+        unitId={unitId}
+        userRole={UserRole.PARENT}
+      />
+    );
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -197,177 +494,67 @@ export default function ParentDocumentsScreen() {
         </Animated.View>
       )}
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+      {/* Header avec titre et onglets */}
+      <View style={styles.headerContainer}>
         <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
           Documents
         </ThemedText>
 
-        {/* Résumé */}
-        {totalPending > 0 && (
-          <Card style={[styles.summaryCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-            <View style={styles.summaryContent}>
-              <View style={[styles.summaryIcon, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="document-text" size={24} color="#DC2626" />
-              </View>
-              <View style={styles.summaryText}>
-                <ThemedText style={[styles.summaryTitle, { color: '#DC2626' }]}>
-                  {totalPending} {totalPending === 1 ? 'document' : 'documents'} en attente
-                </ThemedText>
-                <ThemedText style={[styles.summarySubtitle, { color: '#7F1D1D' }]}>
-                  Veuillez signer les autorisations ci-dessous
-                </ThemedText>
-              </View>
-            </View>
-          </Card>
-        )}
-
-        {scoutDocuments.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Ionicons name="person-outline" size={48} color={textSecondary} />
-            <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
-              Aucun enfant associé à votre compte
+        {/* Onglets */}
+        <View style={[styles.tabsContainer, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'signatures' && [styles.tabActive, { backgroundColor: BrandColors.primary[500] }]
+            ]}
+            onPress={() => setActiveTab('signatures')}
+          >
+            <Ionicons
+              name="create-outline"
+              size={18}
+              color={activeTab === 'signatures' ? '#FFFFFF' : textSecondary}
+            />
+            <ThemedText
+              style={[
+                styles.tabText,
+                { color: activeTab === 'signatures' ? '#FFFFFF' : textSecondary }
+              ]}
+            >
+              À signer
             </ThemedText>
-          </Card>
-        ) : (
-          scoutDocuments.map((sd) => {
-            const healthStatus = getHealthRecordStatus(sd.healthRecord);
-
-            return (
-              <View key={sd.scout.id} style={styles.scoutSection}>
-                {/* En-tête scout */}
-                <View style={styles.scoutHeader}>
-                  <View style={[styles.scoutAvatar, { backgroundColor: BrandColors.primary[100] }]}>
-                    <ThemedText style={styles.scoutAvatarText}>
-                      {sd.scout.firstName.charAt(0)}
-                    </ThemedText>
-                  </View>
-                  <View style={styles.scoutInfo}>
-                    <ThemedText type="subtitle" style={{ color: textColor }}>
-                      {sd.scout.firstName} {sd.scout.lastName}
-                    </ThemedText>
-                    {sd.scout.totemName && (
-                      <ThemedText style={[styles.totemName, { color: textSecondary }]}>
-                        {sd.scout.totemName}
-                      </ThemedText>
-                    )}
-                  </View>
-                </View>
-
-                {/* Fiche santé */}
-                <Card style={[styles.healthCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.cardTitleRow}>
-                      <Ionicons name="medkit" size={20} color={BrandColors.primary[500]} />
-                      <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
-                        Fiche santé
-                      </ThemedText>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: `${healthStatus.color}15` }]}>
-                      <View style={[styles.statusDot, { backgroundColor: healthStatus.color }]} />
-                      <ThemedText style={[styles.statusText, { color: healthStatus.color }]}>
-                        {healthStatus.label}
-                      </ThemedText>
-                    </View>
-                  </View>
-
-                  {healthStatus.status === 'missing' && (
-                    <ThemedText style={[styles.healthDescription, { color: textSecondary }]}>
-                      La fiche santé de votre enfant n'a pas encore été remplie.
-                    </ThemedText>
-                  )}
-                  {healthStatus.status === 'unsigned' && (
-                    <ThemedText style={[styles.healthDescription, { color: textSecondary }]}>
-                      La fiche santé a été remplie mais nécessite votre signature.
-                    </ThemedText>
-                  )}
-                  {healthStatus.status === 'complete' && sd.healthRecord && (
-                    <ThemedText style={[styles.healthDescription, { color: textSecondary }]}>
-                      Signée le {sd.healthRecord.signedAt?.toLocaleDateString('fr-FR')} par {sd.healthRecord.signedByParentName}
-                    </ThemedText>
-                  )}
-                </Card>
-
-                {/* Documents en attente */}
-                {sd.pendingDocuments.length > 0 && (
-                  <View style={styles.documentsSection}>
-                    <ThemedText style={[styles.sectionLabel, { color: textSecondary }]}>
-                      DOCUMENTS EN ATTENTE
-                    </ThemedText>
-                    {sd.pendingDocuments.map((doc) => (
-                      <Card
-                        key={doc.id}
-                        style={[styles.documentCard, { backgroundColor: cardColor, borderColor: '#FBBF24' }]}
-                      >
-                        <View style={styles.documentContent}>
-                          <View style={[styles.documentIcon, { backgroundColor: '#FEF3C7' }]}>
-                            <Ionicons name="document-text" size={24} color="#D97706" />
-                          </View>
-                          <View style={styles.documentInfo}>
-                            <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
-                              {doc.title}
-                            </ThemedText>
-                            {doc.description && (
-                              <ThemedText
-                                style={[styles.documentDescription, { color: textSecondary }]}
-                                numberOfLines={2}
-                              >
-                                {doc.description}
-                              </ThemedText>
-                            )}
-                          </View>
-                        </View>
-                        <PrimaryButton
-                          title="Signer"
-                          onPress={() => openSignatureModal(doc, sd.scout.id)}
-                          style={styles.signButton}
-                        />
-                      </Card>
-                    ))}
-                  </View>
-                )}
-
-                {/* Documents signés */}
-                {sd.signedDocuments.length > 0 && (
-                  <View style={styles.documentsSection}>
-                    <ThemedText style={[styles.sectionLabel, { color: textSecondary }]}>
-                      DOCUMENTS SIGNES
-                    </ThemedText>
-                    {sd.signedDocuments.map((doc) => (
-                      <Card
-                        key={doc.id}
-                        style={[styles.documentCard, { backgroundColor: cardColor, borderColor: cardBorder }]}
-                      >
-                        <View style={styles.documentContent}>
-                          <View style={[styles.documentIcon, { backgroundColor: '#D1FAE5' }]}>
-                            <Ionicons name="checkmark-circle" size={24} color="#059669" />
-                          </View>
-                          <View style={styles.documentInfo}>
-                            <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
-                              {doc.title}
-                            </ThemedText>
-                            <ThemedText style={[styles.signedText, { color: '#059669' }]}>
-                              Signé
-                            </ThemedText>
-                          </View>
-                        </View>
-                      </Card>
-                    ))}
-                  </View>
-                )}
-
-                {sd.pendingDocuments.length === 0 && sd.signedDocuments.length === 0 && (
-                  <Card style={[styles.noDocumentsCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-                    <Ionicons name="documents-outline" size={32} color={textSecondary} />
-                    <ThemedText style={[styles.noDocumentsText, { color: textSecondary }]}>
-                      Aucun document pour le moment
-                    </ThemedText>
-                  </Card>
-                )}
+            {totalPending > 0 && (
+              <View style={[styles.tabBadge, activeTab === 'signatures' && styles.tabBadgeActive]}>
+                <ThemedText style={styles.tabBadgeText}>{totalPending}</ThemedText>
               </View>
-            );
-          })
-        )}
-      </ScrollView>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'drive' && [styles.tabActive, { backgroundColor: BrandColors.primary[500] }]
+            ]}
+            onPress={() => setActiveTab('drive')}
+          >
+            <Ionicons
+              name="folder-outline"
+              size={18}
+              color={activeTab === 'drive' ? '#FFFFFF' : textSecondary}
+            />
+            <ThemedText
+              style={[
+                styles.tabText,
+                { color: activeTab === 'drive' ? '#FFFFFF' : textSecondary }
+              ]}
+            >
+              Fichiers partagés
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Contenu selon l'onglet actif */}
+      {activeTab === 'signatures' ? renderSignaturesTab() : renderDriveTab()}
 
       {/* Modal de signature */}
       <Modal
@@ -438,13 +625,58 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollContent: {
-    padding: 20,
+  headerContainer: {
     paddingTop: 60,
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   title: {
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  tabActive: {
+    backgroundColor: BrandColors.primary[500],
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tabBadge: {
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  tabBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  scrollContent: {
+    padding: 20,
+    paddingTop: 8,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -609,6 +841,51 @@ const styles = StyleSheet.create({
   noDocumentsText: {
     fontSize: 14,
   },
+  // Drive tab
+  emptyDriveContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    gap: 12,
+  },
+  emptyDriveText: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptyDriveSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  unitSelector: {
+    borderBottomWidth: 1,
+    paddingVertical: 12,
+  },
+  unitSelectorContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  unitChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    minWidth: 120,
+  },
+  unitChipActive: {
+    backgroundColor: `${BrandColors.primary[500]}10`,
+  },
+  unitChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  unitChipSubtext: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

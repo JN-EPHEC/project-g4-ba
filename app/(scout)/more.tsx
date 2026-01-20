@@ -154,7 +154,7 @@ export default function MoreScreen() {
         </TouchableOpacity>
 
         <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
-          Confidentialite
+          Confidentialité
         </ThemedText>
 
         <TouchableOpacity onPress={() => router.push('/privacy-policy')}>
@@ -163,7 +163,7 @@ export default function MoreScreen() {
               <Ionicons name="document-text" size={24} color={BrandColors.primary[500]} />
             </View>
             <View style={styles.actionContent}>
-              <ThemedText type="defaultSemiBold">Politique de confidentialite</ThemedText>
+              <ThemedText type="defaultSemiBold">Politique de confidentialité</ThemedText>
               <ThemedText style={styles.actionDescription}>
                 Consulter nos engagements RGPD
               </ThemedText>
@@ -182,7 +182,7 @@ export default function MoreScreen() {
                 Supprimer mon compte
               </ThemedText>
               <ThemedText style={styles.actionDescription}>
-                Effacer toutes mes donnees
+                Effacer toutes mes données
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={20} color={iconColor} />

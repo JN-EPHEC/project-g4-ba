@@ -64,8 +64,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Récupérer le nombre de soumissions en attente
-      const pendingSubmissions = await ChallengeSubmissionService.getPendingSubmissions(animator.unitId);
+      // Récupérer le nombre de soumissions en attente (exclut les défis globaux WeCamp)
+      const pendingSubmissions = await ChallengeSubmissionService.getPendingSubmissionsForAnimator(animator.unitId);
       // Vérifier encore l'authentification après chaque requête async
       if (!isAuthenticated) return;
       setPendingChallengesCount(pendingSubmissions.length);

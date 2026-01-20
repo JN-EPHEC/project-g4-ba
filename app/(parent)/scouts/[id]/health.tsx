@@ -458,7 +458,7 @@ export default function HealthRecordScreen() {
             </TouchableOpacity>
 
             <PrimaryButton
-              title={isSigning => isSigned ? 'Déjà signé' : 'Enregistrer et Signer'}
+              title={isSigned ? 'Déjà signé' : 'Enregistrer et Signer'}
               onPress={() => handleSave(true)}
               disabled={isSaving || isSigned}
               style={styles.signButton}

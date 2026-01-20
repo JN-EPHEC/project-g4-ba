@@ -28,6 +28,7 @@ import { BirthdayService, BirthdayInfo } from '@/src/shared/services/birthday-se
 import { formatShortDate } from '@/src/shared/utils/date-utils';
 import { PartnerService } from '@/services/partner-service';
 import { PartnerOffer, Partner } from '@/types/partners';
+import { EventForm, EventFormData } from '@/src/features/events/components/event-form';
 
 // Types pour le dashboard
 interface LeaderboardUser {
@@ -60,6 +61,7 @@ export default function AnimatorDashboardScreen() {
   const [featuredOffers, setFeaturedOffers] = useState<(PartnerOffer & { partner: Partner })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showEventForm, setShowEventForm] = useState(false);
   const [section, setSection] = useState<Section | null>(null);
 
   // Vérification de sécurité
@@ -222,6 +224,30 @@ export default function AnimatorDashboardScreen() {
     return { day: days[date.getDay()], date: date.getDate() };
   };
 
+  // Créer un événement depuis le modal
+  const handleCreateEvent = async (eventData: EventFormData) => {
+    if (!user) return;
+
+    const unitId = animator?.unitId || 'default-unit';
+
+    await EventService.createEvent(
+      eventData.title,
+      eventData.description,
+      eventData.type,
+      eventData.startDate,
+      eventData.endDate,
+      eventData.location,
+      user.id,
+      unitId,
+      false,
+      eventData.maxParticipants,
+      eventData.imageUrl
+    );
+
+    // Rafraîchir les données du dashboard
+    await loadDashboardData();
+  };
+
   return (
     <ThemedView style={[styles.container, { backgroundColor }]}>
       <ScrollView
@@ -359,7 +385,7 @@ export default function AnimatorDashboardScreen() {
           <View style={styles.quickActions}>
             <AnimatedPressable
               style={[styles.primaryAction, { backgroundColor: BrandColors.accent[500] }]}
-              onPress={() => router.push('/(animator)/events/create')}
+              onPress={() => setShowEventForm(true)}
               animationOptions={{ scaleValue: 0.95 }}
             >
               <Ionicons name="add" size={20} color="#FFFFFF" />
@@ -577,6 +603,13 @@ export default function AnimatorDashboardScreen() {
       <NotificationsModal
         visible={showNotificationsModal}
         onClose={() => setShowNotificationsModal(false)}
+      />
+
+      {/* Event Form Modal */}
+      <EventForm
+        visible={showEventForm}
+        onClose={() => setShowEventForm(false)}
+        onSubmit={handleCreateEvent}
       />
     </ThemedView>
   );

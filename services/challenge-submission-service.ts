@@ -203,7 +203,15 @@ export class ChallengeSubmissionService {
         throw new Error('Cette soumission ne peut plus être validée');
       }
 
-      // Mettre à jour le statut
+      // Récupérer le challenge AVANT de modifier quoi que ce soit
+      const { ChallengeService } = await import('./challenge-service');
+      const challenge = await ChallengeService.getChallengeById(submission.challengeId);
+
+      if (!challenge) {
+        throw new Error('Le défi associé n\'existe pas');
+      }
+
+      // Mettre à jour le statut de la soumission
       const submissionRef = doc(db, this.COLLECTION_NAME, submissionId);
       const updateData: Record<string, unknown> = {
         status: ChallengeStatus.COMPLETED,
@@ -216,15 +224,10 @@ export class ChallengeSubmissionService {
       await updateDoc(submissionRef, updateData);
 
       // Attribuer les points au scout
-      const challenge = await import('./challenge-service').then(
-        (m) => m.ChallengeService.getChallengeById(submission.challengeId)
-      );
-      if (challenge) {
-        const scout = await UserService.getUserById(submission.scoutId) as Scout;
-        if (scout) {
-          const newPoints = (scout.points || 0) + challenge.points;
-          await UserService.updateUser(submission.scoutId, { points: newPoints });
-        }
+      const scout = await UserService.getUserById(submission.scoutId) as Scout;
+      if (scout) {
+        const newPoints = (scout.points || 0) + challenge.points;
+        await UserService.updateUser(submission.scoutId, { points: newPoints });
       }
     } catch (error) {
       console.error('Erreur lors de la validation de la soumission:', error);
@@ -394,6 +397,79 @@ export class ChallengeSubmissionService {
       return submissions;
     } catch (error) {
       console.error('Erreur lors de la récupération des soumissions en attente:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les soumissions en attente pour un animateur
+   * EXCLUT les défis globaux (WeCamp) - seuls les défis de l'unité
+   */
+  static async getPendingSubmissionsForAnimator(
+    unitId: string
+  ): Promise<ChallengeSubmission[]> {
+    try {
+      // Récupérer toutes les soumissions en attente de l'unité
+      const allSubmissions = await this.getPendingSubmissions(unitId);
+
+      // Importer dynamiquement ChallengeService pour éviter les imports circulaires
+      const { ChallengeService } = await import('./challenge-service');
+
+      // Filtrer pour exclure les défis globaux
+      const filteredSubmissions = [];
+      for (const submission of allSubmissions) {
+        const challenge = await ChallengeService.getChallengeById(submission.challengeId);
+
+        // Un défi est global si unitId est null, undefined, ou chaîne vide
+        const isGlobalChallenge = !challenge?.unitId || challenge.unitId === '';
+
+        if (challenge && !isGlobalChallenge) {
+          filteredSubmissions.push(submission);
+        }
+      }
+
+      return filteredSubmissions;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des soumissions pour animateur:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les soumissions en attente pour WeCamp Admin
+   * SEULEMENT les défis globaux (unitId null/undefined)
+   */
+  static async getPendingSubmissionsForWeCamp(): Promise<ChallengeSubmission[]> {
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('status', '==', ChallengeStatus.PENDING_VALIDATION)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const submissions = querySnapshot.docs.map((doc) =>
+        this.convertSubmission({ id: doc.id, ...doc.data() })
+      );
+
+      // Importer dynamiquement ChallengeService pour éviter les imports circulaires
+      const { ChallengeService } = await import('./challenge-service');
+
+      // Filtrer pour garder seulement les défis globaux
+      const globalSubmissions = [];
+      for (const submission of submissions) {
+        const challenge = await ChallengeService.getChallengeById(submission.challengeId);
+
+        // Un défi est global si unitId est null, undefined, ou chaîne vide
+        const isGlobalChallenge = !challenge?.unitId || challenge.unitId === '';
+
+        if (challenge && isGlobalChallenge) {
+          globalSubmissions.push(submission);
+        }
+      }
+
+      return globalSubmissions;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des soumissions WeCamp:', error);
       throw error;
     }
   }

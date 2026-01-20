@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert, Image, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,7 +11,8 @@ import { useAuth } from '@/context/auth-context';
 import { ChallengeSubmissionService } from '@/services/challenge-submission-service';
 import { ChallengeService } from '@/services/challenge-service';
 import { UserService } from '@/services/user-service';
-import { Animator, ChallengeSubmission, Challenge, Scout } from '@/types';
+import { UnitService } from '@/services/unit-service';
+import { ChallengeSubmission, Challenge, Scout, Unit } from '@/types';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
 import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-utils';
@@ -18,13 +20,12 @@ import { getDisplayName, getUserTotemEmoji } from '@/src/shared/utils/totem-util
 interface SubmissionWithDetails extends ChallengeSubmission {
   challenge?: Challenge;
   scout?: Scout;
+  unit?: Unit;
 }
 
-export default function ValidateChallengesScreen() {
+export default function WeCampValidateChallengesScreen() {
   const { user } = useAuth();
-  const animator = user as Animator;
   const [pendingSubmissions, setPendingSubmissions] = useState<SubmissionWithDetails[]>([]);
-  const [validatedSubmissions, setValidatedSubmissions] = useState<SubmissionWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
@@ -37,40 +38,29 @@ export default function ValidateChallengesScreen() {
 
   useEffect(() => {
     loadSubmissions();
-  }, [animator?.unitId]);
+  }, []);
 
   const loadSubmissions = async () => {
     try {
       setLoading(true);
 
-      if (animator?.unitId) {
-        // Récupérer les soumissions en attente pour l'unité (exclut les défis globaux WeCamp)
-        const pendingSubmissionsData = await ChallengeSubmissionService.getPendingSubmissionsForAnimator(animator.unitId);
+      // Récupérer les soumissions en attente pour les défis globaux (WeCamp uniquement)
+      const pendingSubmissionsData = await ChallengeSubmissionService.getPendingSubmissionsForWeCamp();
 
-        // Récupérer les soumissions traitées (validées ou rejetées)
-        const processedSubmissionsData = await ChallengeSubmissionService.getProcessedSubmissions(animator.unitId);
+      // Charger les détails du défi, du scout et de l'unité
+      const pendingWithDetails: SubmissionWithDetails[] = await Promise.all(
+        pendingSubmissionsData.map(async (submission) => {
+          const challenge = await ChallengeService.getChallengeById(submission.challengeId);
+          const scout = await UserService.getUserById(submission.scoutId) as Scout;
+          let unit: Unit | undefined;
+          if (scout?.unitId) {
+            unit = await UnitService.getUnitById(scout.unitId) || undefined;
+          }
+          return { ...submission, challenge: challenge || undefined, scout, unit };
+        })
+      );
 
-        // Charger les détails du défi et du scout pour les soumissions en attente
-        const pendingWithDetails: SubmissionWithDetails[] = await Promise.all(
-          pendingSubmissionsData.map(async (submission) => {
-            const challenge = await ChallengeService.getChallengeById(submission.challengeId);
-            const scout = await UserService.getUserById(submission.scoutId) as Scout;
-            return { ...submission, challenge: challenge || undefined, scout };
-          })
-        );
-
-        // Charger les détails du défi et du scout pour les soumissions traitées
-        const processedWithDetails: SubmissionWithDetails[] = await Promise.all(
-          processedSubmissionsData.map(async (submission) => {
-            const challenge = await ChallengeService.getChallengeById(submission.challengeId);
-            const scout = await UserService.getUserById(submission.scoutId) as Scout;
-            return { ...submission, challenge: challenge || undefined, scout };
-          })
-        );
-
-        setPendingSubmissions(pendingWithDetails);
-        setValidatedSubmissions(processedWithDetails);
-      }
+      setPendingSubmissions(pendingWithDetails);
     } catch (error: any) {
       console.error('Erreur lors du chargement des soumissions:', error);
       Alert.alert('Erreur', 'Impossible de charger les soumissions');
@@ -81,12 +71,12 @@ export default function ValidateChallengesScreen() {
 
   const validateSubmission = async (submissionId: string) => {
     try {
-      await ChallengeSubmissionService.validateSubmission(submissionId, animator.id);
-      Alert.alert('✅ Validé', 'Le défi a été validé avec succès');
+      await ChallengeSubmissionService.validateSubmission(submissionId, user!.id);
+      Alert.alert('Valide', 'Le defi a ete valide avec succes');
       await loadSubmissions();
     } catch (error: any) {
       console.error('Erreur lors de la validation:', error);
-      Alert.alert('Erreur', 'Impossible de valider le défi');
+      Alert.alert('Erreur', error?.message || 'Impossible de valider le defi');
     }
   };
 
@@ -109,11 +99,11 @@ export default function ValidateChallengesScreen() {
       setIsRejecting(true);
       await ChallengeSubmissionService.rejectSubmission(
         selectedSubmissionId,
-        animator.id,
+        user!.id,
         rejectComment.trim() || undefined
       );
       closeRejectModal();
-      Alert.alert('❌ Rejeté', 'La soumission a été rejetée');
+      Alert.alert('Rejete', 'La soumission a ete rejetee');
       await loadSubmissions();
     } catch (error: any) {
       console.error('Erreur lors du rejet:', error);
@@ -123,10 +113,9 @@ export default function ValidateChallengesScreen() {
     }
   };
 
-  const renderSubmissionCard = (submission: SubmissionWithDetails, isPending: boolean) => (
+  const renderSubmissionCard = (submission: SubmissionWithDetails) => (
     <Card key={submission.id} style={styles.submissionCard}>
       <View style={styles.submissionHeader}>
-        {/* Photo de preuve */}
         {submission.proofImageUrl && (
           <Image
             source={{ uri: submission.proofImageUrl }}
@@ -137,12 +126,16 @@ export default function ValidateChallengesScreen() {
       </View>
 
       <View style={styles.submissionInfo}>
-        {/* Informations sur le défi */}
         {submission.challenge && (
           <View style={styles.challengeInfo}>
-            <ThemedText type="defaultSemiBold" style={styles.challengeTitle}>
-              {submission.challenge.title}
-            </ThemedText>
+            <View style={styles.challengeTitleRow}>
+              <ThemedText style={styles.challengeEmoji}>
+                {submission.challenge.emoji || '🎯'}
+              </ThemedText>
+              <ThemedText type="defaultSemiBold" style={styles.challengeTitle}>
+                {submission.challenge.title}
+              </ThemedText>
+            </View>
             <View style={styles.challengeMeta}>
               <View style={styles.metaItem}>
                 <Ionicons name="star" size={14} color={BrandColors.accent[500]} />
@@ -156,11 +149,14 @@ export default function ValidateChallengesScreen() {
                   {submission.challenge.difficulty}
                 </ThemedText>
               </View>
+              <View style={[styles.globalBadge]}>
+                <Ionicons name="globe-outline" size={12} color="#7c3aed" />
+                <ThemedText style={styles.globalBadgeText}>WeCamp</ThemedText>
+              </View>
             </View>
           </View>
         )}
 
-        {/* Informations sur le scout */}
         {submission.scout && (
           <View style={styles.scoutInfo}>
             <View style={styles.scoutAvatar}>
@@ -175,6 +171,11 @@ export default function ValidateChallengesScreen() {
                 </ThemedText>
                 <RankBadge xp={submission.scout.points || 0} size="small" />
               </View>
+              {submission.unit && (
+                <ThemedText style={styles.unitName}>
+                  {submission.unit.name}
+                </ThemedText>
+              )}
               <ThemedText style={styles.scoutEmail}>
                 {submission.scout.email}
               </ThemedText>
@@ -182,12 +183,11 @@ export default function ValidateChallengesScreen() {
           </View>
         )}
 
-        {/* Date de soumission */}
         {submission.submittedAt && (
           <View style={styles.dateInfo}>
             <Ionicons name="time-outline" size={14} color={iconColor} />
             <ThemedText style={styles.dateText}>
-              Soumis le {submission.submittedAt.toLocaleDateString('fr-FR')} à{' '}
+              Soumis le {submission.submittedAt.toLocaleDateString('fr-FR')} a{' '}
               {submission.submittedAt.toLocaleTimeString('fr-FR', {
                 hour: '2-digit',
                 minute: '2-digit'
@@ -196,7 +196,6 @@ export default function ValidateChallengesScreen() {
           </View>
         )}
 
-        {/* Commentaire du scout */}
         {submission.scoutComment && (
           <View style={styles.scoutCommentSection}>
             <Ionicons name="chatbubble-outline" size={14} color={BrandColors.primary[500]} />
@@ -208,47 +207,23 @@ export default function ValidateChallengesScreen() {
         )}
       </View>
 
-      {isPending && (
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.validateButton]}
-            onPress={() => validateSubmission(submission.id)}
-          >
-            <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
-            <ThemedText style={styles.buttonText}>Valider</ThemedText>
-          </TouchableOpacity>
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.validateButton]}
+          onPress={() => validateSubmission(submission.id)}
+        >
+          <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+          <ThemedText style={styles.buttonText}>Valider</ThemedText>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.rejectButton]}
-            onPress={() => openRejectModal(submission.id)}
-          >
-            <Ionicons name="close-circle" size={20} color="#ffffff" />
-            <ThemedText style={styles.buttonText}>Rejeter</ThemedText>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {!isPending && submission.comment && (
-        <View style={[
-          styles.commentSection,
-          submission.status === 'expired' && styles.rejectedCommentSection
-        ]}>
-          <Ionicons
-            name={submission.status === 'expired' ? 'close-circle-outline' : 'chatbox-outline'}
-            size={16}
-            color={submission.status === 'expired' ? '#ef4444' : iconColor}
-          />
-          <View style={styles.commentContent}>
-            <ThemedText style={[
-              styles.commentLabel,
-              submission.status === 'expired' && { color: '#ef4444' }
-            ]}>
-              {submission.status === 'expired' ? 'Raison du rejet :' : 'Commentaire :'}
-            </ThemedText>
-            <ThemedText style={styles.commentText}>{submission.comment}</ThemedText>
-          </View>
-        </View>
-      )}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.rejectButton]}
+          onPress={() => openRejectModal(submission.id)}
+        >
+          <Ionicons name="close-circle" size={20} color="#ffffff" />
+          <ThemedText style={styles.buttonText}>Rejeter</ThemedText>
+        </TouchableOpacity>
+      </View>
     </Card>
   );
 
@@ -266,58 +241,50 @@ export default function ValidateChallengesScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
-          Validation des défis
-        </ThemedText>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
+              Validation des defis WeCamp
+            </ThemedText>
+            <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
+              Defis globaux soumis par tous les scouts
+            </ThemedText>
+          </View>
+        </View>
 
-        {/* Soumissions en attente */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="time-outline" size={24} color={iconColor} />
-            <ThemedText type="subtitle">
-              En attente ({pendingSubmissions.length})
-            </ThemedText>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionIconContainer}>
+                <Ionicons name="globe-outline" size={20} color="#7c3aed" />
+              </View>
+              <ThemedText type="subtitle">
+                En attente ({pendingSubmissions.length})
+              </ThemedText>
+            </View>
           </View>
 
           {pendingSubmissions.length === 0 ? (
             <Card style={styles.emptyCard}>
-              <Ionicons name="checkmark-circle-outline" size={48} color={BrandColors.primary[500]} />
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="checkmark-circle-outline" size={48} color={BrandColors.primary[500]} />
+              </View>
+              <ThemedText style={styles.emptyTitle}>Tout est valide !</ThemedText>
               <ThemedText style={styles.emptyText}>
-                Aucune soumission en attente de validation
+                Aucune soumission de defi WeCamp en attente de validation
               </ThemedText>
             </Card>
           ) : (
             <View style={styles.submissionsList}>
-              {pendingSubmissions.map((submission) => renderSubmissionCard(submission, true))}
-            </View>
-          )}
-        </View>
-
-        {/* Soumissions validées */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="checkmark-done-circle-outline" size={24} color={iconColor} />
-            <ThemedText type="subtitle">
-              Traitées ({validatedSubmissions.length})
-            </ThemedText>
-          </View>
-
-          {validatedSubmissions.length === 0 ? (
-            <Card style={styles.emptyCard}>
-              <Ionicons name="document-text-outline" size={48} color={iconColor} />
-              <ThemedText style={styles.emptyText}>
-                Aucune soumission traitée pour le moment
-              </ThemedText>
-            </Card>
-          ) : (
-            <View style={styles.submissionsList}>
-              {validatedSubmissions.map((submission) => renderSubmissionCard(submission, false))}
+              {pendingSubmissions.map((submission) => renderSubmissionCard(submission))}
             </View>
           )}
         </View>
       </ScrollView>
 
-      {/* Modal de rejet avec commentaire */}
       <Modal
         visible={rejectModalVisible}
         transparent
@@ -352,7 +319,7 @@ export default function ValidateChallengesScreen() {
                 ]}
                 value={rejectComment}
                 onChangeText={setRejectComment}
-                placeholder="Explique pourquoi le défi est rejeté..."
+                placeholder="Explique pourquoi le defi est rejete..."
                 placeholderTextColor={textSecondary}
                 multiline
                 numberOfLines={4}
@@ -404,6 +371,30 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 100,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 24,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 24,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -414,17 +405,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     opacity: 0.7,
   },
-  title: {
-    marginBottom: 24,
-  },
   section: {
     marginBottom: 32,
   },
   sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
+  },
+  sectionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   submissionsList: {
     gap: 16,
@@ -448,12 +446,23 @@ const styles = StyleSheet.create({
   challengeInfo: {
     gap: 8,
   },
+  challengeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  challengeEmoji: {
+    fontSize: 20,
+  },
   challengeTitle: {
     fontSize: 16,
+    flex: 1,
   },
   challengeMeta: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
+    flexWrap: 'wrap',
+    alignItems: 'center',
   },
   metaItem: {
     flexDirection: 'row',
@@ -464,6 +473,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
   },
+  globalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  globalBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7c3aed',
+  },
   scoutInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -473,9 +496,9 @@ const styles = StyleSheet.create({
     borderTopColor: '#e5e5e5',
   },
   scoutAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: BrandColors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
@@ -492,6 +515,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  unitName: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#7c3aed',
+    marginTop: 2,
   },
   scoutEmail: {
     fontSize: 12,
@@ -556,37 +585,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  commentSection: {
-    flexDirection: 'row',
-    gap: 8,
-    padding: 16,
-    paddingTop: 12,
-    marginTop: 0,
-    backgroundColor: 'rgba(34, 197, 94, 0.08)',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e5e5',
-  },
-  rejectedCommentSection: {
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-  },
-  commentContent: {
-    flex: 1,
-  },
-  commentLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: BrandColors.primary[600],
-    marginBottom: 4,
-  },
-  commentText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-  },
   emptyCard: {
     padding: 40,
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(34, 139, 34, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',

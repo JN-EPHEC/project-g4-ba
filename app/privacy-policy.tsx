@@ -51,7 +51,7 @@ export default function PrivacyPolicyScreen() {
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
         <ThemedText type="title" style={styles.headerTitle}>
-          Politique de confidentialite
+          Politique de confidentialité
         </ThemedText>
         <View style={styles.placeholder} />
       </View>
@@ -64,117 +64,117 @@ export default function PrivacyPolicyScreen() {
         {/* Version et date */}
         <View style={styles.versionContainer}>
           <ThemedText style={[styles.versionText, { color: textSecondary }]}>
-            Version {PRIVACY_POLICY_VERSION} - Derniere mise a jour : {LAST_UPDATED}
+            Version {PRIVACY_POLICY_VERSION} - Dernière mise à jour : {LAST_UPDATED}
           </ThemedText>
         </View>
 
         {/* Introduction */}
         <Section title="1. Responsable du traitement">
           <Paragraph>
-            WeCamp est une application de gestion d'unites scoutes developpee dans le cadre
-            d'un projet academique. L'application permet la gestion des membres, des activites
-            et des communications au sein des unites scoutes.
+            WeCamp est une application de gestion d'unités scoutes développée dans le cadre
+            d'un projet académique. L'application permet la gestion des membres, des activités
+            et des communications au sein des unités scoutes.
           </Paragraph>
           <Paragraph>
-            Pour toute question concernant vos donnees personnelles, vous pouvez nous contacter
-            a l'adresse : contact@wecamp.app
+            Pour toute question concernant vos données personnelles, vous pouvez nous contacter
+            à l'adresse : contact@wecamp.app
           </Paragraph>
         </Section>
 
-        <Section title="2. Donnees collectees">
+        <Section title="2. Données collectées">
           <ThemedText style={[styles.subsectionTitle, { color: textColor }]}>
-            2.1 Donnees d'identification
+            2.1 Données d'identification
           </ThemedText>
-          <BulletPoint>Nom et prenom</BulletPoint>
+          <BulletPoint>Nom et prénom</BulletPoint>
           <BulletPoint>Adresse email</BulletPoint>
-          <BulletPoint>Numero de telephone (optionnel)</BulletPoint>
+          <BulletPoint>Numéro de téléphone (optionnel)</BulletPoint>
           <BulletPoint>Date de naissance (pour les scouts)</BulletPoint>
           <BulletPoint>Photo de profil (optionnelle)</BulletPoint>
 
           <ThemedText style={[styles.subsectionTitle, { color: textColor, marginTop: 16 }]}>
-            2.2 Donnees de sante (scouts uniquement)
+            2.2 Données de santé (scouts uniquement)
           </ThemedText>
           <Paragraph>
-            Ces donnees sont collectees uniquement pour assurer la securite des enfants
-            lors des activites scoutes :
+            Ces données sont collectées uniquement pour assurer la sécurité des enfants
+            lors des activités scoutes :
           </Paragraph>
           <BulletPoint>Groupe sanguin</BulletPoint>
-          <BulletPoint>Allergies et leur severite</BulletPoint>
-          <BulletPoint>Medicaments et traitements</BulletPoint>
+          <BulletPoint>Allergies et leur sévérité</BulletPoint>
+          <BulletPoint>Médicaments et traitements</BulletPoint>
           <BulletPoint>Contacts d'urgence</BulletPoint>
           <BulletPoint>Informations d'assurance</BulletPoint>
 
           <ThemedText style={[styles.subsectionTitle, { color: textColor, marginTop: 16 }]}>
-            2.3 Donnees d'activite
+            2.3 Données d'activité
           </ThemedText>
-          <BulletPoint>Participation aux defis et evenements</BulletPoint>
+          <BulletPoint>Participation aux défis et événements</BulletPoint>
           <BulletPoint>Messages et publications dans l'application</BulletPoint>
-          <BulletPoint>Photos d'activites</BulletPoint>
+          <BulletPoint>Photos d'activités</BulletPoint>
           <BulletPoint>Points et progression</BulletPoint>
         </Section>
 
-        <Section title="3. Finalites du traitement">
-          <Paragraph>Vos donnees sont utilisees pour :</Paragraph>
-          <BulletPoint>Gerer les membres et les unites scoutes</BulletPoint>
-          <BulletPoint>Organiser les activites et evenements</BulletPoint>
+        <Section title="3. Finalités du traitement">
+          <Paragraph>Vos données sont utilisées pour :</Paragraph>
+          <BulletPoint>Gérer les membres et les unités scoutes</BulletPoint>
+          <BulletPoint>Organiser les activités et événements</BulletPoint>
           <BulletPoint>Permettre la communication entre membres</BulletPoint>
-          <BulletPoint>Suivre la progression des scouts (defis, badges)</BulletPoint>
-          <BulletPoint>Assurer la securite des mineurs (fiches sante)</BulletPoint>
-          <BulletPoint>Gerer les relations parents-enfants</BulletPoint>
+          <BulletPoint>Suivre la progression des scouts (défis, badges)</BulletPoint>
+          <BulletPoint>Assurer la sécurité des mineurs (fiches santé)</BulletPoint>
+          <BulletPoint>Gérer les relations parents-enfants</BulletPoint>
         </Section>
 
-        <Section title="4. Base legale">
+        <Section title="4. Base légale">
           <Paragraph>
-            Le traitement de vos donnees repose sur :
+            Le traitement de vos données repose sur :
           </Paragraph>
           <BulletPoint>
             Votre consentement explicite lors de l'inscription
           </BulletPoint>
           <BulletPoint>
-            L'interet legitime pour assurer la securite des mineurs lors des activites
+            L'intérêt légitime pour assurer la sécurité des mineurs lors des activités
           </BulletPoint>
           <BulletPoint>
-            L'execution du contrat de service entre vous et WeCamp
+            L'exécution du contrat de service entre vous et WeCamp
           </BulletPoint>
         </Section>
 
-        <Section title="5. Duree de conservation">
+        <Section title="5. Durée de conservation">
           <Paragraph>
-            Vos donnees sont conservees tant que votre compte est actif.
+            Vos données sont conservées tant que votre compte est actif.
           </Paragraph>
           <Paragraph>
-            Apres suppression de votre compte, toutes vos donnees personnelles sont
-            definitivement effacees dans un delai maximum de 30 jours.
+            Après suppression de votre compte, toutes vos données personnelles sont
+            définitivement effacées dans un délai maximum de 30 jours.
           </Paragraph>
           <Paragraph>
-            Les donnees de sante des scouts sont automatiquement supprimees
-            a la suppression du compte.
+            Les données de santé des scouts sont automatiquement supprimées
+            à la suppression du compte.
           </Paragraph>
         </Section>
 
         <Section title="6. Vos droits">
           <Paragraph>
-            Conformement au Reglement General sur la Protection des Donnees (RGPD),
+            Conformément au Règlement Général sur la Protection des Données (RGPD),
             vous disposez des droits suivants :
           </Paragraph>
           <BulletPoint>
-            Droit d'acces : obtenir une copie de vos donnees personnelles
+            Droit d'accès : obtenir une copie de vos données personnelles
           </BulletPoint>
           <BulletPoint>
-            Droit de rectification : corriger vos donnees inexactes
+            Droit de rectification : corriger vos données inexactes
           </BulletPoint>
           <BulletPoint>
-            Droit a l'effacement : supprimer votre compte et toutes vos donnees
+            Droit à l'effacement : supprimer votre compte et toutes vos données
           </BulletPoint>
           <BulletPoint>
-            Droit a la portabilite : recevoir vos donnees dans un format structure
+            Droit à la portabilité : recevoir vos données dans un format structuré
           </BulletPoint>
           <BulletPoint>
-            Droit d'opposition : vous opposer a certains traitements
+            Droit d'opposition : vous opposer à certains traitements
           </BulletPoint>
           <Paragraph>
-            Pour exercer ces droits, utilisez les parametres de l'application ou
-            contactez-nous a : contact@wecamp.app
+            Pour exercer ces droits, utilisez les paramètres de l'application ou
+            contactez-nous à : contact@wecamp.app
           </Paragraph>
         </Section>
 
@@ -182,62 +182,62 @@ export default function PrivacyPolicyScreen() {
           <View style={[styles.warningBox, { backgroundColor: `${BrandColors.accent[500]}15`, borderColor: BrandColors.accent[500] }]}>
             <Ionicons name="warning" size={20} color={BrandColors.accent[500]} />
             <ThemedText style={[styles.warningText, { color: BrandColors.accent[700] }]}>
-              Dispositions speciales pour les utilisateurs mineurs
+              Dispositions spéciales pour les utilisateurs mineurs
             </ThemedText>
           </View>
           <Paragraph>
-            Pour les utilisateurs ages de moins de 16 ans (scouts), le consentement
-            d'un parent ou tuteur legal est requis pour l'utilisation de l'application.
+            Pour les utilisateurs âgés de moins de 16 ans (scouts), le consentement
+            d'un parent ou tuteur légal est requis pour l'utilisation de l'application.
           </Paragraph>
           <Paragraph>
-            Les parents ou tuteurs legaux peuvent a tout moment :
+            Les parents ou tuteurs légaux peuvent à tout moment :
           </Paragraph>
-          <BulletPoint>Acceder aux donnees de leur enfant</BulletPoint>
-          <BulletPoint>Demander la modification des donnees</BulletPoint>
+          <BulletPoint>Accéder aux données de leur enfant</BulletPoint>
+          <BulletPoint>Demander la modification des données</BulletPoint>
           <BulletPoint>Demander la suppression du compte de leur enfant</BulletPoint>
           <Paragraph>
             La liaison entre un compte parent et un compte scout se fait via un code
-            securise genere par le scout.
+            sécurisé généré par le scout.
           </Paragraph>
         </Section>
 
-        <Section title="8. Securite des donnees">
+        <Section title="8. Sécurité des données">
           <Paragraph>
-            Vos donnees sont stockees de maniere securisee sur les serveurs Firebase (Google)
+            Vos données sont stockées de manière sécurisée sur les serveurs Firebase (Google)
             avec les mesures de protection suivantes :
           </Paragraph>
-          <BulletPoint>Chiffrement des donnees en transit (HTTPS/TLS)</BulletPoint>
-          <BulletPoint>Chiffrement des donnees au repos</BulletPoint>
-          <BulletPoint>Authentification securisee</BulletPoint>
-          <BulletPoint>Regles de securite strictes sur l'acces aux donnees</BulletPoint>
-          <BulletPoint>Hebergement dans des datacenters certifies</BulletPoint>
+          <BulletPoint>Chiffrement des données en transit (HTTPS/TLS)</BulletPoint>
+          <BulletPoint>Chiffrement des données au repos</BulletPoint>
+          <BulletPoint>Authentification sécurisée</BulletPoint>
+          <BulletPoint>Règles de sécurité strictes sur l'accès aux données</BulletPoint>
+          <BulletPoint>Hébergement dans des datacenters certifiés</BulletPoint>
         </Section>
 
-        <Section title="9. Partage des donnees">
+        <Section title="9. Partage des données">
           <Paragraph>
-            Vos donnees ne sont jamais vendues a des tiers.
+            Vos données ne sont jamais vendues à des tiers.
           </Paragraph>
           <Paragraph>
-            Les donnees peuvent etre partagees uniquement :
+            Les données peuvent être partagées uniquement :
           </Paragraph>
           <BulletPoint>
-            Avec les animateurs de votre unite (pour la gestion des activites)
+            Avec les animateurs de votre unité (pour la gestion des activités)
           </BulletPoint>
           <BulletPoint>
-            Avec les parents lies a un scout (pour le suivi de l'enfant)
+            Avec les parents liés à un scout (pour le suivi de l'enfant)
           </BulletPoint>
           <BulletPoint>
-            Avec nos prestataires techniques (Firebase/Google) pour l'hebergement
+            Avec nos prestataires techniques (Firebase/Google) pour l'hébergement
           </BulletPoint>
         </Section>
 
         <Section title="10. Modifications de la politique">
           <Paragraph>
-            Cette politique de confidentialite peut etre mise a jour periodiquement.
-            En cas de modification importante, vous serez informe via l'application.
+            Cette politique de confidentialité peut être mise à jour périodiquement.
+            En cas de modification importante, vous serez informé via l'application.
           </Paragraph>
           <Paragraph>
-            La poursuite de l'utilisation de l'application apres une mise a jour
+            La poursuite de l'utilisation de l'application après une mise à jour
             vaut acceptation des nouvelles conditions.
           </Paragraph>
         </Section>
@@ -245,7 +245,7 @@ export default function PrivacyPolicyScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <ThemedText style={[styles.footerText, { color: textSecondary }]}>
-            WeCamp - Application de gestion d'unites scoutes
+            WeCamp - Application de gestion d'unités scoutes
           </ThemedText>
           <ThemedText style={[styles.footerText, { color: textSecondary }]}>
             Version {PRIVACY_POLICY_VERSION}

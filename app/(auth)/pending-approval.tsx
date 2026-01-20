@@ -1,38 +1,80 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 import { ThemedText } from '@/components/themed-text';
 import { PrimaryButton } from '@/components/ui';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
+import { db } from '@/config/firebase';
+import { useAuth } from '@/context/auth-context';
 
 export default function PendingApprovalScreen() {
   const tintColor = useThemeColor({}, 'tint');
+  const { user, updateUser } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // Listener temps réel pour détecter la validation du scout
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(db, 'users', user.id),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const userData = snapshot.data();
+
+          // Si le scout vient d'être validé
+          if (userData.validated === true) {
+            setIsRedirecting(true);
+
+            // Mettre à jour le contexte auth
+            updateUser({ validated: true });
+
+            // Rediriger vers le dashboard scout
+            router.replace('/(scout)/dashboard');
+          }
+        }
+      },
+      (error) => {
+        console.error('Erreur listener validation:', error);
+      }
+    );
+
+    // Cleanup du listener quand le composant est démonté
+    return () => unsubscribe();
+  }, [user?.id]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#f9fafb' }]}>
       <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: `${BrandColors.accent[500]}20` }]}>
-          <Ionicons name="time-outline" size={80} color={BrandColors.accent[500]} />
+        <View style={[styles.iconContainer, { backgroundColor: isRedirecting ? `${BrandColors.primary[500]}20` : `${BrandColors.accent[500]}20` }]}>
+          {isRedirecting ? (
+            <ActivityIndicator size="large" color={BrandColors.primary[500]} />
+          ) : (
+            <Ionicons name="time-outline" size={80} color={BrandColors.accent[500]} />
+          )}
         </View>
 
         <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
-          Inscription en attente
+          {isRedirecting ? 'Compte validé !' : 'Inscription en attente'}
         </ThemedText>
 
         <ThemedText style={styles.description}>
-          Ton compte a été créé avec succès ! 🎉
+          {isRedirecting ? 'Redirection en cours...' : 'Ton compte a été créé avec succès ! 🎉'}
         </ThemedText>
 
-        <View style={styles.infoBox}>
+        {!isRedirecting && <View style={styles.infoBox}>
           <ThemedText style={styles.infoText}>
             Un animateur va valider ton inscription prochainement. Tu recevras une notification dès que ton compte sera activé.
           </ThemedText>
-        </View>
+        </View>}
 
-        <View style={styles.stepsContainer}>
+        {!isRedirecting && <View style={styles.stepsContainer}>
           <View style={styles.step}>
             <View style={[styles.stepIcon, { backgroundColor: `${BrandColors.primary[500]}20` }]}>
               <Ionicons name="checkmark-circle" size={24} color={BrandColors.primary[500]} />
@@ -63,9 +105,9 @@ export default function PendingApprovalScreen() {
               Prêt à démarrer
             </ThemedText>
           </View>
-        </View>
+        </View>}
 
-        <View style={styles.tipsContainer}>
+        {!isRedirecting && <View style={styles.tipsContainer}>
           <ThemedText style={styles.tipsTitle}>
             En attendant...
           </ThemedText>
@@ -74,15 +116,15 @@ export default function PendingApprovalScreen() {
             • Prépare-toi pour ta première activité{'\n'}
             • La validation prend généralement 24-48h
           </ThemedText>
-        </View>
+        </View>}
 
-        <PrimaryButton
+        {!isRedirecting && <PrimaryButton
           title="Retour à la connexion"
           onPress={() => router.replace('/(auth)/auth')}
           style={styles.button}
-        />
+        />}
 
-        <TouchableOpacity
+        {!isRedirecting && <TouchableOpacity
           onPress={() => router.replace('/(auth)/welcome')}
           style={styles.linkButton}
           activeOpacity={0.7}
@@ -90,7 +132,7 @@ export default function PendingApprovalScreen() {
           <ThemedText style={[styles.link, { color: BrandColors.accent[500] }]}>
             Retour à l'accueil
           </ThemedText>
-        </TouchableOpacity>
+        </TouchableOpacity>}
       </View>
     </View>
   );

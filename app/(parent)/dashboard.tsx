@@ -56,10 +56,6 @@ export default function ParentDashboardScreen() {
   const textColor = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
-  useEffect(() => {
-    loadScouts();
-  }, [parent?.id]);
-
   // Charger les événements quand les scouts changent
   const loadUpcomingEvents = useCallback(async () => {
     if (scouts.length === 0) {
@@ -130,8 +126,11 @@ export default function ParentDashboardScreen() {
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const loadScouts = async () => {
-    if (!parent?.id) return;
+  const loadScouts = useCallback(async () => {
+    if (!parent?.id) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -163,7 +162,11 @@ export default function ParentDashboardScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [parent?.id]);
+
+  useEffect(() => {
+    loadScouts();
+  }, [loadScouts]);
 
   return (
     <ThemedView style={styles.container}>
@@ -484,6 +487,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
+    lineHeight: 40,
     marginBottom: 4,
   },
   statLabel: {

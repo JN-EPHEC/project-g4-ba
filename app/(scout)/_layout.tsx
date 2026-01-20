@@ -1,8 +1,7 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
-
-import { router } from 'expo-router';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/context/auth-context';
@@ -13,33 +12,40 @@ export default function ScoutLayout() {
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
 
+  // Vérifier si le scout est validé
+  const scout = user as Scout | null;
+  const isScout = user && (user.role === UserRole.SCOUT || user.role === 'scout');
+  const needsValidation = isScout && scout && !scout.validated;
+
+  // Rediriger vers pending-approval si le scout n'est pas validé
+  useEffect(() => {
+    if (!isLoading && needsValidation) {
+      console.log('🔵 ScoutLayout - Scout non validé, redirection vers pending-approval');
+      router.replace('/(auth)/pending-approval');
+    }
+  }, [isLoading, needsValidation]);
+
   console.log('🔵 ScoutLayout - isLoading:', isLoading, 'user:', user?.email, 'role:', user?.role);
 
   // Ne pas rendre le layout si l'utilisateur n'est pas un scout
-  // La redirection sera gérée par le composant index.tsx ou welcome.tsx
   if (isLoading) {
     console.log('🔵 ScoutLayout - En attente (isLoading)');
-    return null; // Attendre que l'auth soit chargée
+    return null;
   }
 
   if (!user) {
-    // Pas connecté - ne pas rendre, laisser le flux d'auth gérer
     console.log('🔵 ScoutLayout - Pas d\'utilisateur, return null');
     return null;
   }
 
-  // Vérification stricte du rôle - doit être exactement SCOUT
-  if (user.role !== UserRole.SCOUT && user.role !== 'scout') {
-    // Mauvais rôle - ne pas rendre ce layout
+  // Vérification stricte du rôle
+  if (!isScout) {
     console.log('🔵 ScoutLayout - Mauvais rôle:', user.role, '- return null');
     return null;
   }
 
-  // Vérifier si le scout est validé par un animateur
-  const scout = user as Scout;
-  if (!scout.validated) {
-    console.log('🔵 ScoutLayout - Scout non validé, redirection vers pending-approval');
-    router.replace('/(auth)/pending-approval');
+  // Attendre la redirection si le scout n'est pas validé
+  if (needsValidation) {
     return null;
   }
 

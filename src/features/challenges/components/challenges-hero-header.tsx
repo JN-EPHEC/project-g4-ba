@@ -73,7 +73,11 @@ export function ChallengesHeroHeader({
           activeOpacity={0.7}
         >
           <View style={styles.levelRow}>
-            {levelIcon && <ThemedText style={styles.levelIcon}>{levelIcon}</ThemedText>}
+            {levelIcon && (
+              <View style={styles.levelIconContainer}>
+                <ThemedText style={styles.levelIcon}>{levelIcon}</ThemedText>
+              </View>
+            )}
             <ThemedText style={styles.levelLabel}>Niveau : {level}</ThemedText>
             <View style={styles.levelArrow}>
               <ThemedText style={styles.arrowText}>›</ThemedText>
@@ -187,7 +191,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
     padding: 24,
-    paddingTop: STATUS_BAR_HEIGHT + 16,
+    paddingTop: STATUS_BAR_HEIGHT + 24,
     paddingBottom: 24,
     marginBottom: 16,
     position: 'relative',
@@ -218,6 +222,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     position: 'relative',
     zIndex: 1,
+    minHeight: 100,
   },
   leftSection: {
     flex: 1,
@@ -225,11 +230,18 @@ const styles = StyleSheet.create({
   levelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     marginBottom: 8,
   },
+  levelIconContainer: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
   levelIcon: {
-    fontSize: 18,
+    fontSize: 24,
   },
   levelLabel: {
     fontSize: 14,
@@ -246,20 +258,21 @@ const styles = StyleSheet.create({
   },
   pointsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 4,
   },
   pointsValue: {
-    fontSize: 26,
-    fontWeight: '600',
+    fontSize: 36,
+    fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 34,
+    lineHeight: 44,
   },
   pointsLabel: {
     fontSize: 18,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.8)',
+    lineHeight: 24,
   },
   rankBadge: {
     alignItems: 'center',

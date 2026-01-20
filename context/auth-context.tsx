@@ -1,4 +1,4 @@
-import { auth } from '@/config/firebase';
+import { auth, db } from '@/config/firebase';
 import { UserService } from '@/services/user-service';
 import { AnyUser, UserRole } from '@/types';
 import {
@@ -12,7 +12,8 @@ import {
   EmailAuthProvider,
   type User as FirebaseUser
 } from 'firebase/auth';
-import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import React, { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 
 /**
  * Interface pour le contexte d'authentification
@@ -64,36 +65,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authInitialized, setAuthInitialized] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
 
+  // Ref pour stocker le unsubscribe du listener utilisateur
+  const userListenerRef = useRef<(() => void) | null>(null);
+
   // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
+        // Nettoyer l'ancien listener utilisateur si existant
+        if (userListenerRef.current) {
+          userListenerRef.current();
+          userListenerRef.current = null;
+        }
+
         if (firebaseUser) {
           // Si on est en train de s'inscrire, ne pas écraser les données
           if (isRegistering) {
             return;
           }
 
-          // Récupérer les données utilisateur depuis Firestore
-          const userData = await UserService.getUserById(firebaseUser.uid);
+          // Créer un listener temps réel sur le document utilisateur
+          const userRef = doc(db, 'users', firebaseUser.uid);
 
-          if (userData) {
-            setUser(userData);
-          }
+          userListenerRef.current = onSnapshot(
+            userRef,
+            (docSnapshot) => {
+              if (docSnapshot.exists()) {
+                const userData = UserService.convertFirestoreUserFromSnapshot(docSnapshot);
+                setUser(userData);
+              }
+              if (!authInitialized) {
+                setAuthInitialized(true);
+              }
+              setIsLoading(false);
+            },
+            (error) => {
+              console.error('Erreur listener utilisateur:', error);
+              setIsLoading(false);
+            }
+          );
         } else {
           setUser(null);
+          if (!authInitialized) {
+            setAuthInitialized(true);
+          }
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des données utilisateur:', error);
-      } finally {
-        if (!authInitialized) {
-          setAuthInitialized(true);
-        }
         setIsLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      // Nettoyer le listener utilisateur lors du démontage
+      if (userListenerRef.current) {
+        userListenerRef.current();
+        userListenerRef.current = null;
+      }
+    };
   }, [authInitialized, isRegistering]);
 
   const login = async (email: string, password: string) => {

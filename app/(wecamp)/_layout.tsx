@@ -26,6 +26,7 @@ export default function WeCampAdminLayout() {
     >
       <Stack.Screen name="dashboard" />
       <Stack.Screen name="create-challenge" />
+      <Stack.Screen name="validate-challenges" />
     </Stack>
   );
 }

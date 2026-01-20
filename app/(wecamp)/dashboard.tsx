@@ -596,7 +596,14 @@ export default function WeCampDashboard() {
           onPress={() => router.push('/(wecamp)/create-challenge')}
         >
           <Text style={styles.primaryButtonIcon}>🎯</Text>
-          <Text style={styles.primaryButtonText}>Nouveau défi</Text>
+          <Text style={styles.primaryButtonText}>Nouveau defi</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+          onPress={() => router.push('/(wecamp)/validate-challenges')}
+        >
+          <Text style={styles.primaryButtonIcon}>✅</Text>
+          <Text style={styles.primaryButtonText}>Valider defis</Text>
         </TouchableOpacity>
       </View>
 

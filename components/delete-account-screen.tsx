@@ -57,8 +57,8 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
       case UserRole.SCOUT:
         return [
           ...commonData,
-          'Votre fiche sante (allergies, medicaments, contacts d\'urgence)',
-          'Vos soumissions de defis',
+          'Votre fiche santé (allergies, médicaments, contacts d\'urgence)',
+          'Vos soumissions de défis',
           'Vos points et progression',
           'Vos badges obtenus',
         ];
@@ -71,7 +71,7 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
       case UserRole.ANIMATOR:
         return [
           ...commonData,
-          'Votre role d\'animateur sera retire',
+          'Votre rôle d\'animateur sera retiré',
         ];
       default:
         return commonData;
@@ -85,12 +85,12 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
     }
 
     if (!user) {
-      setError('Utilisateur non connecte');
+      setError('Utilisateur non connecté');
       return;
     }
 
     // Confirmation finale
-    const confirmMessage = 'Cette action est IRREVERSIBLE. Toutes vos donnees seront definitivement supprimees. Etes-vous sur de vouloir continuer ?';
+    const confirmMessage = 'Cette action est IRRÉVERSIBLE. Toutes vos données seront définitivement supprimées. Êtes-vous sûr de vouloir continuer ?';
 
     if (Platform.OS === 'web') {
       if (!window.confirm(confirmMessage)) {
@@ -108,7 +108,7 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
               onPress: () => resolve(),
             },
             {
-              text: 'Supprimer definitivement',
+              text: 'Supprimer définitivement',
               style: 'destructive',
               onPress: async () => {
                 await performDeletion();
@@ -131,23 +131,23 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
       // 1. Re-authentifier l'utilisateur
       const currentUser = auth.currentUser;
       if (!currentUser || !currentUser.email) {
-        throw new Error('Utilisateur non connecte');
+        throw new Error('Utilisateur non connecté');
       }
 
       const credential = EmailAuthProvider.credential(currentUser.email, password);
       await reauthenticateWithCredential(currentUser, credential);
 
-      // 2. Supprimer toutes les donnees
+      // 2. Supprimer toutes les données
       await GDPRService.deleteUserData(user!.id, userRole);
 
       // 3. Afficher un message de confirmation
       if (Platform.OS === 'web') {
-        window.alert('Votre compte a ete supprime avec succes. Vous allez etre redirige vers la page d\'accueil.');
+        window.alert('Votre compte a été supprimé avec succès. Vous allez être redirigé vers la page d\'accueil.');
         router.replace('/(auth)/auth');
       } else {
         Alert.alert(
-          'Compte supprime',
-          'Votre compte a ete supprime avec succes.',
+          'Compte supprimé',
+          'Votre compte a été supprimé avec succès.',
           [
             {
               text: 'OK',
@@ -163,7 +163,7 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMessage = 'Mot de passe incorrect';
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Trop de tentatives. Veuillez reessayer plus tard.';
+        errorMessage = 'Trop de tentatives. Veuillez réessayer plus tard.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -197,10 +197,10 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
           <Ionicons name="warning" size={24} color="#DC2626" />
           <View style={styles.warningContent}>
             <ThemedText style={[styles.warningTitle, { color: '#991B1B' }]}>
-              Action irreversible
+              Action irréversible
             </ThemedText>
             <ThemedText style={[styles.warningText, { color: '#B91C1C' }]}>
-              La suppression de votre compte est definitive et ne peut pas etre annulee.
+              La suppression de votre compte est définitive et ne peut pas être annulée.
             </ThemedText>
           </View>
         </View>
@@ -208,7 +208,7 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
         {/* What will be deleted */}
         <View style={[styles.section, { backgroundColor: cardColor, borderColor }]}>
           <ThemedText style={styles.sectionTitle}>
-            Donnees qui seront supprimees :
+            Données qui seront supprimées :
           </ThemedText>
           {getDeletedDataList().map((item, index) => (
             <View key={index} style={styles.bulletContainer}>
@@ -223,10 +223,10 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
         {/* Password confirmation */}
         <View style={[styles.section, { backgroundColor: cardColor, borderColor }]}>
           <ThemedText style={styles.sectionTitle}>
-            Confirmez votre identite
+            Confirmez votre identité
           </ThemedText>
           <ThemedText style={[styles.sectionDescription, { color: textSecondary }]}>
-            Pour des raisons de securite, veuillez entrer votre mot de passe pour confirmer la suppression.
+            Pour des raisons de sécurité, veuillez entrer votre mot de passe pour confirmer la suppression.
           </ThemedText>
 
           <View style={[styles.inputWrapper, { borderColor: error ? '#DC2626' : borderColor }]}>
@@ -274,7 +274,7 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
             <>
               <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
               <ThemedText style={styles.deleteButtonText}>
-                Supprimer definitivement mon compte
+                Supprimer définitivement mon compte
               </ThemedText>
             </>
           )}
@@ -295,8 +295,8 @@ export function DeleteAccountScreen({ userRole }: DeleteAccountScreenProps) {
         <View style={styles.gdprInfo}>
           <Ionicons name="information-circle-outline" size={16} color={textSecondary} />
           <ThemedText style={[styles.gdprText, { color: textSecondary }]}>
-            Conformement au RGPD, vous avez le droit de demander la suppression de vos donnees personnelles.
-            Cette action supprime definitivement toutes vos informations de nos serveurs.
+            Conformément au RGPD, vous avez le droit de demander la suppression de vos données personnelles.
+            Cette action supprime définitivement toutes vos informations de nos serveurs.
           </ThemedText>
         </View>
       </ScrollView>

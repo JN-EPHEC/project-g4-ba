@@ -8,7 +8,8 @@ import {
   where,
   getDocs,
   Timestamp,
-  type DocumentData
+  type DocumentData,
+  type DocumentSnapshot
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
 import { AnyUser, UserRole, Scout, Parent, Animator, WeCampAdmin } from '@/types';
@@ -106,6 +107,16 @@ export class UserService {
       default:
         throw new Error(`Rôle invalide: ${data.role}`);
     }
+  }
+
+  /**
+   * Convertit un DocumentSnapshot Firestore en utilisateur
+   * Utilisé par les listeners temps réel (onSnapshot)
+   */
+  static convertFirestoreUserFromSnapshot(docSnapshot: DocumentSnapshot): AnyUser {
+    const data = docSnapshot.data();
+    if (!data) throw new Error('Document utilisateur vide');
+    return this.convertFirestoreUser({ id: docSnapshot.id, ...data });
   }
 
   /**
