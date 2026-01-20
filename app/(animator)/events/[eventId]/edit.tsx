@@ -74,7 +74,11 @@ export default function EditEventScreen() {
         const eventData = await EventService.getEventById(eventId);
 
         if (!eventData) {
-          Alert.alert('Erreur', 'Événement non trouvé');
+          if (Platform.OS === 'web') {
+            window.alert('Erreur: Événement non trouvé');
+          } else {
+            Alert.alert('Erreur', 'Événement non trouvé');
+          }
           router.back();
           return;
         }
@@ -93,7 +97,11 @@ export default function EditEventScreen() {
         });
       } catch (error) {
         console.error('Erreur chargement événement:', error);
-        Alert.alert('Erreur', 'Impossible de charger l\'événement');
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: Impossible de charger l\'événement');
+        } else {
+          Alert.alert('Erreur', 'Impossible de charger l\'événement');
+        }
         router.back();
       } finally {
         setLoadingEvent(false);
@@ -107,7 +115,11 @@ export default function EditEventScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos');
+        if (Platform.OS === 'web') {
+          window.alert('Permission requise: Nous avons besoin de la permission pour accéder à vos photos');
+        } else {
+          Alert.alert('Permission requise', 'Nous avons besoin de la permission pour accéder à vos photos');
+        }
         return;
       }
 
@@ -123,7 +135,11 @@ export default function EditEventScreen() {
       }
     } catch (error) {
       console.error('Erreur sélection image:', error);
-      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
+      if (Platform.OS === 'web') {
+        window.alert('Erreur: Impossible de sélectionner l\'image');
+      } else {
+        Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
+      }
     }
   };
 
@@ -134,9 +150,19 @@ export default function EditEventScreen() {
       setIsUploadingImage(true);
       const imageUrl = await StorageService.uploadEventImage(uri, user.id);
       setFormData({ ...formData, imageUrl });
+      // Confirmation de l'upload
+      if (Platform.OS === 'web') {
+        window.alert('Image uploadée avec succès !');
+      } else {
+        Alert.alert('Succès', 'Image uploadée avec succès !');
+      }
     } catch (error) {
       console.error('Erreur upload image:', error);
-      Alert.alert('Erreur', 'Impossible d\'uploader l\'image');
+      if (Platform.OS === 'web') {
+        window.alert('Erreur: Impossible d\'uploader l\'image');
+      } else {
+        Alert.alert('Erreur', 'Impossible d\'uploader l\'image');
+      }
     } finally {
       setIsUploadingImage(false);
     }
@@ -215,12 +241,21 @@ export default function EditEventScreen() {
 
       await EventService.updateEvent(eventId, updateData);
 
-      Alert.alert('Succès', 'Événement modifié avec succès !', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      if (Platform.OS === 'web') {
+        window.alert('Événement modifié avec succès !');
+        router.back();
+      } else {
+        Alert.alert('Succès', 'Événement modifié avec succès !', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      }
     } catch (error: any) {
       console.error('Erreur lors de la modification:', error);
-      Alert.alert('Erreur', `Impossible de modifier l'événement: ${error?.message || error}`);
+      if (Platform.OS === 'web') {
+        window.alert(`Erreur: Impossible de modifier l'événement: ${error?.message || error}`);
+      } else {
+        Alert.alert('Erreur', `Impossible de modifier l'événement: ${error?.message || error}`);
+      }
     } finally {
       setIsLoading(false);
     }

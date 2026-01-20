@@ -219,8 +219,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error.code === 'auth/email-already-in-use') {
         // L'email existe déjà dans Firebase Auth
         // Cela peut arriver si une inscription précédente a partiellement réussi
-        // ou si l'utilisateur a déjà un compte
-        errorMessage = 'Cet email est déjà enregistré. Essayez de vous connecter avec cet email, ou utilisez "Mot de passe oublié" si vous ne vous souvenez pas du mot de passe.';
+        // ou si l'utilisateur a déjà un compte (peut-être avec un autre rôle)
+        errorMessage = 'Un compte existe déjà avec cet email. Si vous avez déjà un compte (scout, animateur ou parent), connectez-vous directement. Sinon, utilisez "Mot de passe oublié" pour récupérer l\'accès.';
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = 'Email invalide';
       } else if (error.code === 'auth/weak-password') {

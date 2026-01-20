@@ -75,14 +75,6 @@ export default function RoleSelectionScreen() {
 
     // Si c'est un animateur, rediriger vers la sélection de fédération + code d'accès
     if (selectedRole === UserRole.ANIMATOR) {
-      console.log('🎭 ANIMATEUR sélectionné - redirection vers animator-unit-selection');
-      console.log('🎭 selectedRole =', selectedRole);
-      console.log('🎭 params passés:', {
-        email: params.email,
-        firstName: params.firstName,
-        lastName: params.lastName,
-        role: selectedRole,
-      });
       router.push({
         pathname: '/(auth)/animator-unit-selection',
         params: {
@@ -100,8 +92,6 @@ export default function RoleSelectionScreen() {
     }
 
     try {
-      console.log('🚀 Début de l\'inscription avec le rôle:', selectedRole);
-
       // La fonction register retourne maintenant l'utilisateur créé
       const registeredUser = await register(
         params.email as string,
@@ -111,30 +101,23 @@ export default function RoleSelectionScreen() {
         selectedRole
       );
 
-      console.log('✅ Inscription réussie, utilisateur:', registeredUser);
-      console.log('🚀 Redirection vers le dashboard...');
-
       // Utiliser le rôle de l'utilisateur retourné, ou le rôle sélectionné en fallback
       const roleToUse = registeredUser?.role || selectedRole;
 
       // Redirection basée sur le rôle
       switch (roleToUse) {
         case UserRole.PARENT:
-          console.log('📍 Redirection vers dashboard Parent');
           router.push('/(parent)/dashboard');
           break;
         case UserRole.ANIMATOR:
-          console.log('📍 Redirection vers dashboard Animateur');
           router.push('/(animator)/dashboard');
           break;
         default:
-          console.error('❌ Rôle invalide pour la redirection:', roleToUse);
           Alert.alert('Erreur', 'Impossible de déterminer ton rôle.', [
             { text: 'OK', style: 'default', onPress: () => router.push('/(auth)/login') }
           ]);
       }
     } catch (error: any) {
-      console.error('❌ Erreur d\'inscription complète:', error);
       const errorMessage = error?.message || 'Impossible de créer ton compte';
       Alert.alert('Erreur', errorMessage, [{ text: 'OK', style: 'default' }]);
     }
@@ -162,11 +145,7 @@ export default function RoleSelectionScreen() {
           {roleOptions.map((option) => (
             <Pressable
               key={option.role}
-              onPress={() => {
-                console.log('🎭 Rôle sélectionné:', option.role);
-                console.log('🎭 Type:', typeof option.role);
-                setSelectedRole(option.role);
-              }}
+              onPress={() => setSelectedRole(option.role)}
             >
               <Card
                 style={[

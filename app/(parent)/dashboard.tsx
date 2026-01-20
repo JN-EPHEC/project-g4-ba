@@ -138,6 +138,7 @@ export default function ParentDashboardScreen() {
       setScouts(parentScouts);
 
       // Vérifier les fiches santé pour chaque scout
+      // Une fiche est considérée comme complète si elle a des contacts d'urgence ET est signée par un parent
       const healthStatus: Record<string, boolean> = {};
       let missingCount = 0;
 
@@ -145,9 +146,10 @@ export default function ParentDashboardScreen() {
         parentScouts.map(async (scout) => {
           try {
             const healthRecord = await HealthService.getHealthRecord(scout.id);
-            const hasHealth = !!healthRecord;
-            healthStatus[scout.id] = hasHealth;
-            if (!hasHealth) missingCount++;
+            // Vérifier si la fiche existe ET est complète (contacts + signature)
+            const isComplete = healthRecord ? HealthService.isHealthRecordComplete(healthRecord) : false;
+            healthStatus[scout.id] = isComplete;
+            if (!isComplete) missingCount++;
           } catch {
             healthStatus[scout.id] = false;
             missingCount++;

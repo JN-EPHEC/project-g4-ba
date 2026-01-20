@@ -47,18 +47,26 @@ export function FileCard({ file, canDelete, onDelete, onPress }: FileCardProps) 
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Supprimer le fichier',
-      `Voulez-vous vraiment supprimer "${file.name}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: onDelete,
-        },
-      ]
-    );
+    if (Platform.OS === 'web') {
+      // Sur web, utiliser window.confirm car Alert.alert ne fonctionne pas
+      const confirmed = window.confirm(`Voulez-vous vraiment supprimer "${file.name}" ?`);
+      if (confirmed && onDelete) {
+        onDelete();
+      }
+    } else {
+      Alert.alert(
+        'Supprimer le fichier',
+        `Voulez-vous vraiment supprimer "${file.name}" ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Supprimer',
+            style: 'destructive',
+            onPress: onDelete,
+          },
+        ]
+      );
+    }
   };
 
   return (

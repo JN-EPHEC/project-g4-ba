@@ -25,8 +25,9 @@ import { BrandColors, NeutralColors } from '@/constants/theme';
 
 // Emojis disponibles pour le défi
 const CHALLENGE_EMOJIS = [
-  '🏕️', '🔥', '🥾', '🪢', '♻️', '👨‍🍳',
-  '🧭', '⛺', '⭐', '🎯', '🏆', '🌿',
+  '🎯', '🌲', '🔥', '⭐', '🏆', '🥾',
+  '🧭', '🪢', '🍳', '🌍', '🤝', '👋',
+  '🎪', '⛺',
 ];
 
 // Configuration des catégories
@@ -70,7 +71,7 @@ export default function CreateChallengeScreen() {
   const FIXED_POINTS = 10;
 
   const [formData, setFormData] = useState({
-    emoji: '🪢',
+    emoji: CHALLENGE_EMOJIS[0], // Premier emoji de la liste par défaut
     title: '',
     description: '',
     difficulty: ChallengeDifficulty.EASY,
@@ -172,7 +173,10 @@ export default function CreateChallengeScreen() {
   const handleWebStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value) {
-      setFormData({ ...formData, startDate: new Date(value) });
+      // Parser la date au format YYYY-MM-DD en créant une date locale (pas UTC)
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(year, month - 1, day, 12, 0, 0); // midi pour éviter les problèmes de fuseau
+      setFormData({ ...formData, startDate: date });
     } else {
       setFormData({ ...formData, startDate: null });
     }
@@ -181,7 +185,10 @@ export default function CreateChallengeScreen() {
   const handleWebEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value) {
-      setFormData({ ...formData, endDate: new Date(value) });
+      // Parser la date au format YYYY-MM-DD en créant une date locale (pas UTC)
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(year, month - 1, day, 12, 0, 0); // midi pour éviter les problèmes de fuseau
+      setFormData({ ...formData, endDate: date });
     } else {
       setFormData({ ...formData, endDate: null });
     }
