@@ -105,10 +105,7 @@ export default function ScoutLayout() {
       <Tabs.Screen
         name="documents"
         options={{
-          title: 'Documents',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
-          ),
+          href: null, // Accessible depuis Plus
         }}
       />
       <Tabs.Screen
