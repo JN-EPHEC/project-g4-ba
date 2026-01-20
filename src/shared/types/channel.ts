@@ -32,7 +32,7 @@ export const DEFAULT_CHANNEL_PERMISSIONS: Record<ChannelType, ChannelPermissions
   },
   [ChannelType.PARENTS]: {
     canRead: [UserRole.PARENT, UserRole.ANIMATOR], // Seul canal accessible aux parents
-    canWrite: [UserRole.ANIMATOR], // Seuls les animateurs peuvent écrire (annonces)
+    canWrite: [UserRole.PARENT, UserRole.ANIMATOR], // Parents et animateurs peuvent écrire
   },
   [ChannelType.CUSTOM]: {
     canRead: [UserRole.SCOUT, UserRole.ANIMATOR],
@@ -121,8 +121,8 @@ export const DEFAULT_CHANNELS: Omit<Channel, 'id' | 'unitId' | 'createdBy' | 'cr
     isDefault: true,
   },
   {
-    name: 'Annonces Parents',
-    description: 'Annonces et informations pour les parents',
+    name: 'Espace Parents',
+    description: 'Échanges entre parents et animateurs',
     type: ChannelType.PARENTS,
     icon: '👨‍👩‍👧',
     permissions: DEFAULT_CHANNEL_PERMISSIONS[ChannelType.PARENTS],

@@ -44,7 +44,7 @@ const DEFAULT_CHANNEL_PERMISSIONS = {
   },
   [ChannelType.PARENTS]: {
     canRead: [UserRole.PARENT, UserRole.ANIMATOR],
-    canWrite: [UserRole.ANIMATOR],
+    canWrite: [UserRole.PARENT, UserRole.ANIMATOR],
   },
   [ChannelType.CUSTOM]: {
     canRead: [UserRole.SCOUT, UserRole.ANIMATOR],
