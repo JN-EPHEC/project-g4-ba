@@ -429,4 +429,40 @@ export class HealthService {
       (record.signedByParentId === null || record.signedByParentId === undefined)
     );
   }
+
+  /**
+   * Récupère le statut de fiche santé de chaque scout
+   */
+  static async getScoutsHealthStatus(scoutIds: string[]): Promise<{
+    scoutId: string;
+    status: 'missing' | 'unsigned' | 'signed';
+    signedAt?: Date;
+    signedByParentName?: string;
+  }[]> {
+    const results: {
+      scoutId: string;
+      status: 'missing' | 'unsigned' | 'signed';
+      signedAt?: Date;
+      signedByParentName?: string;
+    }[] = [];
+
+    for (const scoutId of scoutIds) {
+      const healthRecord = await this.getHealthRecord(scoutId);
+
+      if (!healthRecord) {
+        results.push({ scoutId, status: 'missing' });
+      } else if (!healthRecord.signedByParentId) {
+        results.push({ scoutId, status: 'unsigned' });
+      } else {
+        results.push({
+          scoutId,
+          status: 'signed',
+          signedAt: healthRecord.signedAt,
+          signedByParentName: healthRecord.signedByParentName,
+        });
+      }
+    }
+
+    return results;
+  }
 }

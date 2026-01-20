@@ -56,7 +56,7 @@ export default function ParentLayout() {
       <Tabs.Screen
         name="scouts"
         options={{
-          title: 'Mes Scouts',
+          title: 'Mes Enfants',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
           ),

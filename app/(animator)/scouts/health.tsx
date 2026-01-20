@@ -13,27 +13,26 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Card, PrimaryButton } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { useAuth } from '@/context/auth-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BrandColors } from '@/constants/theme';
-import { DocumentService } from '@/services/document-service';
+import { HealthService } from '@/services/health-service';
 import { UnitService } from '@/services/unit-service';
 import { Animator, Scout } from '@/types';
 
-interface ScoutWithStatus extends Scout {
-  signedCount: number;
-  totalDocuments: number;
-  lastSignedAt?: Date;
+interface ScoutWithHealthStatus extends Scout {
+  healthStatus: 'missing' | 'signed';
+  signedAt?: Date;
+  signedByParentName?: string;
 }
 
-type FilterType = 'all' | 'complete' | 'pending';
+type FilterType = 'all' | 'signed' | 'missing';
 
-export default function AuthorizationsScreen() {
+export default function HealthStatusScreen() {
   const { user } = useAuth();
   const animator = user as Animator;
-  const [scouts, setScouts] = useState<ScoutWithStatus[]>([]);
-  const [totalDocuments, setTotalDocuments] = useState(0);
+  const [scouts, setScouts] = useState<ScoutWithHealthStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -42,8 +41,6 @@ export default function AuthorizationsScreen() {
   const cardBorder = useThemeColor({}, 'cardBorder');
   const textColor = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
-  const iconColor = useThemeColor({}, 'icon');
-  const backgroundColor = useThemeColor({}, 'background');
 
   const loadData = useCallback(async () => {
     if (!animator?.unitId) return;
@@ -55,35 +52,36 @@ export default function AuthorizationsScreen() {
 
       if (validatedScouts.length === 0) {
         setScouts([]);
-        setTotalDocuments(0);
         return;
       }
 
-      // Récupérer le statut de signature de chaque scout
+      // Récupérer le statut de santé de chaque scout
       const scoutIds = validatedScouts.map(s => s.id);
-      const statuses = await DocumentService.getScoutsAuthorizationStatus(animator.unitId, scoutIds);
+      const statuses = await HealthService.getScoutsHealthStatus(scoutIds);
 
-      // Fusionner les données
-      const scoutsWithStatus: ScoutWithStatus[] = validatedScouts.map(scout => {
+      // Fusionner les données - traiter "unsigned" comme "missing"
+      const scoutsWithStatus: ScoutWithHealthStatus[] = validatedScouts.map(scout => {
         const status = statuses.find(s => s.scoutId === scout.id);
+        // Si unsigned ou missing, on considère comme missing
+        const healthStatus = status?.status === 'signed' ? 'signed' : 'missing';
         return {
           ...scout,
-          signedCount: status?.signedCount || 0,
-          totalDocuments: status?.totalDocuments || 0,
-          lastSignedAt: status?.lastSignedAt,
+          healthStatus,
+          signedAt: status?.signedAt,
+          signedByParentName: status?.signedByParentName,
         };
       });
 
-      // Trier : en attente d'abord, puis par nom
+      // Trier : manquants d'abord, puis signés, puis par nom
       scoutsWithStatus.sort((a, b) => {
-        const aComplete = a.totalDocuments > 0 && a.signedCount === a.totalDocuments;
-        const bComplete = b.totalDocuments > 0 && b.signedCount === b.totalDocuments;
-        if (aComplete !== bComplete) return aComplete ? 1 : -1;
+        const statusOrder = { missing: 0, signed: 1 };
+        if (statusOrder[a.healthStatus] !== statusOrder[b.healthStatus]) {
+          return statusOrder[a.healthStatus] - statusOrder[b.healthStatus];
+        }
         return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
       });
 
       setScouts(scoutsWithStatus);
-      setTotalDocuments(statuses[0]?.totalDocuments || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     }
@@ -106,14 +104,42 @@ export default function AuthorizationsScreen() {
 
   const filteredScouts = scouts.filter(scout => {
     if (filter === 'all') return true;
-    const isComplete = scout.totalDocuments > 0 && scout.signedCount === scout.totalDocuments;
-    if (filter === 'complete') return isComplete;
-    if (filter === 'pending') return !isComplete;
-    return true;
+    return scout.healthStatus === filter;
   });
 
-  const completeCount = scouts.filter(s => s.totalDocuments > 0 && s.signedCount === s.totalDocuments).length;
-  const pendingCount = scouts.filter(s => s.totalDocuments === 0 || s.signedCount < s.totalDocuments).length;
+  const signedCount = scouts.filter(s => s.healthStatus === 'signed').length;
+  const missingCount = scouts.filter(s => s.healthStatus === 'missing').length;
+
+  const getStatusIcon = (status: 'missing' | 'signed') => {
+    switch (status) {
+      case 'signed':
+        return <Ionicons name="checkmark-circle" size={16} color="#059669" />;
+      case 'missing':
+        return <Ionicons name="close-circle" size={16} color="#ef4444" />;
+    }
+  };
+
+  const getStatusText = (scout: ScoutWithHealthStatus) => {
+    switch (scout.healthStatus) {
+      case 'signed':
+        return 'Fiche santé signée';
+      case 'missing':
+        return 'Fiche santé manquante';
+    }
+  };
+
+  const getStatusColor = (status: 'missing' | 'signed') => {
+    switch (status) {
+      case 'signed':
+        return '#059669';
+      case 'missing':
+        return '#ef4444';
+    }
+  };
+
+  const getBorderColor = (status: 'missing' | 'signed') => {
+    return getStatusColor(status);
+  };
 
   if (isLoading) {
     return (
@@ -141,43 +167,29 @@ export default function AuthorizationsScreen() {
             <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
           <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
-            Autorisations
+            Fiches Santé
           </ThemedText>
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: BrandColors.primary[500] }]}
-            onPress={() => router.push('/(animator)/documents/authorizations/create')}
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={{ width: 44 }} />
         </View>
 
         {/* Résumé */}
         <Card style={[styles.summaryCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
-              <ThemedText type="title" style={styles.summaryValue}>
-                {totalDocuments}
-              </ThemedText>
-              <ThemedText style={[styles.summaryLabel, { color: textSecondary }]}>
-                {totalDocuments === 1 ? 'Document' : 'Documents'}
-              </ThemedText>
-            </View>
-            <View style={[styles.summaryDivider, { backgroundColor: cardBorder }]} />
-            <View style={styles.summaryItem}>
               <ThemedText type="title" style={[styles.summaryValue, { color: '#059669' }]}>
-                {completeCount}
+                {signedCount}
               </ThemedText>
               <ThemedText style={[styles.summaryLabel, { color: textSecondary }]}>
-                Complets
+                Signées
               </ThemedText>
             </View>
             <View style={[styles.summaryDivider, { backgroundColor: cardBorder }]} />
             <View style={styles.summaryItem}>
-              <ThemedText type="title" style={[styles.summaryValue, { color: '#d97706' }]}>
-                {pendingCount}
+              <ThemedText type="title" style={[styles.summaryValue, { color: '#ef4444' }]}>
+                {missingCount}
               </ThemedText>
               <ThemedText style={[styles.summaryLabel, { color: textSecondary }]}>
-                En attente
+                Manquantes
               </ThemedText>
             </View>
           </View>
@@ -203,111 +215,87 @@ export default function AuthorizationsScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filter === 'complete' && { backgroundColor: '#059669' },
-              filter !== 'complete' && { backgroundColor: cardColor, borderColor: cardBorder, borderWidth: 1 },
+              filter === 'signed' && { backgroundColor: '#059669' },
+              filter !== 'signed' && { backgroundColor: cardColor, borderColor: cardBorder, borderWidth: 1 },
             ]}
-            onPress={() => setFilter('complete')}
+            onPress={() => setFilter('signed')}
           >
             <ThemedText style={[
               styles.filterText,
-              filter === 'complete' ? { color: '#FFFFFF' } : { color: textColor },
+              filter === 'signed' ? { color: '#FFFFFF' } : { color: textColor },
             ]}>
-              Complets ({completeCount})
+              Signées ({signedCount})
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filter === 'pending' && { backgroundColor: '#d97706' },
-              filter !== 'pending' && { backgroundColor: cardColor, borderColor: cardBorder, borderWidth: 1 },
+              filter === 'missing' && { backgroundColor: '#ef4444' },
+              filter !== 'missing' && { backgroundColor: cardColor, borderColor: cardBorder, borderWidth: 1 },
             ]}
-            onPress={() => setFilter('pending')}
+            onPress={() => setFilter('missing')}
           >
             <ThemedText style={[
               styles.filterText,
-              filter === 'pending' ? { color: '#FFFFFF' } : { color: textColor },
+              filter === 'missing' ? { color: '#FFFFFF' } : { color: textColor },
             ]}>
-              En attente ({pendingCount})
+              Manquantes ({missingCount})
             </ThemedText>
           </TouchableOpacity>
         </View>
 
-        {totalDocuments === 0 ? (
-          <Card style={[styles.emptyCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-            <Ionicons name="document-text-outline" size={48} color={textSecondary} />
-            <ThemedText style={[styles.emptyTitle, { color: textColor }]}>
-              Aucune autorisation
-            </ThemedText>
-            <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
-              Créez votre première autorisation à faire signer par les parents
-            </ThemedText>
-            <PrimaryButton
-              title="Créer une autorisation"
-              onPress={() => router.push('/(animator)/documents/authorizations/create')}
-              style={styles.emptyButton}
-            />
-          </Card>
-        ) : filteredScouts.length === 0 ? (
+        {filteredScouts.length === 0 ? (
           <Card style={[styles.emptyCard, { backgroundColor: cardColor, borderColor: cardBorder }]}>
             <Ionicons name="checkmark-circle-outline" size={48} color="#059669" />
             <ThemedText style={[styles.emptyTitle, { color: textColor }]}>
-              {filter === 'pending' ? 'Tous les scouts sont à jour !' : 'Aucun scout dans cette catégorie'}
+              {filter === 'all' ? 'Aucun scout dans cette unité' : 'Aucun scout dans cette catégorie'}
             </ThemedText>
           </Card>
         ) : (
-          filteredScouts.map((scout) => {
-            const isComplete = scout.totalDocuments > 0 && scout.signedCount === scout.totalDocuments;
-            const pendingDocs = scout.totalDocuments - scout.signedCount;
-
-            return (
-              <Card
-                key={scout.id}
-                style={[
-                  styles.scoutCard,
-                  { backgroundColor: cardColor, borderColor: cardBorder },
-                  isComplete && { borderLeftColor: '#059669', borderLeftWidth: 4 },
-                  !isComplete && { borderLeftColor: '#d97706', borderLeftWidth: 4 },
-                ]}
-              >
-                <View style={styles.scoutRow}>
-                  {scout.photoURL ? (
-                    <Image source={{ uri: scout.photoURL }} style={styles.avatar} />
-                  ) : (
-                    <View style={[styles.avatarPlaceholder, { backgroundColor: BrandColors.primary[100] }]}>
-                      <ThemedText style={[styles.avatarText, { color: BrandColors.primary[600] }]}>
-                        {scout.firstName?.[0]}{scout.lastName?.[0]}
-                      </ThemedText>
-                    </View>
-                  )}
-                  <View style={styles.scoutInfo}>
-                    <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
-                      {scout.firstName} {scout.lastName}
+          filteredScouts.map((scout) => (
+            <Card
+              key={scout.id}
+              style={[
+                styles.scoutCard,
+                { backgroundColor: cardColor, borderColor: cardBorder },
+                { borderLeftColor: getBorderColor(scout.healthStatus), borderLeftWidth: 4 },
+              ]}
+            >
+              <View style={styles.scoutRow}>
+                {scout.photoURL ? (
+                  <Image source={{ uri: scout.photoURL }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatarPlaceholder, { backgroundColor: BrandColors.primary[100] }]}>
+                    <ThemedText style={[styles.avatarText, { color: BrandColors.primary[600] }]}>
+                      {scout.firstName?.[0]}{scout.lastName?.[0]}
                     </ThemedText>
-                    {isComplete ? (
-                      <View style={styles.statusRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                        <ThemedText style={[styles.statusText, { color: '#059669' }]}>
-                          {scout.signedCount}/{scout.totalDocuments} documents signés
-                        </ThemedText>
-                      </View>
-                    ) : (
-                      <View style={styles.statusRow}>
-                        <Ionicons name="time" size={16} color="#d97706" />
-                        <ThemedText style={[styles.statusText, { color: '#d97706' }]}>
-                          {pendingDocs} {pendingDocs === 1 ? 'document en attente' : 'documents en attente'}
-                        </ThemedText>
-                      </View>
-                    )}
-                    {scout.lastSignedAt && (
-                      <ThemedText style={[styles.dateText, { color: textSecondary }]}>
-                        Dernier signé le {scout.lastSignedAt.toLocaleDateString('fr-FR')}
-                      </ThemedText>
-                    )}
                   </View>
+                )}
+                <View style={styles.scoutInfo}>
+                  <ThemedText type="defaultSemiBold" style={{ color: textColor }}>
+                    {scout.firstName} {scout.lastName}
+                  </ThemedText>
+                  <View style={styles.statusRow}>
+                    {getStatusIcon(scout.healthStatus)}
+                    <ThemedText style={[styles.statusText, { color: getStatusColor(scout.healthStatus) }]}>
+                      {getStatusText(scout)}
+                    </ThemedText>
+                  </View>
+                  {scout.healthStatus === 'signed' && scout.signedByParentName && (
+                    <ThemedText style={[styles.dateText, { color: textSecondary }]}>
+                      Signé par {scout.signedByParentName}
+                      {scout.signedAt && ` le ${scout.signedAt.toLocaleDateString('fr-FR')}`}
+                    </ThemedText>
+                  )}
+                  {scout.healthStatus === 'missing' && (
+                    <ThemedText style={[styles.dateText, { color: textSecondary }]}>
+                      Fiche à compléter ou à signer
+                    </ThemedText>
+                  )}
                 </View>
-              </Card>
-            );
-          })
+              </View>
+            </Card>
+          ))
         )}
       </ScrollView>
     </ThemedView>
@@ -334,13 +322,6 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -381,7 +362,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   filterButton: {
-    flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -401,13 +381,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  emptyButton: {
-    marginTop: 8,
   },
   scoutCard: {
     padding: 16,

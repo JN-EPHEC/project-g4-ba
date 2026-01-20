@@ -81,7 +81,7 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
       description: `${missingHealthRecordsCount} fiche${missingHealthRecordsCount > 1 ? 's' : ''} santé à compléter`,
       icon: '🏥',
       color: '#ef4444',
-      route: '/(animator)/scouts',
+      route: '/(animator)/scouts/health',
       count: missingHealthRecordsCount,
     });
   }

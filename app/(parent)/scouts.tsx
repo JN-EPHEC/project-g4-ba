@@ -105,7 +105,7 @@ export default function ScoutsScreen() {
         <Animated.View entering={FadeInUp.duration(400)}>
           <View style={styles.header}>
             <ThemedText type="title" style={[styles.title, { color: BrandColors.primary[600] }]}>
-              Mes Scouts
+              Mes Enfants
             </ThemedText>
             <TouchableOpacity
               style={[styles.addButton, { backgroundColor: BrandColors.primary[500] }]}

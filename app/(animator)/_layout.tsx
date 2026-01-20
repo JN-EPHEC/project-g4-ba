@@ -196,6 +196,12 @@ export default function AnimatorLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="scouts/health"
+        options={{
+          href: null, // Accessible depuis notifications
+        }}
+      />
     </Tabs>
   );
 }

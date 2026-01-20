@@ -359,27 +359,6 @@ export default function AnimatorDashboardScreen() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Alerts Section - Only pending authorizations (health records are in notifications) */}
-        {pendingAuthorizationsCount > 0 && (
-          <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-            <TouchableOpacity
-              style={[styles.alertCard, { backgroundColor: '#FFFBEB' }]}
-              onPress={() => router.push('/(animator)/documents/authorizations')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.alertIcon, { backgroundColor: '#FEF3C7' }]}>
-                <ThemedText style={styles.alertEmoji}>📋</ThemedText>
-              </View>
-              <ThemedText style={[styles.alertText, { color: '#D97706' }]}>
-                {pendingAuthorizationsCount} {pendingAuthorizationsCount === 1 ? 'autorisation à signer' : 'autorisations à signer'}
-              </ThemedText>
-              <View style={[styles.alertButton, { backgroundColor: '#FDE68A' }]}>
-                <ThemedText style={[styles.alertButtonText, { color: '#D97706' }]}>Voir</ThemedText>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
         {/* Quick Actions */}
         <Animated.View entering={FadeInUp.duration(400).delay(150)}>
           <View style={styles.quickActions}>

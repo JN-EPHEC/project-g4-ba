@@ -287,5 +287,52 @@ export class DocumentService {
 
     return signedDocs;
   }
+
+  /**
+   * Récupère le statut de signature de chaque scout pour tous les documents de l'unité
+   */
+  static async getScoutsAuthorizationStatus(
+    unitId: string,
+    scoutIds: string[]
+  ): Promise<{
+    scoutId: string;
+    signedCount: number;
+    totalDocuments: number;
+    lastSignedAt?: Date;
+  }[]> {
+    const documents = await this.getDocumentsRequiringSignature(unitId);
+    const totalDocuments = documents.length;
+
+    const results: {
+      scoutId: string;
+      signedCount: number;
+      totalDocuments: number;
+      lastSignedAt?: Date;
+    }[] = [];
+
+    for (const scoutId of scoutIds) {
+      let signedCount = 0;
+      let lastSignedAt: Date | undefined;
+
+      for (const document of documents) {
+        const signature = await this.getDocumentSignature(document.id, scoutId);
+        if (signature) {
+          signedCount++;
+          if (!lastSignedAt || signature.signedAt > lastSignedAt) {
+            lastSignedAt = signature.signedAt;
+          }
+        }
+      }
+
+      results.push({
+        scoutId,
+        signedCount,
+        totalDocuments,
+        lastSignedAt,
+      });
+    }
+
+    return results;
+  }
 }
 
