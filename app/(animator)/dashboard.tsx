@@ -821,17 +821,17 @@ const styles = StyleSheet.create({
   quickActions: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md, direction: 'ltr', alignItems: 'stretch' },
   primaryAction: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: Spacing.lg, height: 48,
+    paddingHorizontal: Spacing.lg, height: 52,
     borderRadius: Radius.xl, gap: Spacing.sm,
   },
   primaryActionText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
   secondaryAction: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    height: 48, borderRadius: Radius.xl, borderWidth: 1, gap: Spacing.sm,
+    height: 52, borderRadius: Radius.xl, borderWidth: 1, gap: Spacing.sm,
   },
   secondaryActionText: { fontSize: 15, fontWeight: '500' },
   moreAction: {
-    width: 48, height: 48, borderRadius: Radius.xl, borderWidth: 1,
+    width: 52, height: 52, borderRadius: Radius.xl, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
 
