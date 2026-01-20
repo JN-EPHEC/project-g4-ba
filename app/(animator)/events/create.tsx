@@ -240,9 +240,16 @@ export default function CreateEventScreen() {
         style={styles.keyboardView}
       >
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-          <ThemedText type="title" style={styles.title}>
-            Créer un événement
-          </ThemedText>
+          {/* Header avec bouton retour */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={textColor} />
+            </TouchableOpacity>
+            <ThemedText type="title" style={styles.title}>
+              Créer un événement
+            </ThemedText>
+            <View style={{ width: 40 }} />
+          </View>
 
           <Card style={styles.formCard}>
             <Input
@@ -445,8 +452,22 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 100,
   },
-  title: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    flex: 1,
+    textAlign: 'center',
   },
   formCard: {
     padding: 20,
