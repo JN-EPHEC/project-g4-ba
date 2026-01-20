@@ -818,16 +818,16 @@ const styles = StyleSheet.create({
   alertButtonText: { fontSize: 13, fontWeight: '600' },
 
   // Quick Actions
-  quickActions: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md, direction: 'ltr' },
+  quickActions: { flexDirection: 'row', paddingHorizontal: Spacing.xl, marginTop: Spacing.xl, gap: Spacing.md, direction: 'ltr', alignItems: 'stretch' },
   primaryAction: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: Spacing.lg, height: 48,
     borderRadius: Radius.xl, gap: Spacing.sm,
   },
   primaryActionText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
   secondaryAction: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: Spacing.md, borderRadius: Radius.xl, borderWidth: 1, gap: Spacing.sm,
+    height: 48, borderRadius: Radius.xl, borderWidth: 1, gap: Spacing.sm,
   },
   secondaryActionText: { fontSize: 15, fontWeight: '500' },
   moreAction: {
