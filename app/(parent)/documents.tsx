@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -60,12 +60,11 @@ export default function ParentDocumentsScreen() {
   const textSecondary = useThemeColor({}, 'textSecondary');
   const backgroundColor = useThemeColor({}, 'background');
 
-  useEffect(() => {
-    loadDocuments();
-  }, [parent?.id]);
-
-  const loadDocuments = async () => {
-    if (!parent?.id) return;
+  const loadDocuments = useCallback(async () => {
+    if (!parent?.id) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -136,7 +135,11 @@ export default function ParentDocumentsScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [parent?.id, selectedUnitId]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   const handleSignDocument = async () => {
     if (!selectedDocument || !parent?.id || !signatureText.trim()) {
